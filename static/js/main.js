@@ -189,7 +189,7 @@ function renderServiceCards(services) {
             '<div class="svc-meta">' +
                 '<span class="svc-port">:' + svc.port + '</span>' +
                 '<span class="svc-runtime">' + esc(svc.runtime) + '</span>' +
-                '<span>' + svc.workers + 'w</span>' +
+                '<span class=\"svc-workers\">' + svc.workers + 'w</span>' +
             '</div>' +
             '<div class="svc-badge ' + svc.status + '">' +
                 '<span class="dot"></span>' +
@@ -335,7 +335,7 @@ function filterAuditEntries() {
         const meta   = e.metadata && Object.keys(e.metadata).length
             ? Object.entries(e.metadata).map(([k, v]) => k + ': ' + JSON.stringify(v)).join(' · ')
             : '';
-        return '<div class="audit-entry">' +
+        return '<div class="audit-entry a-' + cls + '">' +
             '<div class="audit-left">' +
                 '<span class="audit-action ' + cls + '">' + esc(action) + '</span>' +
                 '<span class="audit-time">' + esc(ts) + '</span>' +
@@ -369,7 +369,7 @@ async function fetchDatabase() {
     if (!d) return;
 
     const infoEl = document.getElementById('dbTableInfo');
-    if (infoEl) infoEl.textContent = d.rows.length + ' rows · ' + d.table;
+    if (infoEl) infoEl.innerHTML = '<span class="db-badge">' + d.rows.length + ' rows</span> <span style="color:var(--muted)">·</span> ' + esc(d.table);
 
     const head = document.getElementById('dbTableHead');
     const body = document.getElementById('dbTableBody');
