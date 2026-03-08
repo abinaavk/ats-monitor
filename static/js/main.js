@@ -331,16 +331,16 @@ function filterAuditEntries() {
     list.innerHTML = filtered.map(e => {
         const action = e.action || 'RAW';
         const cls    = auditActionClass(action);
-        const ts     = e.timestamp ? e.timestamp.replace('T', ' ').substring(0, 19) : '—';
-        const meta   = e.metadata && Object.keys(e.metadata).length
+        // Try every field name ATS might use for the timestamp
+        const raw = e.timestamp || e.created_at || e.time || e.ts || '';
+        const ts  = raw ? String(raw).replace('T', ' ').substring(0, 19) : 'no timestamp';
+        const meta = e.metadata && Object.keys(e.metadata).length
             ? Object.entries(e.metadata).map(([k, v]) => k + ': ' + JSON.stringify(v)).join(' · ')
             : '';
-        // Row 1: [badge] [target ···] [user chip]
-        // Row 2: [timestamp] [· meta]
         return '<div class="audit-entry a-' + cls + '">' +
-            '<div class="audit-left">' +
+            '<div class="audit-row-top">' +
                 '<span class="audit-action ' + cls + '">' + esc(action) + '</span>' +
-                '<div class="audit-target">' + esc(e.target || '') + '</div>' +
+                '<div class="audit-target">' + esc(e.target || '—') + '</div>' +
                 '<div class="audit-user">' + esc(e.user || 'root') + '</div>' +
             '</div>' +
             '<div class="audit-row-bot">' +

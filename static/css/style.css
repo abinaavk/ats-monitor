@@ -451,61 +451,51 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* ── AUDIT ENTRY — 2-row card layout ──────────────────────── */
-/*
-  Structure (always, all screen sizes):
-  ┌─────────────────────────────────────────┐
-  │ [ACTION BADGE]   service-name   [root]  │  ← audit-row-top
-  │ 2024-01-15 14:32:09 · key: val …        │  ← audit-row-bot
-  └─────────────────────────────────────────┘
-*/
+/* ── AUDIT ENTRY — strict 2-row card ──────────────────────── */
 .audit-entry {
-  background:var(--card); border:1px solid var(--border); border-radius:9px;
-  padding: 0.65rem 0.85rem;
-  display: flex; flex-direction: column; gap: 0.3rem;
-  font-size:0.62rem; transition:border-color 0.2s;
-  position:relative; overflow:hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  /* No padding on the card itself — rows handle their own padding */
+  overflow: hidden;
+  transition: border-color 0.2s;
+  position: relative;
 }
 
 /* Color left-border + tinted bg per type */
-.audit-entry.a-deploy   { border-left:3px solid var(--green);  background:linear-gradient(90deg,rgba(0,255,136,0.04),var(--card) 28%); }
-.audit-entry.a-destroy  { border-left:3px solid var(--red);    background:linear-gradient(90deg,rgba(255,51,102,0.04),var(--card) 28%); }
-.audit-entry.a-backup   { border-left:3px solid var(--cyan);   background:linear-gradient(90deg,rgba(0,212,255,0.04),var(--card) 28%); }
-.audit-entry.a-update   { border-left:3px solid var(--amber);  background:linear-gradient(90deg,rgba(255,179,0,0.04),var(--card) 28%); }
-.audit-entry.a-webhook  { border-left:3px solid var(--purple); background:linear-gradient(90deg,rgba(192,132,252,0.04),var(--card) 28%); }
-.audit-entry.a-config   { border-left:3px solid var(--teal);   background:linear-gradient(90deg,rgba(45,212,191,0.04),var(--card) 28%); }
+.audit-entry.a-deploy   { border-left:3px solid var(--green);  background:linear-gradient(90deg,rgba(0,255,136,0.05),var(--card) 24%); }
+.audit-entry.a-destroy  { border-left:3px solid var(--red);    background:linear-gradient(90deg,rgba(255,51,102,0.05),var(--card) 24%); }
+.audit-entry.a-backup   { border-left:3px solid var(--cyan);   background:linear-gradient(90deg,rgba(0,212,255,0.05),var(--card) 24%); }
+.audit-entry.a-update   { border-left:3px solid var(--amber);  background:linear-gradient(90deg,rgba(255,179,0,0.05),var(--card) 24%); }
+.audit-entry.a-webhook  { border-left:3px solid var(--purple); background:linear-gradient(90deg,rgba(192,132,252,0.05),var(--card) 24%); }
+.audit-entry.a-config   { border-left:3px solid var(--teal);   background:linear-gradient(90deg,rgba(45,212,191,0.05),var(--card) 24%); }
 .audit-entry.a-system   { border-left:3px solid var(--border2); }
-.audit-entry:hover { border-color:var(--border2); background:var(--card2); }
+.audit-entry:hover { border-color: var(--border2); }
 
-/* ROW 1: badge · target · user chip — all on one line */
-.audit-left {
+/* ── ROW 1: [badge] [service name ···] [user chip] ─────────── */
+.audit-row-top {
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  padding: 0.6rem 0.85rem 0.45rem;
   min-width: 0;
-  /* target stretches, badge and user stay their natural size */
-}
-/* audit-right holds the target name inline in the top row */
-.audit-right {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
 }
 
-/* ROW 2: timestamp + meta — always visible below */
+/* ── ROW 2: timestamp + meta — separated by a subtle border ── */
 .audit-row-bot {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
+  padding: 0.3rem 0.85rem 0.45rem;
   min-width: 0;
+  border-top: 1px solid var(--border);
+  background: rgba(0,0,0,0.15);
 }
 
 .audit-action {
-  font-weight:700; font-size:0.57rem; letter-spacing:0.05em;
-  padding:3px 9px; border-radius:5px; white-space:nowrap;
-  display:inline-block; flex-shrink: 0;
+  font-weight: 700; font-size: 0.57rem; letter-spacing: 0.05em;
+  padding: 3px 9px; border-radius: 5px; white-space: nowrap;
+  display: inline-block; flex-shrink: 0;
 }
 .audit-action.deploy  { color:var(--green);  background:var(--green-dim);  border:1px solid rgba(0,255,136,0.3);  text-shadow:0 0 7px rgba(0,255,136,0.4); }
 .audit-action.destroy { color:var(--red);    background:var(--red-dim);    border:1px solid rgba(255,51,102,0.3); text-shadow:0 0 7px rgba(255,51,102,0.4); }
@@ -516,42 +506,45 @@ body {
 .audit-action.system  { color:var(--text2);  background:rgba(255,255,255,0.04); border:1px solid var(--border); }
 .audit-action.other   { color:var(--muted);  background:transparent; border:1px solid var(--border); }
 
-/* Target: bold service name, truncates if too wide */
+/* Service name — fills remaining space, truncates */
 .audit-target {
-  font-weight: 700; color: var(--text); font-size: 0.7rem;
+  font-weight: 700; color: var(--text); font-size: 0.72rem;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   flex: 1; min-width: 0;
 }
 
-/* Timestamp — always shown, readable contrast */
+/* Timestamp — legible, monospaced, never hidden */
 .audit-time {
-  color: var(--text2);
-  font-size: 0.57rem;
+  font-size: 0.6rem;
+  color: #9aa3b4;          /* brighter than var(--text2) for legibility */
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex-shrink: 0;
+  letter-spacing: 0.02em;
 }
 
-/* Meta key:val line */
+/* Meta — truncates gracefully */
 .audit-meta {
-  font-size: 0.56rem; color: var(--text2);
+  font-size: 0.57rem; color: var(--text2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   flex: 1; min-width: 0;
-  opacity: 0.75;
 }
 
-/* Separator dot between time and meta */
+/* Separator dot */
 .audit-sep {
-  color: var(--border2); font-size: 0.5rem; flex-shrink: 0;
+  color: var(--border2); font-size: 0.55rem; flex-shrink: 0;
 }
 
 /* User chip */
 .audit-user {
-  font-size: 0.52rem; color: var(--text2);
+  font-size: 0.53rem; color: var(--text2);
   background: var(--surface); padding: 2px 7px;
   border-radius: 4px; border: 1px solid var(--border);
   white-space: nowrap; flex-shrink: 0; margin-left: auto;
 }
+
+/* Remove stale .audit-left / .audit-right refs */
+.audit-left, .audit-right { display: contents; }
 
 /* ── DATABASE ──────────────────────────────────────────────── */
 .db-subtabs {
