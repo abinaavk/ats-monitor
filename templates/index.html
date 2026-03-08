@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ATS Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- ════ TOP BAR ════ -->
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="dot-live"></span>
+    <span class="topbar-title">ATS MONITOR</span>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-time" id="clock">--:--:--</span>
+    <span class="topbar-refresh" id="refreshIndicator" title="Next refresh">●</span>
+    <a href="/logout" class="topbar-logout">EXIT</a>
+  </div>
+</header>
+
+<!-- ════ TAB BAR ════ -->
+<nav class="tabbar">
+  <button class="tab active" data-tab="overview">OVERVIEW</button>
+  <button class="tab" data-tab="metrics">METRICS</button>
+  <button class="tab" data-tab="logs">LOGS</button>
+  <button class="tab" data-tab="audit">AUDIT</button>
+  <button class="tab" data-tab="database">DATABASE</button>
+  <button class="tab" data-tab="stats">STATS</button>
+</nav>
+
+<!-- ════════════════════════════════════════════════════
+     TAB: OVERVIEW
+════════════════════════════════════════════════════ -->
+<section class="tabcontent active" id="tab-overview">
+
+  <!-- Hero stat row -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-label">SERVICES ONLINE</div>
+      <div class="stat-value green" id="ov-online">—</div>
+      <div class="stat-sub" id="ov-total">of — total</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">OFFLINE</div>
+      <div class="stat-value red" id="ov-offline">—</div>
+      <div class="stat-sub">services down</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">CPU</div>
+      <div class="stat-value" id="ov-cpu">—</div>
+      <div class="stat-sub" id="ov-load">load —</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">UPTIME</div>
+      <div class="stat-value cyan" id="ov-uptime">—</div>
+      <div class="stat-sub">system</div>
+    </div>
+  </div>
+
+  <!-- RAM / Disk bars -->
+  <div class="section-title">SYSTEM RESOURCES</div>
+  <div class="resource-grid">
+    <div class="resource-card">
+      <div class="resource-header">
+        <span>RAM</span>
+        <span id="ov-ram-val">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="ov-ram-bar" style="width:0%"></div></div>
+      <div class="resource-footer" id="ov-ram-detail">—</div>
+    </div>
+    <div class="resource-card">
+      <div class="resource-header">
+        <span>SWAP</span>
+        <span id="ov-swap-val">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill amber" id="ov-swap-bar" style="width:0%"></div></div>
+      <div class="resource-footer" id="ov-swap-detail">—</div>
+    </div>
+    <div class="resource-card">
+      <div class="resource-header">
+        <span>DISK /</span>
+        <span id="ov-disk1-val">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill cyan" id="ov-disk1-bar" style="width:0%"></div></div>
+      <div class="resource-footer" id="ov-disk1-detail">—</div>
+    </div>
+    <div class="resource-card">
+      <div class="resource-header">
+        <span>DISK /opt</span>
+        <span id="ov-disk2-val">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill cyan" id="ov-disk2-bar" style="width:0%"></div></div>
+      <div class="resource-footer" id="ov-disk2-detail">—</div>
+    </div>
+  </div>
+
+  <!-- Network status -->
+  <div class="section-title">NETWORK</div>
+  <div class="pill-row">
+    <span class="pill" id="ov-inet">INTERNET —</span>
+    <span class="pill" id="ov-dns">DNS —</span>
+    <span class="pill" id="ov-cf">CLOUDFLARE —</span>
+  </div>
+
+  <!-- Services grid -->
+  <div class="section-title">SERVICES</div>
+  <div class="svc-grid" id="ov-services">
+    <div class="placeholder-msg">Loading services…</div>
+  </div>
+
+</section>
+
+<!-- ════════════════════════════════════════════════════
+     TAB: METRICS
+════════════════════════════════════════════════════ -->
+<section class="tabcontent" id="tab-metrics">
+
+  <div class="section-title">DISK SPACE</div>
+  <div class="metrics-table" id="mt-disk"></div>
+
+  <div class="section-title">NETWORK CHECKS</div>
+  <div class="metrics-table" id="mt-network"></div>
+
+  <div class="section-title">SERVICE HEALTH</div>
+  <div class="metrics-table" id="mt-services"></div>
+
+  <div class="section-title">SYSTEM RESOURCES</div>
+  <div class="metrics-table" id="mt-resources"></div>
+
+  <div class="section-title">DATABASE INTEGRITY</div>
+  <div class="metrics-table" id="mt-dbintegrity"></div>
+
+</section>
+
+<!-- ════════════════════════════════════════════════════
+     TAB: LOGS
+════════════════════════════════════════════════════ -->
+<section class="tabcontent" id="tab-logs">
+
+  <div class="log-subtabs">
+    <button class="logtab active" data-logtype="ats">ATS LOG</button>
+    <button class="logtab" data-logtype="security">SECURITY</button>
+    <button class="logtab" data-logtype="metrics">METRICS.PROM</button>
+  </div>
+
+  <div class="log-controls">
+    <label class="toggle-label">
+      <input type="checkbox" id="logAutoScroll" checked>
+      <span>AUTO-SCROLL</span>
+    </label>
+    <span class="log-count" id="logLineCount">0 lines</span>
+  </div>
+
+  <div class="log-viewer" id="logViewer">
+    <div class="placeholder-msg">Loading logs…</div>
+  </div>
+
+</section>
+
+<!-- ════════════════════════════════════════════════════
+     TAB: AUDIT
+════════════════════════════════════════════════════ -->
+<section class="tabcontent" id="tab-audit">
+
+  <div class="audit-controls">
+    <input class="filter-input" type="text" id="auditFilter" placeholder="Filter by action or service…">
+    <span class="log-count" id="auditCount">0 entries</span>
+  </div>
+
+  <div class="audit-list" id="auditList">
+    <div class="placeholder-msg">Loading audit trace…</div>
+  </div>
+
+</section>
+
+<!-- ════════════════════════════════════════════════════
+     TAB: DATABASE
+════════════════════════════════════════════════════ -->
+<section class="tabcontent" id="tab-database">
+
+  <div class="db-subtabs">
+    <button class="dbtab active" data-dbtable="services">SERVICES</button>
+    <button class="dbtab" data-dbtable="deployments">DEPLOYMENTS</button>
+    <button class="dbtab" data-dbtable="backups">BACKUPS</button>
+    <button class="dbtab" data-dbtable="metrics_history">METRICS</button>
+    <button class="dbtab" data-dbtable="remote_configs">REMOTE</button>
+  </div>
+
+  <div class="db-info" id="dbTableInfo">—</div>
+  <div class="table-wrap">
+    <table class="data-table" id="dbTable">
+      <thead id="dbTableHead"></thead>
+      <tbody id="dbTableBody"></tbody>
+    </table>
+  </div>
+
+</section>
+
+<!-- ════════════════════════════════════════════════════
+     TAB: STATS (per-service)
+════════════════════════════════════════════════════ -->
+<section class="tabcontent" id="tab-stats">
+  <div class="stats-grid" id="statsGrid">
+    <div class="placeholder-msg">Loading service stats…</div>
+  </div>
+</section>
+
+<!-- bottom safe area spacer -->
+<div style="height:env(safe-area-inset-bottom, 12px)"></div>
+
+<script src="/static/js/main.js"></script>
+</body>
+</html>
