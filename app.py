@@ -14,7 +14,7 @@ app.secret_key = 'ats_monitor_v1_secret_key_change_me'
 # ══════════════════════════════════════════════════════
 #   CONFIG  ← edit these two lines after deploy
 # ══════════════════════════════════════════════════════
-MONITOR_PASSWORD = 'yourpassword'
+MONITOR_PASSWORD = 'abi@arv'
 
 ATS_HOME     = '/home/gaia/ats'
 DB_FILE      = os.path.join(ATS_HOME, 'ats.db')
