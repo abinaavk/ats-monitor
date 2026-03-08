@@ -11,7 +11,7 @@ except ImportError:
 app = Flask(__name__)
 app.secret_key = 'ats_monitor_v1_secret_key_change_me'
 
-# ══════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════
 #   CONFIG  ← edit these two lines after deploy
 # ══════════════════════════════════════════════════════
 MONITOR_PASSWORD = 'abi@arv'
