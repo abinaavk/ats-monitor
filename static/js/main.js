@@ -181,6 +181,8 @@ function renderServiceCards(services) {
         return;
     }
 
+   grid.innerHTML = '';
+
     services.forEach(svc => {
         const key = 'svc-' + svc.name;
         let card = document.getElementById(key);
