@@ -60,7 +60,8 @@ def logout():
 # ══════════════════════════════════════════════════════
 def dbq(sql, args=(), fetch_all=False, fetch_one=False):
     try:
-        conn = sqlite3.connect(f'file:{DB_FILE}?mode=ro', uri=True, timeout=5)
+        conn = sqlite3.connect(DB_FILE, timeout=5)
+        conn.execute("PRAGMA query_only = ON")   # read-only enforced in-session
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute(sql, args)
@@ -74,6 +75,7 @@ def dbq(sql, args=(), fetch_all=False, fetch_one=False):
         conn.close()
         return res
     except Exception as e:
+        app.logger.error(f"DB error: {e} | SQL: {sql}")
         return None
 
 # ══════════════════════════════════════════════════════
