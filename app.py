@@ -336,8 +336,17 @@ def api_backups():
 
 @app.route('/debug')
 def debug():
-    svcs = dbq('SELECT name, port FROM services', fetch_all=True)
-    return str(svcs)
+    import traceback
+    try:
+        conn = sqlite3.connect('/home/gaia/ats/ats.db', timeout=5)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute('SELECT name, port FROM services')
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return str(rows)
+    except Exception as e:
+        return traceback.format_exc()
 
 # ══════════════════════════════════════════════════════
 #   ENTRY POINT
