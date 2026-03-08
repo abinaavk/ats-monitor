@@ -334,6 +334,11 @@ def api_backups():
         r['size_mb']     = round(r['size_bytes'] / 1024 / 1024, 2) if r.get('size_bytes') else 0
     return jsonify({'backups': rows})
 
+@app.route('/debug')
+def debug():
+    svcs = dbq('SELECT name, port FROM services', fetch_all=True)
+    return str(svcs)
+
 # ══════════════════════════════════════════════════════
 #   ENTRY POINT
 # ══════════════════════════════════════════════════════
