@@ -11,10 +11,10 @@ except ImportError:
 app = Flask(__name__)
 app.secret_key = 'ats_monitor_v1_secret_key_change_me'
 
-# ═════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════
 #   CONFIG  ← edit these two lines after deploy
 # ══════════════════════════════════════════════════════
-MONITOR_PASSWORD = 'abi@arv'
+MONITOR_PASSWORD = 'yourpassword'
 
 ATS_HOME     = '/home/gaia/ats'
 DB_FILE      = os.path.join(ATS_HOME, 'ats.db')
@@ -60,8 +60,7 @@ def logout():
 # ══════════════════════════════════════════════════════
 def dbq(sql, args=(), fetch_all=False, fetch_one=False):
     try:
-        conn = sqlite3.connect(DB_FILE, timeout=5)
-        conn.execute("PRAGMA query_only = ON")   # read-only enforced in-session
+        conn = sqlite3.connect(f'file:{DB_FILE}?mode=ro', uri=True, timeout=5)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute(sql, args)
@@ -75,7 +74,6 @@ def dbq(sql, args=(), fetch_all=False, fetch_one=False):
         conn.close()
         return res
     except Exception as e:
-        app.logger.error(f"DB error: {e} | SQL: {sql}")
         return None
 
 # ══════════════════════════════════════════════════════
@@ -333,20 +331,6 @@ def api_backups():
         r['file_exists'] = os.path.exists(fp)
         r['size_mb']     = round(r['size_bytes'] / 1024 / 1024, 2) if r.get('size_bytes') else 0
     return jsonify({'backups': rows})
-
-@app.route('/debug')
-def debug():
-    import traceback
-    try:
-        conn = sqlite3.connect('/home/gaia/ats/ats.db', timeout=5)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute('SELECT name, port FROM services')
-        rows = [dict(r) for r in cur.fetchall()]
-        conn.close()
-        return str(rows)
-    except Exception as e:
-        return traceback.format_exc()
 
 # ══════════════════════════════════════════════════════
 #   ENTRY POINT
