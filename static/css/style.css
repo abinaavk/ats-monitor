@@ -390,38 +390,85 @@ body {
 }
 
 .audit-entry {
-  background:var(--card); border:1px solid var(--border); border-radius:10px;
-  padding:0.8rem 1rem; display:flex; gap:0.8rem; align-items:flex-start;
-  font-size:0.62rem; transition:all 0.2s; position:relative; overflow:hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  font-size: 0.62rem;
+  transition: border-color 0.2s;
 }
-/* left accent + tinted gradient by type */
-.audit-entry.a-deploy   { border-left:3px solid var(--green);  background:linear-gradient(90deg,rgba(0,255,136,0.04),var(--card) 35%); }
-.audit-entry.a-destroy  { border-left:3px solid var(--red);    background:linear-gradient(90deg,rgba(255,51,102,0.04),var(--card) 35%); }
-.audit-entry.a-backup   { border-left:3px solid var(--cyan);   background:linear-gradient(90deg,rgba(0,212,255,0.04),var(--card) 35%); }
-.audit-entry.a-update   { border-left:3px solid var(--amber);  background:linear-gradient(90deg,rgba(255,179,0,0.04),var(--card) 35%); }
-.audit-entry.a-webhook  { border-left:3px solid var(--purple); background:linear-gradient(90deg,rgba(192,132,252,0.04),var(--card) 35%); }
-.audit-entry.a-config   { border-left:3px solid var(--teal);   background:linear-gradient(90deg,rgba(45,212,191,0.04),var(--card) 35%); }
-.audit-entry.a-system   { border-left:3px solid var(--border2); }
-.audit-entry:hover { border-color:var(--border2); background:var(--card2); }
 
-.audit-left { display:flex; flex-direction:column; gap:5px; min-width:110px; flex-shrink:0; }
-.audit-right { flex:1; min-width:0; }
+.audit-entry:hover { border-color: var(--border2); background: var(--card2); }
 
-.audit-time { color:var(--muted); font-size:0.55rem; font-variant-numeric:tabular-nums; }
+.audit-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 100px;
+  flex-shrink: 0;
+}
 
-.audit-action { font-weight:700; font-size:0.58rem; letter-spacing:0.06em; padding:4px 9px; border-radius:6px; white-space:nowrap; display:inline-block; text-align:center; }
-.audit-action.deploy  { color:var(--green);  background:var(--green-dim);  border:1px solid rgba(0,255,136,0.3);  text-shadow:0 0 8px rgba(0,255,136,0.4); }
-.audit-action.destroy { color:var(--red);    background:var(--red-dim);    border:1px solid rgba(255,51,102,0.3); text-shadow:0 0 8px rgba(255,51,102,0.4); }
-.audit-action.backup  { color:var(--cyan);   background:var(--cyan-dim);   border:1px solid rgba(0,212,255,0.3);  text-shadow:0 0 8px rgba(0,212,255,0.4); }
-.audit-action.update  { color:var(--amber);  background:var(--amber-dim);  border:1px solid rgba(255,179,0,0.3);  text-shadow:0 0 8px rgba(255,179,0,0.35); }
-.audit-action.webhook { color:var(--purple); background:var(--purple-dim); border:1px solid rgba(192,132,252,0.3);text-shadow:0 0 8px rgba(192,132,252,0.4); }
-.audit-action.config  { color:var(--teal);   background:rgba(45,212,191,0.1); border:1px solid rgba(45,212,191,0.3); }
-.audit-action.system  { color:var(--text2);  background:rgba(255,255,255,0.04); border:1px solid var(--border); }
-.audit-action.other   { color:var(--muted);  background:transparent; border:1px solid var(--border); }
+.audit-right {
+  flex: 1;
+  min-width: 0;
+}
 
-.audit-target { font-weight:600; color:var(--text); font-size:0.7rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:3px; }
-.audit-meta   { font-size:0.57rem; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.audit-user   { font-size:0.55rem; color:var(--muted); margin-left:auto; padding-left:0.5rem; flex-shrink:0; align-self:flex-start; background:var(--surface); padding:2px 7px; border-radius:4px; border:1px solid var(--border); }
+.audit-time {
+  color: var(--muted);
+  font-size: 0.56rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit-action {
+  font-weight: 700;
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.audit-action.deploy   { color: var(--green);  background: rgba(0,255,136,0.08);   border: 1px solid rgba(0,255,136,0.25); }
+.audit-action.destroy  { color: var(--red);    background: rgba(255,51,85,0.08);   border: 1px solid rgba(255,51,85,0.25); }
+.audit-action.backup   { color: var(--cyan);   background: rgba(0,212,255,0.08);   border: 1px solid rgba(0,212,255,0.25); }
+.audit-action.update   { color: var(--amber);  background: rgba(255,170,0,0.08);   border: 1px solid rgba(255,170,0,0.25); }
+.audit-action.webhook  { color: var(--purple); background: rgba(179,136,255,0.08); border: 1px solid rgba(179,136,255,0.25); }
+.audit-action.config   { color: var(--amber);  background: rgba(255,170,0,0.06);   border: 1px solid rgba(255,170,0,0.18); }
+.audit-action.system   { color: var(--text2);  background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+.audit-action.other    { color: var(--muted);  background: transparent;             border: 1px solid var(--border); }
+
+.audit-target {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.68rem;
+}
+
+.audit-meta {
+  font-size: 0.58rem;
+  color: var(--muted);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-user {
+  font-size: 0.56rem;
+  color: var(--muted);
+  margin-left: auto;
+  padding-left: 0.5rem;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
 
 /* ── DATABASE ──────────────────────────────────────────────── */
 .db-subtabs { display:flex; overflow-x:auto; scrollbar-width:none; border-bottom:1px solid var(--border); margin-bottom:0.6rem; background:var(--surface); border-radius:10px 10px 0 0; }
