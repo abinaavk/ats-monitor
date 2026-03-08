@@ -335,16 +335,18 @@ function filterAuditEntries() {
         const meta   = e.metadata && Object.keys(e.metadata).length
             ? Object.entries(e.metadata).map(([k, v]) => k + ': ' + JSON.stringify(v)).join(' · ')
             : '';
+        // Row 1: [badge] [target ···] [user chip]
+        // Row 2: [timestamp] [· meta]
         return '<div class="audit-entry a-' + cls + '">' +
             '<div class="audit-left">' +
                 '<span class="audit-action ' + cls + '">' + esc(action) + '</span>' +
-                '<span class="audit-time">' + esc(ts) + '</span>' +
-            '</div>' +
-            '<div class="audit-right">' +
                 '<div class="audit-target">' + esc(e.target || '') + '</div>' +
-                (meta ? '<div class="audit-meta">' + esc(meta) + '</div>' : '') +
+                '<div class="audit-user">' + esc(e.user || 'root') + '</div>' +
             '</div>' +
-            '<div class="audit-user">' + esc(e.user || '') + '</div>' +
+            '<div class="audit-row-bot">' +
+                '<span class="audit-time">' + esc(ts) + '</span>' +
+                (meta ? '<span class="audit-sep">·</span><span class="audit-meta">' + esc(meta) + '</span>' : '') +
+            '</div>' +
         '</div>';
     }).join('');
 }
