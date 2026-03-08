@@ -379,7 +379,15 @@ body {
 .filter-input::placeholder { color:var(--muted); }
 .filter-input:focus { border-color:rgba(0,212,255,0.4); background:var(--card2); box-shadow:0 0 14px rgba(0,212,255,0.07); }
 
-.audit-list { display:flex; flex-direction:column; gap:0.45rem; max-height:calc(100vh - 232px); overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
 
 .audit-entry {
   background:var(--card); border:1px solid var(--border); border-radius:10px;
