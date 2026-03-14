@@ -308,8 +308,11 @@ function initTerminal() {
     socket = io('/terminal');
 
     socket.on('connect', () => {
-        document.getElementById('term-status').textContent = 'CONNECTED';
-        document.getElementById('term-status').style.color = 'var(--green)';
+        const statusEl = document.getElementById('term-status');
+        if (statusEl) {
+            statusEl.textContent = 'CONNECTED';
+            statusEl.className = 'term-status connected';
+        }
         socket.emit('terminal_resize', {cols: term.cols, rows: term.rows});
     });
 
@@ -318,8 +321,11 @@ function initTerminal() {
     });
 
     socket.on('disconnect', () => {
-        document.getElementById('term-status').textContent = 'DISCONNECTED';
-        document.getElementById('term-status').style.color = 'var(--red)';
+        const statusEl = document.getElementById('term-status');
+        if (statusEl) {
+            statusEl.textContent = 'DISCONNECTED';
+            statusEl.className = 'term-status';
+        }
     });
 
     term.onData(data => {
