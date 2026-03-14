@@ -234,10 +234,13 @@ def api_stats():
     total_deploys = 0
     total_success = 0
     total_backups = 0
+    deploys_24h = 0
     
     has_dep = table_exists('deployments')
     has_bk = table_exists('backups')
     has_metrics = table_exists('metrics_history')
+
+    yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
 
     for s in svcs:
         nm = s['name']
@@ -250,6 +253,8 @@ def api_stats():
                 dep = r
                 total_deploys += (r['total'] or 0)
                 total_success += (r['ok'] or 0)
+            r24 = dbq("SELECT COUNT(*) as c FROM deployments WHERE service_name=? AND timestamp > ?", (nm, yesterday), fetch_one=True)
+            if r24: deploys_24h += r24['c']
         
         last_dep = dbq("SELECT status, timestamp FROM deployments WHERE service_name=? ORDER BY timestamp DESC LIMIT 1", (nm,), fetch_one=True) if has_dep else None
         
@@ -261,15 +266,19 @@ def api_stats():
                 bk_count = r['c']
                 total_backups += bk_count
         
-        # Uptime/Metric trend (Last 10 points)
+        # Advanced Trends
         trend = []
         current_metrics = {'cpu': 0, 'ram': 0}
+        avg_cpu = 0
+        max_ram = 0
         if has_metrics:
             rows = dbq("SELECT cpu, ram_pct FROM metrics_history WHERE service_name=? ORDER BY timestamp DESC LIMIT 10", (nm,), fetch_all=True)
             if rows:
                 trend = [r['cpu'] for r in rows]
                 trend.reverse()
                 current_metrics = {'cpu': rows[0]['cpu'], 'ram': rows[0]['ram_pct']}
+                avg_cpu = sum(r['cpu'] for r in rows) / len(rows)
+                max_ram = max(r['ram_pct'] for r in rows)
 
         out.append({
             'name': nm,
@@ -282,8 +291,24 @@ def api_stats():
             'backup_count': bk_count,
             'trend': trend,
             'current_metrics': current_metrics,
+            'avg_cpu': round(avg_cpu, 1),
+            'max_ram': round(max_ram, 1),
             'created_at': s.get('created_at', '—')
         })
+
+    # System-wide metrics
+    db_size = os.path.getsize(DB_FILE) / (1024*1024) if os.path.exists(DB_FILE) else 0
+    log_size = os.path.getsize(LOG_FILE) / (1024*1024) if os.path.exists(LOG_FILE) else 0
+    
+    net = psutil.net_io_counters() if HAS_PSUTIL else None
+    disk = psutil.disk_io_counters() if HAS_PSUTIL else None
+    
+    recent_errors = 0
+    if os.path.exists(LOG_FILE):
+        try:
+            content = tail_file(LOG_FILE, 1000)
+            recent_errors = content.upper().count('ERROR') + content.upper().count('CRITICAL')
+        except: pass
 
     return jsonify({
         'services': out,
@@ -292,6 +317,15 @@ def api_stats():
             'total_deployments': total_deploys,
             'deployment_success_rate': round(total_success / total_deploys * 100, 1) if total_deploys > 0 else 0,
             'total_backups': total_backups,
+            'deploys_24h': deploys_24h,
+            'db_size_mb': round(db_size, 2),
+            'log_size_mb': round(log_size, 2),
+            'recent_errors': recent_errors,
+            'net_sent_gb': round(net.bytes_sent / (1024**3), 2) if net else 0,
+            'net_recv_gb': round(net.bytes_recv / (1024**3), 2) if net else 0,
+            'disk_read_gb': round(disk.read_bytes / (1024**3), 2) if disk else 0,
+            'disk_write_gb': round(disk.write_bytes / (1024**3), 2) if disk else 0,
+            'load_avg': os.getloadavg() if hasattr(os, 'getloadavg') else [0,0,0],
             'active_workers': sum(s.get('workers', 0) for s in svcs if s.get('workers'))
         }
     })
