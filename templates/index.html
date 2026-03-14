@@ -233,11 +233,33 @@
      TAB: STATS
 ══════════════════════════════════════════════════════ -->
 <section class="tabcontent" id="tab-stats">
-  <div class="stats-grid" id="statsGrid">
-    <div class="stats-card skel-card" style="height:320px"></div>
-    <div class="stats-card skel-card" style="height:320px"></div>
-    <div class="stats-card skel-card" style="height:320px"></div>
+
+  <div class="stats-hero" id="statsHero">
+    <div class="hero-stat">
+      <div class="hero-val" id="st-total-svcs">—</div>
+      <div class="hero-lbl">ACTIVE SERVICES</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-val" id="st-total-deploys">—</div>
+      <div class="hero-lbl">DEPLOYMENTS</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-val cyan" id="st-success-rate">—%</div>
+      <div class="hero-lbl">SUCCESS RATE</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-val purple" id="st-total-bk">—</div>
+      <div class="hero-lbl">BACKUPS</div>
+    </div>
   </div>
+
+  <div class="section-title">SERVICE PERFORMANCE</div>
+  <div class="stats-grid" id="statsGrid">
+    <div class="stats-card skel-card" style="height:280px"></div>
+    <div class="stats-card skel-card" style="height:280px"></div>
+    <div class="stats-card skel-card" style="height:280px"></div>
+  </div>
+
 </section>
 
 <!-- ══════════════════════════════════════════════════════

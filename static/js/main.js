@@ -233,7 +233,7 @@ function renderServiceCards(services) {
     grid.innerHTML = services.map(svc => `
         <div class="svc-card ${svc.status}">
             <div class="svc-name">${esc(svc.name)}</div>
-            <div class="svc-domain">${esc(svc.domain)}</div>
+            <a href="https://${svc.domain}" target="_blank" class="svc-domain">${esc(svc.domain || 'localhost')}</a>
             <div class="svc-meta">
                 <span class="svc-port">:${svc.port}</span>
                 <span class="svc-runtime">${esc(svc.runtime)}</span>
@@ -351,40 +351,90 @@ function initTerminal() {
 async function fetchStats() {
     const d = await api('/api/stats');
     if (!d) return;
+
+    // Render Hero Stats
+    if (d.global) {
+        setText('st-total-svcs', d.global.total_services, 'st-svcs');
+        setText('st-total-deploys', d.global.total_deployments, 'st-deploys');
+        setText('st-success-rate', d.global.deployment_success_rate + '%', 'st-rate');
+        setText('st-total-bk', d.global.total_backups, 'st-bk');
+    }
+
     const grid = document.getElementById('statsGrid');
     if (!grid) return;
 
     if (!d.services || d.services.length === 0) {
-        grid.innerHTML = '<div style="color:var(--muted);padding:2rem;text-align:center;grid-column:1/-1">No data.</div>';
+        grid.innerHTML = '<div style="color:var(--muted);padding:3rem;text-align:center;grid-column:1/-1">No service data available.</div>';
         return;
     }
 
     grid.innerHTML = d.services.map(s => {
         const rate = s.deploy_total > 0 ? (s.deploy_ok / s.deploy_total * 100).toFixed(1) : 0;
-        const lastDep = s.last_deploy ? s.last_deploy.status + ' (' + s.last_deploy.timestamp.substring(0,16) + ')' : '—';
+        const lastDep = s.last_deploy ? (s.last_deploy.status + ' (' + s.last_deploy.timestamp.substring(11,16) + ')') : 'None';
         
-        return `<div class="svc-card ${s.status}">
-            <div class="svc-name">${esc(s.name)}</div>
-            <div class="svc-meta">
-                <span>Port: ${s.port}</span>
-                <span>Status: <b style="color:${s.status==='online'?'var(--green)':'var(--red)'}">${s.status.toUpperCase()}</b></span>
-            </div>
-            <div style="margin-top:1rem;font-size:0.65rem">
-                <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem">
-                    <span style="color:var(--text2)">Deploy Success</span>
-                    <span>${rate}% (${s.deploy_ok}/${s.deploy_total})</span>
+        // Generate mini sparkline HTML
+        let sparkHtml = '';
+        if (s.trend && s.trend.length > 0) {
+            sparkHtml = `<div class="sparkline-box">` + 
+                s.trend.map(val => `<div class="spark-bar" style="height:${Math.max(10, val)}%"></div>`).join('') + 
+                `</div>`;
+        }
+
+        // Current Metrics
+        const curr = s.current_metrics || {cpu: 0, ram: 0};
+        const cpuColor = curr.cpu > 80 ? 'var(--red)' : curr.cpu > 50 ? 'var(--amber)' : 'var(--green)';
+        const ramColor = curr.ram > 80 ? 'var(--red)' : curr.ram > 50 ? 'var(--amber)' : 'var(--cyan)';
+
+        return `
+            <div class="stats-card ${s.status}">
+                <div class="stats-card-header">
+                    <div class="stats-card-name">${esc(s.name)}</div>
+                    <div class="svc-badge ${s.status}"><span class="dot"></span>${s.status.toUpperCase()}</div>
                 </div>
-                <div class="bar-track"><div class="bar-fill" style="width:${rate}%"></div></div>
-                <div style="margin-top:0.8rem;color:var(--text2)">Last Deploy: <span style="color:var(--text)">${esc(lastDep)}</span></div>
-                <div style="margin-top:0.4rem;color:var(--text2)">Backups: <span style="color:var(--cyan)">${s.backup_count}</span></div>
-            </div>
-        </div>`;
+                <div class="stats-card-body">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:0.8rem">
+                        <div style="text-align:center; flex:1">
+                            <div style="font-size:0.5rem; color:var(--muted)">CPU</div>
+                            <div style="font-size:1.1rem; font-weight:800; color:${cpuColor}">${curr.cpu.toFixed(1)}%</div>
+                        </div>
+                        <div style="width:1px; background:var(--border); margin:0 10px"></div>
+                        <div style="text-align:center; flex:1">
+                            <div style="font-size:0.5rem; color:var(--muted)">RAM</div>
+                            <div style="font-size:1.1rem; font-weight:800; color:${ramColor}">${curr.ram.toFixed(1)}%</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-row">
+                        <span class="stats-row-label">Port / Domain</span>
+                        <span class="stats-row-val">${s.port} · ${esc(s.domain)}</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-row-label">Deploy Success</span>
+                        <span class="stats-row-val">${rate}% (${s.deploy_ok}/${s.deploy_total})</span>
+                    </div>
+                    <div class="deploy-rate-bar"><div class="deploy-rate-fill" style="width:${rate}%; background:${rate > 80 ? 'var(--green)' : 'var(--amber)'}"></div></div>
+                    
+                    <div class="stats-divider"></div>
+                    
+                    <div class="stats-row">
+                        <span class="stats-row-label">Last Activity</span>
+                        <span class="stats-row-val">${esc(lastDep)}</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-row-label">Backups</span>
+                        <span class="stats-row-val" style="color:var(--cyan)">${s.backup_count} total</span>
+                    </div>
+
+                    ${sparkHtml}
+                    <div style="font-size:0.5rem; color:var(--muted); text-align:center; margin-top:4px; letter-spacing:0.1em">CPU LOAD TREND</div>
+                </div>
+            </div>`;
     }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════
 //   AUDIT & DATABASE
-// ═══════════════════════════════════════════════════════════
+// ── AUDIT & DATABASE ───────────────────────────────────────────
 async function fetchAudit() {
     const d = await api('/api/audit');
     if (!d) return;
@@ -395,19 +445,39 @@ async function fetchAudit() {
 function filterAuditEntries() {
     const list = document.getElementById('auditList');
     if (!list) return;
+
     const filtered = auditFilterVal 
         ? auditCache.filter(e => JSON.stringify(e).toLowerCase().includes(auditFilterVal))
         : auditCache;
-    
-    list.innerHTML = filtered.map(e => `
-        <div class="audit-entry">
-            <div class="audit-action">${esc(e.action || 'RAW')}</div>
-            <div style="flex:1">
-                <div class="audit-target">${esc(e.target || '—')}</div>
-                <div class="audit-time">${esc(e.timestamp || '')}</div>
-            </div>
-        </div>
-    `).join('');
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div style="color:var(--muted);padding:3rem;text-align:center;font-size:0.7rem">No audit records found.</div>';
+        document.getElementById('auditCount').textContent = '0 entries';
+        return;
+    }
+
+    list.innerHTML = filtered.map(e => {
+        const action = (e.action || 'system').toLowerCase();
+        let cat = 'other';
+        if (action.includes('deploy')) cat = 'deploy';
+        else if (action.includes('backup')) cat = 'backup';
+        else if (action.includes('update') || action.includes('edit') || action.includes('config')) cat = 'update';
+        else if (action.includes('destroy') || action.includes('delete') || action.includes('fail')) cat = 'destroy';
+        else if (action.includes('webhook')) cat = 'webhook';
+
+        return `
+            <div class="audit-entry">
+                <div class="audit-left">
+                    <span class="audit-action ${cat}">${esc(e.action || 'SYSTEM')}</span>
+                    <span class="audit-time">${esc(e.timestamp || '--:--')}</span>
+                </div>
+                <div class="audit-right">
+                    <div class="audit-target">${esc(e.target || 'System Event')}</div>
+                    <div class="audit-meta">${esc(e.user || 'system')} · ${esc(e.details || 'No additional details available.')}</div>
+                </div>
+            </div>`;
+    }).join('');
+
     document.getElementById('auditCount').textContent = filtered.length + ' entries';
 }
 
