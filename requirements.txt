@@ -2,4 +2,3 @@ flask
 waitress
 psutil
 flask-socketio
-eventlet
