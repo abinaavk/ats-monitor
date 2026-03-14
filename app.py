@@ -303,6 +303,31 @@ def api_stats():
     net = psutil.net_io_counters() if HAS_PSUTIL else None
     disk = psutil.disk_io_counters() if HAS_PSUTIL else None
     
+    # Process analytics
+    proc_count = 0
+    thread_count = 0
+    zombie_count = 0
+    if HAS_PSUTIL:
+        procs = list(psutil.process_iter())
+        proc_count = len(procs)
+        for p in procs:
+            try:
+                thread_count += p.num_threads()
+                if p.status() == psutil.STATUS_ZOMBIE:
+                    zombie_count += 1
+            except: pass
+
+    # Temperature (Linux only)
+    temp = 0
+    if HAS_PSUTIL and hasattr(psutil, 'sensors_temperatures'):
+        try:
+            temps = psutil.sensors_temperatures()
+            if 'coretemp' in temps:
+                temp = temps['coretemp'][0].current
+            elif 'cpu_thermal' in temps:
+                temp = temps['cpu_thermal'][0].current
+        except: pass
+
     recent_errors = 0
     if os.path.exists(LOG_FILE):
         try:
@@ -326,6 +351,10 @@ def api_stats():
             'disk_read_gb': round(disk.read_bytes / (1024**3), 2) if disk else 0,
             'disk_write_gb': round(disk.write_bytes / (1024**3), 2) if disk else 0,
             'load_avg': os.getloadavg() if hasattr(os, 'getloadavg') else [0,0,0],
+            'proc_count': proc_count,
+            'thread_count': thread_count,
+            'zombie_count': zombie_count,
+            'cpu_temp': round(temp, 1),
             'active_workers': sum(s.get('workers', 0) for s in svcs if s.get('workers'))
         }
     })
