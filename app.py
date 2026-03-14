@@ -32,15 +32,17 @@ _term_sessions = {}
 # ══════════════════════════════════════════════════════
 ATS_HOME     = os.environ.get('ATS_HOME', '/home/gaia')
 
-def get_db_path():
-    # Try /home/gaia/ats.db first, then /home/gaia/ats/ats.db
-    p1 = os.path.join(ATS_HOME, 'ats.db')
-    p2 = os.path.join(ATS_HOME, 'ats', 'ats.db')
+def get_path(filename):
+    p1 = os.path.join(ATS_HOME, filename)
+    p2 = os.path.join(ATS_HOME, 'ats', filename)
     return p1 if os.path.exists(p1) or not os.path.exists(p2) else p2
 
-DB_FILE      = get_db_path()
-LOG_FILE     = os.path.join(ATS_HOME, 'ats.log')
-# ... rest of config ...
+DB_FILE      = get_path('ats.db')
+LOG_FILE     = get_path('ats.log')
+SEC_FILE     = get_path('security.log')
+AUDIT_FILE   = get_path('audit.trace')
+METRICS_FILE = get_path('metrics.prom')
+BACKUP_DIR   = os.environ.get('BACKUP_DIR', '/opt/extra1_1tb/backups')
 
 
 # ══════════════════════════════════════════════════════
