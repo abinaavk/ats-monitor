@@ -30,12 +30,15 @@ _term_sessions = {}
 # ══════════════════════════════════════════════════════
 #   CONFIG (Optimized for Linux)
 # ══════════════════════════════════════════════════════
-ATS_HOME     = os.environ.get('ATS_HOME', '/home/gaia')
+ATS_HOME = os.environ.get('ATS_HOME', '/home/gaia')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def get_path(filename):
-    p1 = os.path.join(ATS_HOME, filename)
-    p2 = os.path.join(ATS_HOME, 'ats', filename)
-    return p1 if os.path.exists(p1) or not os.path.exists(p2) else p2
+    # priority: 1. Same folder as app.py, 2. /home/gaia, 3. /home/gaia/ats
+    for d in [BASE_DIR, ATS_HOME, os.path.join(ATS_HOME, 'ats')]:
+        p = os.path.join(d, filename)
+        if os.path.exists(p): return p
+    return os.path.join(ATS_HOME, filename)
 
 DB_FILE      = get_path('ats.db')
 LOG_FILE     = get_path('ats.log')
@@ -59,6 +62,32 @@ def index(): return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login(): return redirect(url_for('index'))
+
+@app.route('/api/audit')
+@auth_required
+def api_audit():
+    n = min(int(request.args.get('n', 200)), 1000)
+    entries = []
+    if os.path.exists(AUDIT_FILE):
+        try:
+            with open(AUDIT_FILE, 'r', encoding='utf-8', errors='replace') as f:
+                lines = f.readlines()
+            for line in lines[-n:]:
+                line = line.strip()
+                if not line: continue
+                try: 
+                    entries.append(json.loads(line))
+                except: 
+                    entries.append({
+                        'target': line, 
+                        'action': 'LOG', 
+                        'user': 'system', 
+                        'timestamp': datetime.datetime.now().strftime('%H:%M'),
+                        'details': 'Plain entry'
+                    })
+        except: pass
+    entries.reverse()
+    return jsonify({'entries': entries})
 
 # ══════════════════════════════════════════════════════
 #   DB HELPER
@@ -200,24 +229,72 @@ def api_database():
 def api_stats():
     svcs = dbq('SELECT * FROM services ORDER BY name', fetch_all=True) or []
     out = []
+    
+    # Global aggregates
+    total_deploys = 0
+    total_success = 0
+    total_backups = 0
+    
     has_dep = table_exists('deployments')
     has_bk = table_exists('backups')
+    has_metrics = table_exists('metrics_history')
+
     for s in svcs:
         nm = s['name']
+        
+        # Deployment stats
         dep = {'total': 0, 'ok': 0}
         if has_dep:
             r = dbq("SELECT COUNT(*) as total, SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) as ok FROM deployments WHERE service_name=?", (nm,), fetch_one=True)
-            if r: dep = r
+            if r:
+                dep = r
+                total_deploys += (r['total'] or 0)
+                total_success += (r['ok'] or 0)
+        
         last_dep = dbq("SELECT status, timestamp FROM deployments WHERE service_name=? ORDER BY timestamp DESC LIMIT 1", (nm,), fetch_one=True) if has_dep else None
+        
+        # Backup stats
         bk_count = 0
         if has_bk:
             r = dbq("SELECT COUNT(*) as c FROM backups WHERE service_name=?", (nm,), fetch_one=True)
-            if r: bk_count = r['c']
+            if r:
+                bk_count = r['c']
+                total_backups += bk_count
+        
+        # Uptime/Metric trend (Last 10 points)
+        trend = []
+        current_metrics = {'cpu': 0, 'ram': 0}
+        if has_metrics:
+            rows = dbq("SELECT cpu, ram_pct FROM metrics_history WHERE service_name=? ORDER BY timestamp DESC LIMIT 10", (nm,), fetch_all=True)
+            if rows:
+                trend = [r['cpu'] for r in rows]
+                trend.reverse()
+                current_metrics = {'cpu': rows[0]['cpu'], 'ram': rows[0]['ram_pct']}
+
         out.append({
-            'name': nm, 'port': s['port'], 'domain': s.get('domain', 'localhost'), 'status': 'online' if systemd_active(nm) else 'offline',
-            'deploy_total': dep.get('total', 0), 'deploy_ok': dep.get('ok', 0), 'last_deploy': last_dep, 'backup_count': bk_count
+            'name': nm,
+            'port': s['port'],
+            'domain': s.get('domain', 'localhost'),
+            'status': 'online' if systemd_active(nm) else 'offline',
+            'deploy_total': dep.get('total', 0) or 0,
+            'deploy_ok': dep.get('ok', 0) or 0,
+            'last_deploy': last_dep,
+            'backup_count': bk_count,
+            'trend': trend,
+            'current_metrics': current_metrics,
+            'created_at': s.get('created_at', '—')
         })
-    return jsonify({'services': out})
+
+    return jsonify({
+        'services': out,
+        'global': {
+            'total_services': len(svcs),
+            'total_deployments': total_deploys,
+            'deployment_success_rate': round(total_success / total_deploys * 100, 1) if total_deploys > 0 else 0,
+            'total_backups': total_backups,
+            'active_workers': sum(s.get('workers', 0) for s in svcs if s.get('workers'))
+        }
+    })
 
 # ══════════════════════════════════════════════════════
 #   TERMINAL

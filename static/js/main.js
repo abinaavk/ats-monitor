@@ -14,6 +14,18 @@ let logFilterVal  = '';
 let term = null;
 let fitAddon = null;
 let socket = null;
+let termInactivityTimer = null;
+const TERM_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+
+function resetTermTimeout() {
+    clearTimeout(termInactivityTimer);
+    termInactivityTimer = setTimeout(() => {
+        if (socket && socket.connected) {
+            socket.disconnect();
+            if (term) term.write('\r\n\x1b[31m[Session timed out due to 10m inactivity]\x1b[0m\r\n');
+        }
+    }, TERM_TIMEOUT);
+}
 
 // ── CHANGE DETECTION ───────────────────────────────────────
 function flash(el) {
@@ -43,10 +55,10 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── TABS ───────────────────────────────────────────────────
-document.querySelectorAll('.tab').forEach(btn => {
+// ── TABS (Sidebar Nav) ──────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tabcontent').forEach(s => s.classList.remove('active'));
         btn.classList.add('active');
         activeTab = btn.dataset.tab;
@@ -54,7 +66,8 @@ document.querySelectorAll('.tab').forEach(btn => {
         if (tabEl) tabEl.classList.add('active');
         
         if (activeTab === 'terminal') {
-            initTerminal();
+            if (!socket || !socket.connected) initTerminal();
+            resetTermTimeout();
         } else {
             refreshActive();
         }
@@ -62,9 +75,9 @@ document.querySelectorAll('.tab').forEach(btn => {
 });
 
 // ── LOG SUB-TABS ───────────────────────────────────────────
-document.querySelectorAll('.logtab').forEach(btn => {
+document.querySelectorAll('.log-tab').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.logtab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.log-tab').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         activeLogType = btn.dataset.logtype;
         fetchLogs();
@@ -117,8 +130,7 @@ function setBar(barId, pct, warnAt, critAt) {
     const el = document.getElementById(barId);
     if (!el) return;
     el.style.width = Math.min(pct, 100) + '%';
-    const color = pct >= (critAt || 90) ? 'crit' : pct >= (warnAt || 70) ? 'warn' : '';
-    el.className = 'bar-fill' + (el.id.includes('swap') ? ' amber' : el.id.includes('disk') ? ' cyan' : '') + (color ? ' ' + color : '');
+    el.style.opacity = pct > (critAt || 90) ? '1' : '0.8';
 }
 
 async function fetchOverview() {
@@ -127,11 +139,11 @@ async function fetchOverview() {
 
     setText('ov-online',  d.online,  'online');
     setText('ov-offline', (d.total - d.online), 'offline');
-    setText('ov-total',   'of ' + d.total + ' total', 'total');
+    setText('ov-total',   d.total + ' total', 'total');
 
     const cpuStr = d.cpu != null ? d.cpu.toFixed(1) + '%' : 'N/A';
     setText('ov-cpu', cpuStr, 'cpu');
-    setText('ov-load', d.load ? 'load ' + d.load[0] : 'load N/A', 'load');
+    setText('ov-load', 'load ' + (d.load ? d.load[0] : '--'), 'load');
     setText('ov-uptime', d.uptime || 'N/A', 'uptime');
 
     if (d.ram) {
@@ -186,13 +198,13 @@ function renderMetrics(d) {
     setInner('mt-services', svcHtml);
 
     let resHtml = metRow('CPU Usage', d.cpu > 80 ? 'fail' : d.cpu > 60 ? 'warn' : 'pass', d.cpu + '%') +
-                  metRow('RAM Usage', d.ram.pct > 90 ? 'fail' : d.ram.pct > 75 ? 'warn' : 'pass', d.ram.pct.toFixed(1) + '%') +
+                  metRow('RAM Usage', d.ram ? d.ram.pct.toFixed(1) + '%' : '--', d.ram ? d.ram.used + ' / ' + d.ram.total + ' GB' : '--') +
                   metRow('Load Avg', 'pass', d.load ? d.load.join(' ') : 'N/A');
     setInner('mt-resources', resHtml);
-// DB Integrity
-const dbSt = d.db_integrity ? 'pass' : (d.db_exists ? 'fail' : 'warn');
-const dbMsg = d.db_exists ? (d.db_status || 'OK') : 'Not found at ' + d.db_path;
-let dbHtml = metRow('Database Status', dbSt, dbMsg);
+
+    const dbSt = d.db_integrity ? 'pass' : (d.db_exists ? 'fail' : 'warn');
+    const dbMsg = d.db_exists ? (d.db_status || 'OK') : 'Not found at ' + d.db_path;
+    let dbHtml = metRow('Database Status', dbSt, dbMsg);
     if (d.db_stats) {
         Object.entries(d.db_stats).forEach(([t, c]) => {
             dbHtml += metRow('Table: ' + t, c > 2000 ? 'warn' : 'pass', c + ' rows');
@@ -213,7 +225,7 @@ function metRow(label, status, detail) {
 
 function setInner(id, html) {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = html || '<div style="padding:1rem;color:var(--muted)">No data.</div>';
+    if (el) el.innerHTML = html || '<div style="padding:1rem;color:var(--text-dim)">No data.</div>';
 }
 
 function setPill(id, ok, label) {
@@ -227,24 +239,32 @@ function renderServiceCards(services) {
     const grid = document.getElementById('ov-services');
     if (!grid) return;
     if (!services || services.length === 0) {
-        grid.innerHTML = '<div style="color:var(--muted);padding:2rem;text-align:center;grid-column:1/-1">No services.</div>';
+        grid.innerHTML = '<div style="color:var(--text-dim);padding:2rem;text-align:center;grid-column:1/-1">No services.</div>';
         return;
     }
     grid.innerHTML = services.map(svc => `
         <div class="svc-card ${svc.status}">
-            <div class="svc-name">${esc(svc.name)}</div>
-            <div class="svc-domain">${esc(svc.domain)}</div>
-            <div class="svc-meta">
-                <span class="svc-port">:${svc.port}</span>
-                <span class="svc-runtime">${esc(svc.runtime)}</span>
+            <div class="svc-top">
+                <div class="svc-name">${esc(svc.name)}</div>
+                <div class="svc-badge ${svc.status}">${svc.status}</div>
             </div>
-            <div class="svc-badge ${svc.status}"><span class="dot"></span>${svc.status.toUpperCase()}</div>
+            <a href="https://${svc.domain}" target="_blank" class="svc-link">${esc(svc.domain || 'localhost')}</a>
+            <div class="svc-footer">
+                <div class="svc-stat">
+                    <span class="stat-lbl">Port</span>
+                    <span class="stat-val">:${svc.port}</span>
+                </div>
+                <div class="svc-stat">
+                    <span class="stat-lbl">Runtime</span>
+                    <span class="stat-val">${esc(svc.runtime)}</span>
+                </div>
+            </div>
         </div>
     `).join('');
 }
 
 // ═══════════════════════════════════════════════════════════
-//   LOGS (TERMINAL-LIKE VIEW)
+//   LOGS
 // ═══════════════════════════════════════════════════════════
 let lastLogData = [];
 
@@ -266,7 +286,7 @@ async function fetchLogs(isRedraw = false) {
     
     viewer.innerHTML = filtered.map(line => {
         const cls = classifyLog(line, activeLogType);
-        return `<div class="log-line ${cls}">${esc(line)}</div>`;
+        return `<div class="log-entry ${cls}">${esc(line)}</div>`;
     }).join('');
 
     document.getElementById('logLineCount').textContent = filtered.length + ' lines';
@@ -276,17 +296,19 @@ async function fetchLogs(isRedraw = false) {
 function classifyLog(line, type) {
     const u = line.toUpperCase();
     if (u.includes('ERROR') || u.includes('CRITICAL') || u.includes('FAILED')) return 'log-error';
-    if (u.includes('WARN')) return 'log-warning';
+    if (u.includes('WARN')) return 'log-warn';
     if (u.includes('INFO')) return 'log-info';
-    if (u.includes('DEBUG')) return 'log-debug';
-    return 'log-plain';
+    return '';
 }
 
 // ═══════════════════════════════════════════════════════════
 //   REAL TERMINAL (XTERM.JS + PTY)
 // ═══════════════════════════════════════════════════════════
 function initTerminal() {
-    if (term) return;
+    if (term) {
+        if (socket && !socket.connected) socket.connect();
+        return;
+    }
 
     term = new Terminal({
         cursorBlink: true,
@@ -295,17 +317,19 @@ function initTerminal() {
         theme: {
             background: '#000000',
             foreground: '#e2e8f4',
-            cursor: '#00ff88',
-            selectionBackground: '#1a1f2e'
+            cursor: '#00f59b',
+            selectionBackground: 'rgba(0,245,155,0.2)'
         }
     });
 
     fitAddon = new FitAddon.FitAddon();
     term.loadAddon(fitAddon);
     term.open(document.getElementById('terminal-container'));
-    fitAddon.fit();
+    
+    setTimeout(() => fitAddon.fit(), 100);
 
-    socket = io('/terminal');
+    socket = io('/terminal', { autoConnect: false });
+    socket.connect();
 
     socket.on('connect', () => {
         const statusEl = document.getElementById('term-status');
@@ -314,6 +338,7 @@ function initTerminal() {
             statusEl.className = 'term-status connected';
         }
         socket.emit('terminal_resize', {cols: term.cols, rows: term.rows});
+        resetTermTimeout();
     });
 
     socket.on('terminal_output', (data) => {
@@ -329,18 +354,21 @@ function initTerminal() {
     });
 
     term.onData(data => {
-        socket.emit('terminal_input', {input: data});
+        if (socket && socket.connected) {
+            socket.emit('terminal_input', {input: data});
+            resetTermTimeout();
+        }
     });
 
     window.addEventListener('resize', () => {
         if (fitAddon) fitAddon.fit();
-        if (socket) socket.emit('terminal_resize', {cols: term.cols, rows: term.rows});
+        if (socket && socket.connected) socket.emit('terminal_resize', {cols: term.cols, rows: term.rows});
     });
 
     document.getElementById('term-clear-btn')?.addEventListener('click', () => term.clear());
     document.getElementById('term-reconnect-btn')?.addEventListener('click', () => {
         if (socket) socket.disconnect();
-        socket.connect();
+        setTimeout(() => socket.connect(), 100);
         term.clear();
     });
 }
@@ -351,34 +379,80 @@ function initTerminal() {
 async function fetchStats() {
     const d = await api('/api/stats');
     if (!d) return;
+
+    if (d.global) {
+        setText('st-total-svcs', d.global.total_services, 'st-svcs');
+        setText('st-total-deploys', d.global.total_deployments, 'st-deploys');
+        setText('st-success-rate', d.global.deployment_success_rate + '%', 'st-rate');
+        setText('st-total-bk', d.global.total_backups, 'st-bk');
+    }
+
     const grid = document.getElementById('statsGrid');
     if (!grid) return;
 
     if (!d.services || d.services.length === 0) {
-        grid.innerHTML = '<div style="color:var(--muted);padding:2rem;text-align:center;grid-column:1/-1">No data.</div>';
+        grid.innerHTML = '<div style="color:var(--text-dim);padding:3rem;text-align:center;grid-column:1/-1">No service data available.</div>';
         return;
     }
 
     grid.innerHTML = d.services.map(s => {
         const rate = s.deploy_total > 0 ? (s.deploy_ok / s.deploy_total * 100).toFixed(1) : 0;
-        const lastDep = s.last_deploy ? s.last_deploy.status + ' (' + s.last_deploy.timestamp.substring(0,16) + ')' : '—';
+        const lastDep = s.last_deploy ? (s.last_deploy.status + ' (' + s.last_deploy.timestamp.substring(11,16) + ')') : 'None';
         
-        return `<div class="svc-card ${s.status}">
-            <div class="svc-name">${esc(s.name)}</div>
-            <div class="svc-meta">
-                <span>Port: ${s.port}</span>
-                <span>Status: <b style="color:${s.status==='online'?'var(--green)':'var(--red)'}">${s.status.toUpperCase()}</b></span>
-            </div>
-            <div style="margin-top:1rem;font-size:0.65rem">
-                <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem">
-                    <span style="color:var(--text2)">Deploy Success</span>
-                    <span>${rate}% (${s.deploy_ok}/${s.deploy_total})</span>
+        let sparkHtml = '';
+        if (s.trend && s.trend.length > 0) {
+            sparkHtml = `<div class="sparkline-box">` + 
+                s.trend.map(val => `<div class="spark-bar" style="height:${Math.max(10, val)}%"></div>`).join('') + 
+                `</div>`;
+        }
+
+        const curr = s.current_metrics || {cpu: 0, ram: 0};
+        const cpuColor = curr.cpu > 80 ? 'var(--error)' : curr.cpu > 50 ? 'var(--warning)' : 'var(--accent)';
+        const ramColor = curr.ram > 80 ? 'var(--error)' : curr.ram > 50 ? 'var(--warning)' : 'var(--info)';
+
+        return `
+            <div class="stats-card ${s.status}">
+                <div class="stats-card-header">
+                    <div class="stats-card-name">${esc(s.name)}</div>
+                    <div class="svc-badge ${s.status}">${s.status}</div>
                 </div>
-                <div class="bar-track"><div class="bar-fill" style="width:${rate}%"></div></div>
-                <div style="margin-top:0.8rem;color:var(--text2)">Last Deploy: <span style="color:var(--text)">${esc(lastDep)}</span></div>
-                <div style="margin-top:0.4rem;color:var(--text2)">Backups: <span style="color:var(--cyan)">${s.backup_count}</span></div>
-            </div>
-        </div>`;
+                <div class="stats-card-body">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:1rem">
+                        <div style="text-align:center; flex:1">
+                            <div style="font-size:0.55rem; color:var(--text-dim); margin-bottom:4px">CPU</div>
+                            <div style="font-size:1.2rem; font-weight:800; color:${cpuColor}">${curr.cpu.toFixed(1)}%</div>
+                        </div>
+                        <div style="width:1px; background:var(--border); margin:0 15px"></div>
+                        <div style="text-align:center; flex:1">
+                            <div style="font-size:0.55rem; color:var(--text-dim); margin-bottom:4px">RAM</div>
+                            <div style="font-size:1.2rem; font-weight:800; color:${ramColor}">${curr.ram.toFixed(1)}%</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-row">
+                        <span class="stats-row-label">Host</span>
+                        <span class="stats-row-val">${esc(s.domain)}:${s.port}</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-row-label">Integrity</span>
+                        <span class="stats-row-val">${rate}% success</span>
+                    </div>
+                    <div class="deploy-rate-bar"><div class="deploy-rate-fill" style="width:${rate}%; background:${rate > 80 ? 'var(--accent)' : 'var(--warning)'}"></div></div>
+                    
+                    <div class="stats-divider"></div>
+                    
+                    <div class="stats-row">
+                        <span class="stats-row-label">Activity</span>
+                        <span class="stats-row-val">${esc(lastDep)}</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-row-label">Backups</span>
+                        <span class="stats-row-val" style="color:var(--info)">${s.backup_count} versions</span>
+                    </div>
+
+                    ${sparkHtml}
+                </div>
+            </div>`;
     }).join('');
 }
 
@@ -387,7 +461,7 @@ async function fetchStats() {
 // ═══════════════════════════════════════════════════════════
 async function fetchAudit() {
     const d = await api('/api/audit');
-    if (!d) return;
+    if (!d || !d.entries) return;
     auditCache = d.entries;
     filterAuditEntries();
 }
@@ -395,27 +469,47 @@ async function fetchAudit() {
 function filterAuditEntries() {
     const list = document.getElementById('auditList');
     if (!list) return;
+
     const filtered = auditFilterVal 
         ? auditCache.filter(e => JSON.stringify(e).toLowerCase().includes(auditFilterVal))
         : auditCache;
-    
-    list.innerHTML = filtered.map(e => `
-        <div class="audit-entry">
-            <div class="audit-action">${esc(e.action || 'RAW')}</div>
-            <div style="flex:1">
-                <div class="audit-target">${esc(e.target || '—')}</div>
-                <div class="audit-time">${esc(e.timestamp || '')}</div>
-            </div>
-        </div>
-    `).join('');
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div style="color:var(--text-dim);padding:3rem;text-align:center;font-size:0.75rem">No audit records found.</div>';
+        document.getElementById('auditCount').textContent = '0 entries';
+        return;
+    }
+
+    list.innerHTML = filtered.map(e => {
+        const action = (e.action || 'system').toLowerCase();
+        let cat = 'other';
+        if (action.includes('deploy')) cat = 'deploy';
+        else if (action.includes('backup')) cat = 'backup';
+        else if (action.includes('update') || action.includes('edit') || action.includes('config')) cat = 'update';
+        else if (action.includes('destroy') || action.includes('delete') || action.includes('fail')) cat = 'destroy';
+        else if (action.includes('webhook')) cat = 'webhook';
+
+        return `
+            <div class="audit-entry">
+                <div class="audit-left">
+                    <span class="audit-action ${cat}">${esc(e.action || 'SYSTEM')}</span>
+                    <span class="audit-time">${esc(e.timestamp || '--:--')}</span>
+                </div>
+                <div class="audit-right">
+                    <div class="audit-target">${esc(e.target || 'System Event')}</div>
+                    <div class="audit-meta">${esc(e.user || 'system')} · ${esc(e.details || 'Operational log.')}</div>
+                </div>
+            </div>`;
+    }).join('');
+
     document.getElementById('auditCount').textContent = filtered.length + ' entries';
 }
 
 async function fetchDatabase() {
     const d = await api('/api/database?table=' + activeDbTable);
     if (!d) return;
-    const head = document.getElementById('dbTableHead');
-    const body = document.getElementById('dbTableBody');
+    const head = document.querySelector('.data-table thead');
+    const body = document.querySelector('.data-table tbody');
     if (!head || !body) return;
 
     head.innerHTML = '<tr>' + d.columns.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
