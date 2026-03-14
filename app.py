@@ -19,7 +19,7 @@ _term_sessions = {}
 # ══════════════════════════════════════════════════════
 #   CONFIG (Optimized for Linux)
 # ══════════════════════════════════════════════════════
-ATS_HOME     = '/home/gaia/ats'
+ATS_HOME     = '/home/gaia'
 DB_FILE      = os.path.join(ATS_HOME, 'ats.db')
 LOG_FILE     = os.path.join(ATS_HOME, 'ats.log')
 AUDIT_FILE   = os.path.join(ATS_HOME, 'audit.trace')
