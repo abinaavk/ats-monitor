@@ -55,25 +55,6 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── MOBILE TOGGLE ──────────────────────────────────────────
-const mobileToggle = document.getElementById('mobileToggle');
-const sidebar = document.getElementById('sidebar');
-const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-if (mobileToggle) {
-    mobileToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
-        sidebarOverlay.classList.toggle('visible');
-    });
-}
-
-if (sidebarOverlay) {
-    sidebarOverlay.addEventListener('click', () => {
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('visible');
-    });
-}
-
 // ── TABS (Sidebar Nav) ──────────────────────────────────────
 document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -84,10 +65,6 @@ document.querySelectorAll('.nav-item').forEach(btn => {
         const tabEl = document.getElementById('tab-' + activeTab);
         if (tabEl) tabEl.classList.add('active');
         
-        // Mobile behavior: close sidebar after click
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('visible');
-
         if (activeTab === 'terminal') {
             if (!socket || !socket.connected) initTerminal();
             resetTermTimeout();
@@ -340,7 +317,7 @@ function initTerminal() {
         theme: {
             background: '#000000',
             foreground: '#e2e8f4',
-            cursor: '#00ff9d',
+            cursor: '#00f59b',
             selectionBackground: 'rgba(0,245,155,0.2)'
         }
     });
@@ -403,27 +380,11 @@ async function fetchStats() {
     const d = await api('/api/stats');
     if (!d) return;
 
-    // Render Hero Stats
     if (d.global) {
         setText('st-total-svcs', d.global.total_services, 'st-svcs');
         setText('st-total-deploys', d.global.total_deployments, 'st-deploys');
         setText('st-success-rate', d.global.deployment_success_rate + '%', 'st-rate');
         setText('st-total-bk', d.global.total_backups, 'st-bk');
-
-        setText('st-db-size', d.global.db_size_mb, 'st-db-size');
-        setText('st-log-size', d.global.log_size_mb, 'st-log-size');
-        setText('st-recent-errors', d.global.recent_errors, 'st-errors');
-        setText('st-deploy-24h', d.global.deploys_24h, 'st-d24h');
-
-        setText('st-net-io', d.global.net_sent_gb + '/' + d.global.net_recv_gb, 'st-net');
-        setText('st-disk-io', d.global.disk_read_gb + '/' + d.global.disk_write_gb, 'st-disk');
-        setText('st-load-avg', d.global.load_avg ? d.global.load_avg[0].toFixed(2) : '--', 'st-load');
-        setText('st-cpu-temp', d.global.cpu_temp > 0 ? d.global.cpu_temp + '°C' : 'N/A', 'st-temp');
-
-        setText('st-proc-count', d.global.proc_count, 'st-proc');
-        setText('st-thread-count', d.global.thread_count, 'st-thread');
-        setText('st-zombie-count', d.global.zombie_count, 'st-zombie');
-        setText('st-active-workers', d.global.active_workers, 'st-workers');
     }
 
     const grid = document.getElementById('statsGrid');
@@ -460,13 +421,11 @@ async function fetchStats() {
                         <div style="text-align:center; flex:1">
                             <div style="font-size:0.55rem; color:var(--text-dim); margin-bottom:4px">CPU</div>
                             <div style="font-size:1.2rem; font-weight:800; color:${cpuColor}">${curr.cpu.toFixed(1)}%</div>
-                            <div style="font-size:0.5rem; color:var(--text-dim)">avg ${s.avg_cpu}%</div>
                         </div>
                         <div style="width:1px; background:var(--border); margin:0 15px"></div>
                         <div style="text-align:center; flex:1">
                             <div style="font-size:0.55rem; color:var(--text-dim); margin-bottom:4px">RAM</div>
                             <div style="font-size:1.2rem; font-weight:800; color:${ramColor}">${curr.ram.toFixed(1)}%</div>
-                            <div style="font-size:0.5rem; color:var(--text-dim)">peak ${s.max_ram}%</div>
                         </div>
                     </div>
 
@@ -476,8 +435,9 @@ async function fetchStats() {
                     </div>
                     <div class="stats-row">
                         <span class="stats-row-label">Integrity</span>
-                        <span class="stats-row-val">${rate}% success (${s.deploy_ok}/${s.deploy_total})</span>
+                        <span class="stats-row-val">${rate}% success</span>
                     </div>
+                    <div class="deploy-rate-bar"><div class="deploy-rate-fill" style="width:${rate}%; background:${rate > 80 ? 'var(--accent)' : 'var(--warning)'}"></div></div>
                     
                     <div class="stats-divider"></div>
                     
