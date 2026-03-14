@@ -1,0 +1,85 @@
+[Unit]
+Description=monitor API [ATS v7.5 PRO MANAGED]
+After=network-online.target
+Wants=network-online.target
+Documentation=https://gaiasentinel.online/docs/monitor
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/extra1_1tb/api/monitor
+
+# ════════ ENVIRONMENT ════════
+Environment="ATS_HOME=/home/gaia"
+Environment="PATH=/opt/extra1_1tb/api/monitor/venv/bin:/usr/local/bin:/usr/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="GUNICORN_WORKER=gevent"
+
+# ════════ LIFECYCLE ════════
+# Preparation and Zero-Downtime Reload
+ExecStartPre=/usr/bin/mkdir -p /opt/extra1_1tb/api/monitor/logs
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# ════════ EXECUTION ════════
+# Using gevent for stable WebSocket/Terminal connections
+ExecStart=/opt/extra1_1tb/api/monitor/venv/bin/gunicorn \
+    --name monitor_api \
+    --bind 127.0.0.1:9998 \
+    --workers 1 \
+    --worker-class gevent \
+    --worker-connections 1000 \
+    --timeout 120 \
+    --keep-alive 5 \
+    --access-logfile /opt/extra1_1tb/api/monitor/logs/access.log \
+    --error-logfile /opt/extra1_1tb/api/monitor/logs/error.log \
+    --access-logformat '%({X-Forwarded-For}i)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)sµs' \
+    --log-level info \
+    app:app
+
+# ════════ LOGGING ════════
+StandardOutput=append:/opt/extra1_1tb/api/monitor/logs/stdout.log
+StandardError=append:/opt/extra1_1tb/api/monitor/logs/stderr.log
+SyslogIdentifier=monitor
+
+# ════════ RESTART BEHAVIOR ════════
+Restart=always
+RestartSec=5
+StartLimitInterval=0
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+# ════════ SECURITY HARDENING ════════
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=full
+ProtectHome=false
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+
+# ════════ FILESYSTEM ACCESS ════════
+ReadWritePaths=/opt/extra1_1tb/api/monitor
+ReadWritePaths=/opt/extra1_1tb/api/monitor/logs
+ReadWritePaths=/home/gaia/ats
+ReadWritePaths=/home/gaia/ats/ats.db
+ReadWritePaths=/home/gaia/ats/ats.log
+ReadWritePaths=/home/gaia/ats/audit.trace
+
+# ════════ RESOURCE LIMITS ════════
+MemoryMax=512M
+MemoryHigh=460M
+CPUQuota=50%
+TasksMax=256
+LimitNOFILE=65536
+LimitNPROC=512
+
+# File permissions
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   ATS MONITOR v5.1  ·  Ultra Cyber-Ops (Refined)
+   ATS MONITOR v5.0  ·  Ultra Cyber-Ops (Mobile Perfected)
 ═══════════════════════════════════════════════════════════ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,7 +13,7 @@
   --border:      rgba(255,255,255,0.05);
   --border-rich: rgba(255,255,255,0.1);
 
-  --accent:      #00ff9d; /* Neon Green */
+  --accent:      #00ff9d;
   --accent-dim:  rgba(0,255,157,0.08);
   --accent-glow: rgba(0,255,157,0.2);
 
@@ -26,11 +26,12 @@
   --text:        #f8fafc;
   --text-muted:  #94a3b8;
   --text-dim:    #475569;
-  
+
   --font:        'Azeret Mono', monospace;
-  
+
   --sidebar-w:   260px;
   --header-h:    72px;
+  --mobile-nav-h: 60px;
 }
 
 html, body {
@@ -184,21 +185,6 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* ── TAB CONTENT ─────────────────────────────────────────── */
-.tabcontent {
-  display: none;
-  animation: fadeIn 0.2s ease-out;
-}
-
-.tabcontent.active {
-  display: block;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 /* ── DASHBOARD COMPONENTS ────────────────────────────────── */
 .grid-top {
   display: grid;
@@ -237,99 +223,26 @@ html, body {
 .res-info { font-size: 0.7rem; color: var(--text-muted); display: flex; justify-content: space-between; }
 
 /* ── SERVICES ───────────────────────────────────────────── */
-.svc-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
+.svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem; }
+.svc-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 1.8rem; position: relative; overflow: hidden; transition: all 0.3s; }
+.svc-card:hover { border-color: var(--border-rich); background: var(--card-hover); }
 
-.svc-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 1.5rem;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
+.svc-card.online::after { content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px; background: radial-gradient(circle at top right, rgba(0,255,157,0.08), transparent 75%); }
+.svc-card.offline::after { content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px; background: radial-gradient(circle at top right, rgba(239,68,68,0.08), transparent 75%); }
 
-.svc-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-rich);
-  background: var(--card-hover);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-}
-
-.svc-card.online { border-left: 4px solid var(--accent); }
-.svc-card.offline { border-left: 4px solid var(--error); }
-
-.svc-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.svc-name {
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: #fff;
-}
-
-.svc-badge {
-  padding: 0.3rem 0.8rem;
-  border-radius: 8px;
-  font-size: 0.6rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
+.svc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem; }
+.svc-name { font-size: 1.1rem; font-weight: 800; }
+.svc-badge { padding: 0.4rem 1rem; border-radius: 10px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
 .svc-badge.online { background: var(--accent-dim); color: var(--accent); }
 .svc-badge.offline { background: rgba(239,68,68,0.1); color: var(--error); }
 
-.svc-link {
-  font-size: 0.75rem;
-  color: var(--cyan);
-  text-decoration: none;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  transition: color 0.2s;
-}
+.svc-link { font-size: 0.75rem; color: var(--cyan); text-decoration: none; margin-bottom: 1.5rem; display: inline-block; font-weight: 600; }
+.svc-link:hover { text-decoration: underline; color: #fff; }
 
-.svc-link:hover { color: #fff; text-decoration: underline; }
-
-.svc-footer {
-  display: flex;
-  gap: 1.5rem;
-  padding-top: 1.2rem;
-  border-top: 1px solid var(--border);
-  margin-top: auto;
-}
-
-.svc-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.stat-lbl {
-  font-size: 0.55rem;
-  color: var(--text-dim);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.stat-val {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--text-muted);
-}
+.svc-footer { display: flex; gap: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+.svc-stat { display: flex; flex-direction: column; gap: 0.4rem; }
+.stat-lbl { font-size: 0.6rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase; }
+.stat-val { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
 
 /* ── STATS SPECIFIC ─────────────────────────────────────── */
 .stats-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
@@ -379,20 +292,20 @@ html, body {
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay.visible { display: block; }
   .mobile-toggle { display: block; }
-  
+
   .header-search { width: 40px; padding: 0; justify-content: center; overflow: hidden; transition: width 0.3s; }
   .header-search:focus-within { width: 200px; padding: 0.7rem 1.2rem; position: absolute; left: 1.5rem; right: 1.5rem; width: auto; z-index: 10; background: var(--bg); }
-  
+
   .grid-top { grid-template-columns: 1fr 1fr; gap: 1rem; }
   .metric-card { padding: 1.2rem; border-radius: 18px; }
   .metric-value { font-size: 1.6rem; }
-  
+
   .resource-grid { grid-template-columns: 1fr; }
   .svc-grid { grid-template-columns: 1fr; }
-  
+
   .stats-hero { grid-template-columns: 1fr 1fr; gap: 1rem; }
   .hero-val { font-size: 1.4rem; }
-  
+
   .log-header { padding: 1rem; }
   .header-actions { gap: 1rem; }
   .status-dot-wrap span { display: none; }

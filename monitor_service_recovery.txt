@@ -1,0 +1,47 @@
+[Unit]
+Description=Gaia Sentinel Monitor API [RECOVERY]
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/extra1_1tb/api/monitor
+
+# Environment
+Environment="ATS_HOME=/home/gaia"
+Environment="PATH=/opt/extra1_1tb/api/monitor/venv/bin:/usr/local/bin:/usr/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="GUNICORN_WORKER=gevent"
+
+# Execution
+ExecStart=/opt/extra1_1tb/api/monitor/venv/bin/gunicorn \
+    --bind 127.0.0.1:9998 \
+    --workers 1 \
+    --worker-class gevent \
+    --worker-connections 1000 \
+    --timeout 120 \
+    app:app
+
+# Basic Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=monitor-api
+
+# Reliability
+Restart=always
+RestartSec=5s
+
+# Permission Relaxing (Recovery)
+NoNewPrivileges=false
+ProtectSystem=full
+ProtectHome=false
+PrivateTmp=false
+
+# Broad Write Access
+ReadWritePaths=/opt/extra1_1tb/api/monitor
+ReadWritePaths=/home/gaia
+
+[Install]
+WantedBy=multi-user.target
