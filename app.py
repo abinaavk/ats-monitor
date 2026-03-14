@@ -31,12 +31,17 @@ _term_sessions = {}
 #   CONFIG (Optimized for Linux)
 # ══════════════════════════════════════════════════════
 ATS_HOME     = os.environ.get('ATS_HOME', '/home/gaia')
-DB_FILE      = os.path.join(ATS_HOME, 'ats.db')
+
+def get_db_path():
+    # Try /home/gaia/ats.db first, then /home/gaia/ats/ats.db
+    p1 = os.path.join(ATS_HOME, 'ats.db')
+    p2 = os.path.join(ATS_HOME, 'ats', 'ats.db')
+    return p1 if os.path.exists(p1) or not os.path.exists(p2) else p2
+
+DB_FILE      = get_db_path()
 LOG_FILE     = os.path.join(ATS_HOME, 'ats.log')
-AUDIT_FILE   = os.path.join(ATS_HOME, 'audit.trace')
-SEC_FILE     = os.path.join(ATS_HOME, 'security.log')
-METRICS_FILE = os.path.join(ATS_HOME, 'metrics.prom')
-BACKUP_DIR   = os.environ.get('BACKUP_DIR', '/opt/extra1_1tb/backups')
+# ... rest of config ...
+
 
 # ══════════════════════════════════════════════════════
 #   AUTH (Bypassed)
@@ -162,7 +167,8 @@ def api_overview():
         'services': svc_list, 'online': sum(1 for s in svc_list if s['status'] == 'online'),
         'total': len(svc_list), 'cpu': cpu, 'ram': ram, 'swap': swap, 'load': load,
         'disk_root': disk_info_linux('/'), 'disk_storage': disk_info_linux('/opt/extra1_1tb'),
-        'db_integrity': integrity_ok, 'db_status': db_status, 'db_exists': db_exists, 'db_stats': db_stats,
+        'db_integrity': integrity_ok, 'db_status': db_status, 'db_exists': db_exists, 
+        'db_stats': db_stats, 'db_path': DB_FILE,
         'internet': subprocess.call(['ping', '-c', '1', '-W', '1', '1.1.1.1'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0,
         'dns': subprocess.call(['ping', '-c', '1', '-W', '1', 'github.com'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0,
         'cloudflare': systemd_active('cloudflared'),

@@ -189,9 +189,10 @@ function renderMetrics(d) {
                   metRow('RAM Usage', d.ram.pct > 90 ? 'fail' : d.ram.pct > 75 ? 'warn' : 'pass', d.ram.pct.toFixed(1) + '%') +
                   metRow('Load Avg', 'pass', d.load ? d.load.join(' ') : 'N/A');
     setInner('mt-resources', resHtml);
-
-    const dbSt = d.db_integrity ? 'pass' : (d.db_exists ? 'fail' : 'warn');
-    let dbHtml = metRow('Database Status', dbSt, d.db_status || (d.db_integrity ? 'OK' : 'Corrupt or Missing'));
+// DB Integrity
+const dbSt = d.db_integrity ? 'pass' : (d.db_exists ? 'fail' : 'warn');
+const dbMsg = d.db_exists ? (d.db_status || 'OK') : 'Not found at ' + d.db_path;
+let dbHtml = metRow('Database Status', dbSt, dbMsg);
     if (d.db_stats) {
         Object.entries(d.db_stats).forEach(([t, c]) => {
             dbHtml += metRow('Table: ' + t, c > 2000 ? 'warn' : 'pass', c + ' rows');
