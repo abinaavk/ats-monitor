@@ -111,7 +111,7 @@ async function api(url) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//   OVERVIEW
+//   OVERVIEW & METRICS
 // ═══════════════════════════════════════════════════════════
 function setBar(barId, pct, warnAt, critAt) {
     const el = document.getElementById(barId);
@@ -135,25 +135,21 @@ async function fetchOverview() {
     setText('ov-uptime', d.uptime || 'N/A', 'uptime');
 
     if (d.ram) {
-        setText('ov-ram-val', d.ram.pct + '%', 'ram-pct');
+        setText('ov-ram-val', d.ram.pct.toFixed(1) + '%', 'ram-pct');
         setText('ov-ram-detail', d.ram.used + ' / ' + d.ram.total + ' GB', 'ram-detail');
         setBar('ov-ram-bar', d.ram.pct, 75, 90);
     }
     if (d.swap) {
-        setText('ov-swap-val', d.swap.pct + '%', 'swap-pct');
+        setText('ov-swap-val', d.swap.pct.toFixed(1) + '%', 'swap-pct');
         setText('ov-swap-detail', d.swap.used + ' / ' + d.swap.total + ' MB', 'swap-detail');
         setBar('ov-swap-bar', d.swap.pct, 60, 80);
     }
     if (d.disk_root) {
-        const lbl = document.getElementById('lbl-disk1');
-        if (lbl) lbl.textContent = 'DISK /';
         setText('ov-disk1-val', d.disk_root.pct + '%', 'disk1-pct');
         setText('ov-disk1-detail', d.disk_root.used + ' / ' + d.disk_root.total + ' GB', 'disk1-detail');
         setBar('ov-disk1-bar', d.disk_root.pct, 75, 90);
     }
     if (d.disk_storage) {
-        const lbl = document.getElementById('lbl-disk2');
-        if (lbl) lbl.textContent = 'DISK /opt';
         setText('ov-disk2-val', d.disk_storage.pct + '%', 'disk2-pct');
         setText('ov-disk2-detail', d.disk_storage.used + ' / ' + d.disk_storage.total + ' GB', 'disk2-detail');
         setBar('ov-disk2-bar', d.disk_storage.pct, 75, 90);
@@ -168,7 +164,6 @@ async function fetchOverview() {
 }
 
 function renderMetrics(d) {
-    // Disk
     let diskHtml = '';
     [d.disk_root, d.disk_storage].forEach(dk => {
         if (!dk) return;
@@ -177,13 +172,11 @@ function renderMetrics(d) {
     });
     setInner('mt-disk', diskHtml);
 
-    // Network
     let netHtml = metRow('Internet', d.internet ? 'pass' : 'fail', d.internet ? 'Online' : 'Offline') +
                   metRow('DNS', d.dns ? 'pass' : 'fail', d.dns ? 'Resolving' : 'Failed') +
                   metRow('Cloudflare', d.cloudflare ? 'pass' : 'warn', d.cloudflare ? 'Active' : 'Inactive');
     setInner('mt-network', netHtml);
 
-    // Services
     let svcHtml = '';
     if (d.services) {
         d.services.forEach(s => {
@@ -192,13 +185,11 @@ function renderMetrics(d) {
     }
     setInner('mt-services', svcHtml);
 
-    // Resources
     let resHtml = metRow('CPU Usage', d.cpu > 80 ? 'fail' : d.cpu > 60 ? 'warn' : 'pass', d.cpu + '%') +
-                  metRow('RAM Usage', d.ram.pct > 90 ? 'fail' : d.ram.pct > 75 ? 'warn' : 'pass', d.ram.used + ' / ' + d.ram.total + ' GB') +
+                  metRow('RAM Usage', d.ram.pct > 90 ? 'fail' : d.ram.pct > 75 ? 'warn' : 'pass', d.ram.pct.toFixed(1) + '%') +
                   metRow('Load Avg', 'pass', d.load ? d.load.join(' ') : 'N/A');
     setInner('mt-resources', resHtml);
 
-    // DB Integrity
     const dbSt = d.db_integrity ? 'pass' : (d.db_exists ? 'fail' : 'warn');
     let dbHtml = metRow('Database Status', dbSt, d.db_status || (d.db_integrity ? 'OK' : 'Corrupt or Missing'));
     if (d.db_stats) {
@@ -241,7 +232,7 @@ function renderServiceCards(services) {
     grid.innerHTML = services.map(svc => `
         <div class="svc-card ${svc.status}">
             <div class="svc-name">${esc(svc.name)}</div>
-            <div class="svc-domain">${esc(svc.domain || 'localhost')}</div>
+            <div class="svc-domain">${esc(svc.domain)}</div>
             <div class="svc-meta">
                 <span class="svc-port">:${svc.port}</span>
                 <span class="svc-runtime">${esc(svc.runtime)}</span>
@@ -335,16 +326,53 @@ function initTerminal() {
     });
 
     window.addEventListener('resize', () => {
-        fitAddon.fit();
-        socket.emit('terminal_resize', {cols: term.cols, rows: term.rows});
+        if (fitAddon) fitAddon.fit();
+        if (socket) socket.emit('terminal_resize', {cols: term.cols, rows: term.rows});
     });
 
     document.getElementById('term-clear-btn')?.addEventListener('click', () => term.clear());
     document.getElementById('term-reconnect-btn')?.addEventListener('click', () => {
-        socket.disconnect();
+        if (socket) socket.disconnect();
         socket.connect();
         term.clear();
     });
+}
+
+// ═══════════════════════════════════════════════════════════
+//   STATS (PER-SERVICE)
+// ═══════════════════════════════════════════════════════════
+async function fetchStats() {
+    const d = await api('/api/stats');
+    if (!d) return;
+    const grid = document.getElementById('statsGrid');
+    if (!grid) return;
+
+    if (!d.services || d.services.length === 0) {
+        grid.innerHTML = '<div style="color:var(--muted);padding:2rem;text-align:center;grid-column:1/-1">No data.</div>';
+        return;
+    }
+
+    grid.innerHTML = d.services.map(s => {
+        const rate = s.deploy_total > 0 ? (s.deploy_ok / s.deploy_total * 100).toFixed(1) : 0;
+        const lastDep = s.last_deploy ? s.last_deploy.status + ' (' + s.last_deploy.timestamp.substring(0,16) + ')' : '—';
+        
+        return `<div class="svc-card ${s.status}">
+            <div class="svc-name">${esc(s.name)}</div>
+            <div class="svc-meta">
+                <span>Port: ${s.port}</span>
+                <span>Status: <b style="color:${s.status==='online'?'var(--green)':'var(--red)'}">${s.status.toUpperCase()}</b></span>
+            </div>
+            <div style="margin-top:1rem;font-size:0.65rem">
+                <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem">
+                    <span style="color:var(--text2)">Deploy Success</span>
+                    <span>${rate}% (${s.deploy_ok}/${s.deploy_total})</span>
+                </div>
+                <div class="bar-track"><div class="bar-fill" style="width:${rate}%"></div></div>
+                <div style="margin-top:0.8rem;color:var(--text2)">Last Deploy: <span style="color:var(--text)">${esc(lastDep)}</span></div>
+                <div style="margin-top:0.4rem;color:var(--text2)">Backups: <span style="color:var(--cyan)">${s.backup_count}</span></div>
+            </div>
+        </div>`;
+    }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -397,6 +425,7 @@ function refreshActive() {
     if (activeTab === 'logs') fetchLogs();
     if (activeTab === 'audit') fetchAudit();
     if (activeTab === 'database') fetchDatabase();
+    if (activeTab === 'stats') fetchStats();
 }
 
 setInterval(refreshActive, 5000);
