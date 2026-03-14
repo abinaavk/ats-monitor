@@ -380,18 +380,11 @@ async function fetchStats() {
     const d = await api('/api/stats');
     if (!d) return;
 
-    // Render Hero Stats Row 1
     if (d.global) {
         setText('st-total-svcs', d.global.total_services, 'st-svcs');
         setText('st-total-deploys', d.global.total_deployments, 'st-deploys');
         setText('st-success-rate', d.global.deployment_success_rate + '%', 'st-rate');
         setText('st-total-bk', d.global.total_backups, 'st-bk');
-
-        // Render Hero Stats Row 2 (System Integrity)
-        setText('st-db-size', d.global.db_size_mb, 'st-db-size');
-        setText('st-log-size', d.global.log_size_mb, 'st-log-size');
-        setText('st-recent-errors', d.global.recent_errors, 'st-errors');
-        setText('st-deploy-24h', d.global.deploys_24h, 'st-d24h');
     }
 
     const grid = document.getElementById('statsGrid');

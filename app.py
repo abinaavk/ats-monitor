@@ -234,14 +234,10 @@ def api_stats():
     total_deploys = 0
     total_success = 0
     total_backups = 0
-    deploys_24h = 0
     
     has_dep = table_exists('deployments')
     has_bk = table_exists('backups')
     has_metrics = table_exists('metrics_history')
-
-    # Time threshold for 24h stats
-    yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
 
     for s in svcs:
         nm = s['name']
@@ -254,10 +250,6 @@ def api_stats():
                 dep = r
                 total_deploys += (r['total'] or 0)
                 total_success += (r['ok'] or 0)
-            
-            # 24h velocity
-            r24 = dbq("SELECT COUNT(*) as c FROM deployments WHERE service_name=? AND timestamp > ?", (nm, yesterday), fetch_one=True)
-            if r24: deploys_24h += r24['c']
         
         last_dep = dbq("SELECT status, timestamp FROM deployments WHERE service_name=? ORDER BY timestamp DESC LIMIT 1", (nm,), fetch_one=True) if has_dep else None
         
@@ -293,18 +285,6 @@ def api_stats():
             'created_at': s.get('created_at', '—')
         })
 
-    # System-wide metrics
-    db_size = os.path.getsize(DB_FILE) / (1024*1024) if os.path.exists(DB_FILE) else 0
-    log_size = os.path.getsize(LOG_FILE) / (1024*1024) if os.path.exists(LOG_FILE) else 0
-    
-    # Simple error count from last 1000 lines
-    recent_errors = 0
-    if os.path.exists(LOG_FILE):
-        try:
-            content = tail_file(LOG_FILE, 1000)
-            recent_errors = content.upper().count('ERROR') + content.upper().count('CRITICAL')
-        except: pass
-
     return jsonify({
         'services': out,
         'global': {
@@ -312,10 +292,6 @@ def api_stats():
             'total_deployments': total_deploys,
             'deployment_success_rate': round(total_success / total_deploys * 100, 1) if total_deploys > 0 else 0,
             'total_backups': total_backups,
-            'deploys_24h': deploys_24h,
-            'db_size_mb': round(db_size, 2),
-            'log_size_mb': round(log_size, 2),
-            'recent_errors': recent_errors,
             'active_workers': sum(s.get('workers', 0) for s in svcs if s.get('workers'))
         }
     })
