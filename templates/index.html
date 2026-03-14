@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
 </head>
 <body>
 
@@ -31,6 +32,7 @@
   <button class="tab" data-tab="audit">AUDIT</button>
   <button class="tab" data-tab="database">DATABASE</button>
   <button class="tab" data-tab="stats">STATS</button>
+  <button class="tab" data-tab="terminal">TERMINAL</button>
 </nav>
 
 <!-- ══════════════════════════════════════════════════════
@@ -233,7 +235,26 @@
   </div>
 </section>
 
+<!-- ══════════════════════════════════════════════════════
+     TAB: TERMINAL
+══════════════════════════════════════════════════════ -->
+<section class="tabcontent" id="tab-terminal">
+
+  <div class="term-toolbar">
+    <span class="term-status" id="term-status">DISCONNECTED</span>
+    <button class="term-btn" id="term-reconnect-btn">RECONNECT</button>
+    <button class="term-btn" id="term-clear-btn">CLEAR</button>
+    <span style="flex:1"></span>
+    <span class="term-hint">bash · gaiaserver</span>
+  </div>
+  <div id="terminal-container"></div>
+
+</section>
+
 <div style="height:env(safe-area-inset-bottom, 16px)"></div>
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="/static/js/main.js"></script>
 </body>
 </html>

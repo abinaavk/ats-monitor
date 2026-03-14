@@ -46,7 +46,12 @@ document.querySelectorAll('.tab').forEach(btn => {
         btn.classList.add('active');
         activeTab = btn.dataset.tab;
         document.getElementById('tab-' + activeTab).classList.add('active');
-        refreshActive();
+        if (activeTab === 'terminal') {
+            // Init on first visit; re-fit on subsequent visits
+            requestAnimationFrame(() => initTerminal());
+        } else {
+            refreshActive();
+        }
     });
 });
 
@@ -478,11 +483,137 @@ function refreshActive() {
         case 'audit':     fetchAudit(); break;
         case 'database':  fetchDatabase(); break;
         case 'stats':     fetchStats(); break;
+        case 'terminal':  initTerminal(); break;
     }
 }
 
 setInterval(refreshActive, 5000);
 refreshActive();
+
+// ═══════════════════════════════════════════════════════════
+//   TERMINAL  (xterm.js + Flask-SocketIO)
+// ═══════════════════════════════════════════════════════════
+let _term        = null;
+let _termFit     = null;
+let _termSocket  = null;
+let _termReady   = false;   // xterm DOM mounted
+let _termConnected = false;
+
+function initTerminal() {
+    if (!_termReady) _mountTerminal();
+    else if (_termFit) _termFit.fit();
+}
+
+function _mountTerminal() {
+    _termReady = true;
+
+    _term = new Terminal({
+        theme: {
+            background:    '#040506',
+            foreground:    '#e2e8f4',
+            cursor:        '#00ff88',
+            cursorAccent:  '#040506',
+            selectionBackground: 'rgba(0,212,255,0.22)',
+            black:   '#060709', red:     '#ff3366',
+            green:   '#00ff88', yellow:  '#ffb300',
+            blue:    '#60a5fa', magenta: '#c084fc',
+            cyan:    '#00d4ff', white:   '#e2e8f4',
+            brightBlack:   '#343b4f', brightRed:     '#ff3366',
+            brightGreen:   '#00ff88', brightYellow:  '#ffb300',
+            brightBlue:    '#60a5fa', brightMagenta: '#c084fc',
+            brightCyan:    '#00d4ff', brightWhite:   '#ffffff',
+        },
+        fontFamily:       "'Azeret Mono', 'Fira Code', 'Cascadia Code', monospace",
+        fontSize:         13,
+        lineHeight:       1.55,
+        letterSpacing:    0,
+        cursorBlink:      true,
+        cursorStyle:      'block',
+        allowTransparency:true,
+        scrollback:       5000,
+        convertEol:       false,
+    });
+
+    _termFit = new FitAddon.FitAddon();
+    _term.loadAddon(_termFit);
+
+    const container = document.getElementById('terminal-container');
+    _term.open(container);
+    _termFit.fit();
+
+    // Fit on window resize
+    window.addEventListener('resize', () => {
+        if (activeTab === 'terminal' && _termFit) _termFit.fit();
+    });
+
+    _connectTermSocket();
+
+    // Wire up toolbar buttons
+    document.getElementById('term-reconnect-btn')?.addEventListener('click', _connectTermSocket);
+    document.getElementById('term-clear-btn')?.addEventListener('click', () => _term && _term.clear());
+}
+
+function _setTermStatus(state) {
+    const el = document.getElementById('term-status');
+    if (!el) return;
+    const map = {
+        connected:    ['CONNECTED',    'connected'],
+        connecting:   ['CONNECTING…',  'connecting'],
+        disconnected: ['DISCONNECTED', ''],
+    };
+    const [text, cls] = map[state] || ['—', ''];
+    el.textContent  = text;
+    el.className    = 'term-status' + (cls ? ' ' + cls : '');
+}
+
+function _connectTermSocket() {
+    if (_termSocket) {
+        _termSocket.disconnect();
+        _termSocket = null;
+    }
+    _setTermStatus('connecting');
+
+    _termSocket = io('/terminal', {
+        transports: ['websocket', 'polling'],
+        reconnection: false,
+    });
+
+    _termSocket.on('connect', () => {
+        _termConnected = true;
+        _setTermStatus('connected');
+        if (_termFit) {
+            _termFit.fit();
+            _termSocket.emit('terminal_resize', { rows: _term.rows, cols: _term.cols });
+        }
+    });
+
+    _termSocket.on('terminal_output', data => {
+        if (_term) _term.write(data.data);
+    });
+
+    _termSocket.on('disconnect', () => {
+        _termConnected = false;
+        _setTermStatus('disconnected');
+    });
+
+    _termSocket.on('connect_error', () => {
+        _setTermStatus('disconnected');
+    });
+
+    // Forward keystrokes to server
+    _term.onData(input => {
+        if (_termSocket && _termConnected) {
+            _termSocket.emit('terminal_input', { input });
+        }
+    });
+
+    // Forward resize events
+    _term.onResize(size => {
+        if (_termSocket && _termConnected) {
+            _termSocket.emit('terminal_resize', { rows: size.rows, cols: size.cols });
+        }
+    });
+}
 
 // ── XSS ESCAPE ─────────────────────────────────────────────
 function esc(str) {

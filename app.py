@@ -1,5 +1,7 @@
 import os, json, sqlite3, subprocess, datetime, socket
+import pty, threading, select, struct, fcntl, termios, signal
 from flask import Flask, render_template, session, redirect, request, jsonify, url_for
+from flask_socketio import SocketIO, disconnect
 from functools import wraps
 
 try:
@@ -10,6 +12,10 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = 'ats_monitor_v1_secret_key_change_me'
+socketio = SocketIO(app, async_mode='threading', cors_allowed_origins='*')
+
+# sid → {fd, pid}
+_term_sessions = {}
 
 # ══════════════════════════════════════════════════════
 #   CONFIG  ← edit these two lines after deploy
@@ -333,11 +339,93 @@ def api_backups():
     return jsonify({'backups': rows})
 
 # ══════════════════════════════════════════════════════
+#   TERMINAL  (Flask-SocketIO + PTY)
+# ══════════════════════════════════════════════════════
+
+def _read_pty(sid, fd):
+    """Background thread: relay PTY output to the client."""
+    while True:
+        try:
+            r, _, _ = select.select([fd], [], [], 0.2)
+            if r:
+                try:
+                    data = os.read(fd, 4096)
+                except OSError:
+                    break
+                if data:
+                    socketio.emit('terminal_output',
+                                  {'data': data.decode('utf-8', errors='replace')},
+                                  namespace='/terminal', room=sid)
+                else:
+                    break
+        except Exception:
+            break
+    socketio.emit('terminal_output',
+                  {'data': '\r\n\x1b[31m[Session ended]\x1b[0m\r\n'},
+                  namespace='/terminal', room=sid)
+
+
+@socketio.on('connect', namespace='/terminal')
+def on_term_connect():
+    if not session.get('auth'):
+        return False                      # reject unauthenticated WS connections
+
+    sid = request.sid
+    env = os.environ.copy()
+    env['TERM'] = 'xterm-256color'
+
+    pid, fd = pty.fork()
+    if pid == 0:
+        # Child → become bash as the current user
+        os.execvpe('/bin/bash', ['/bin/bash', '--login'], env)
+    else:
+        _term_sessions[sid] = {'fd': fd, 'pid': pid}
+        t = threading.Thread(target=_read_pty, args=(sid, fd), daemon=True)
+        t.start()
+
+
+@socketio.on('terminal_input', namespace='/terminal')
+def on_term_input(data):
+    sess = _term_sessions.get(request.sid)
+    if sess:
+        try:
+            os.write(sess['fd'], data['input'].encode())
+        except OSError:
+            pass
+
+
+@socketio.on('terminal_resize', namespace='/terminal')
+def on_term_resize(data):
+    sess = _term_sessions.get(request.sid)
+    if sess:
+        rows = int(data.get('rows', 24))
+        cols = int(data.get('cols', 80))
+        try:
+            fcntl.ioctl(sess['fd'], termios.TIOCSWINSZ,
+                        struct.pack('HHHH', rows, cols, 0, 0))
+        except OSError:
+            pass
+
+
+@socketio.on('disconnect', namespace='/terminal')
+def on_term_disconnect():
+    sess = _term_sessions.pop(request.sid, None)
+    if sess:
+        try:
+            os.kill(sess['pid'], signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            os.close(sess['fd'])
+        except OSError:
+            pass
+
+
+# ══════════════════════════════════════════════════════
 #   ENTRY POINT
+#   Note: waitress doesn't support WebSockets — use socketio.run()
+#   Install dep:  pip install flask-socketio
 # ══════════════════════════════════════════════════════
 if __name__ == '__main__':
-    try:
-        from waitress import serve
-        serve(app, host='127.0.0.1', port=9998, threads=4)
-    except ImportError:
-        app.run(host='127.0.0.1', port=9998)
+    socketio.run(app, host='127.0.0.1', port=9998,
+                 allow_unsafe_werkzeug=True)
