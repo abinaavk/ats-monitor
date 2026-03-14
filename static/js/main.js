@@ -164,6 +164,64 @@ async function fetchOverview() {
     setPill('ov-cf',   d.cloudflare, 'CLOUDFLARE');
 
     renderServiceCards(d.services);
+    renderMetrics(d);
+}
+
+function renderMetrics(d) {
+    // Disk
+    let diskHtml = '';
+    [d.disk_root, d.disk_storage].forEach(dk => {
+        if (!dk) return;
+        const st = dk.pct > 90 ? 'fail' : dk.pct > 75 ? 'warn' : 'pass';
+        diskHtml += metRow('Disk (' + dk.path + ')', st, dk.used + ' / ' + dk.total + ' GB (' + dk.pct + '%)');
+    });
+    setInner('mt-disk', diskHtml);
+
+    // Network
+    let netHtml = metRow('Internet', d.internet ? 'pass' : 'fail', d.internet ? 'Online' : 'Offline') +
+                  metRow('DNS', d.dns ? 'pass' : 'fail', d.dns ? 'Resolving' : 'Failed') +
+                  metRow('Cloudflare', d.cloudflare ? 'pass' : 'warn', d.cloudflare ? 'Active' : 'Inactive');
+    setInner('mt-network', netHtml);
+
+    // Services
+    let svcHtml = '';
+    if (d.services) {
+        d.services.forEach(s => {
+            svcHtml += metRow(s.name, s.status === 'online' ? 'pass' : 'fail', s.status.toUpperCase());
+        });
+    }
+    setInner('mt-services', svcHtml);
+
+    // Resources
+    let resHtml = metRow('CPU Usage', d.cpu > 80 ? 'fail' : d.cpu > 60 ? 'warn' : 'pass', d.cpu + '%') +
+                  metRow('RAM Usage', d.ram.pct > 90 ? 'fail' : d.ram.pct > 75 ? 'warn' : 'pass', d.ram.used + ' / ' + d.ram.total + ' GB') +
+                  metRow('Load Avg', 'pass', d.load ? d.load.join(' ') : 'N/A');
+    setInner('mt-resources', resHtml);
+
+    // DB Integrity
+    const dbSt = d.db_integrity ? 'pass' : (d.db_exists ? 'fail' : 'warn');
+    let dbHtml = metRow('Database Status', dbSt, d.db_status || (d.db_integrity ? 'OK' : 'Corrupt or Missing'));
+    if (d.db_stats) {
+        Object.entries(d.db_stats).forEach(([t, c]) => {
+            dbHtml += metRow('Table: ' + t, c > 2000 ? 'warn' : 'pass', c + ' rows');
+        });
+    }
+    setInner('mt-dbintegrity', dbHtml);
+}
+
+function metRow(label, status, detail) {
+    const cls = { pass: 'status-pass', fail: 'status-fail', warn: 'status-warn' }[status] || '';
+    const sym = { pass: '✓ PASS', fail: '✗ FAIL', warn: '⚠ WARN' }[status] || status;
+    return `<div class="metrics-row">
+        <span class="metrics-row-label">${esc(label)}</span>
+        <span class="metrics-row-status ${cls}">${sym}</span>
+        <span class="metrics-row-detail">${esc(detail)}</span>
+    </div>`;
+}
+
+function setInner(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html || '<div style="padding:1rem;color:var(--muted)">No data.</div>';
 }
 
 function setPill(id, ok, label) {

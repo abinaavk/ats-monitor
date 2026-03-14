@@ -205,23 +205,53 @@ def api_overview():
     try: load = [round(x, 2) for x in os.getloadavg()]
     except: load = [0, 0, 0]
 
+    # Database Health
+    db_exists = os.path.exists(DB_FILE)
+    db_status = "ok"
+    integrity_ok = False
     db_stats = {}
-    for t in ['services', 'backups', 'deployments', 'metrics_history']:
-        r = dbq(f'SELECT COUNT(*) as c FROM {t}', fetch_one=True)
-        db_stats[t] = r['c'] if r else 0
 
-    integrity = dbq('PRAGMA integrity_check', fetch_one=True)
-    integrity_ok = bool(integrity and list(integrity.values())[0] == 'ok')
+    if db_exists:
+        try:
+            integrity = dbq('PRAGMA integrity_check', fetch_one=True)
+            if integrity:
+                res_val = list(integrity.values())[0]
+                integrity_ok = (res_val == 'ok')
+                if not integrity_ok:
+                    db_status = f"Corrupt: {res_val}"
+            else:
+                db_status = "Check failed"
+        except Exception as e:
+            db_status = f"Error: {str(e)}"
+
+        for t in ['services', 'backups', 'deployments', 'metrics_history']:
+            try:
+                r = dbq(f'SELECT COUNT(*) as c FROM {t}', fetch_one=True)
+                db_stats[t] = r['c'] if r else 0
+            except:
+                db_stats[t] = 0
+    else:
+        db_status = "Database not found"
 
     return jsonify({
-        'services': svc_list, 'online': sum(1 for s in svc_list if s['status'] == 'online'),
-        'total': len(svc_list), 'cpu': cpu, 'ram': ram, 'swap': swap,
-        'disk_root': disk_info_linux('/'), 'disk_storage': disk_info_linux('/opt/extra1_1tb'),
-        'load': load, 'uptime': get_uptime_linux(),
-        'internet': ping_ok_linux('1.1.1.1'), 'dns': ping_ok_linux('github.com'),
+        'services': svc_list, 
+        'online': sum(1 for s in svc_list if s['status'] == 'online'),
+        'total': len(svc_list), 
+        'cpu': cpu, 
+        'ram': ram, 
+        'swap': swap,
+        'disk_root': disk_info_linux('/'), 
+        'disk_storage': disk_info_linux('/opt/extra1_1tb'),
+        'load': load, 
+        'uptime': get_uptime_linux(),
+        'internet': ping_ok_linux('1.1.1.1'), 
+        'dns': ping_ok_linux('github.com'),
         'cloudflare': subprocess.call(['systemctl', 'is-active', '--quiet', 'cloudflared'],
                                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0,
-        'db_stats': db_stats, 'db_integrity': integrity_ok,
+        'db_stats': db_stats, 
+        'db_integrity': integrity_ok,
+        'db_status': db_status,
+        'db_exists': db_exists,
         'timestamp': datetime.datetime.now().strftime('%H:%M:%S')
     })
 
