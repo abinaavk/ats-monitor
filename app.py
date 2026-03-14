@@ -3,15 +3,6 @@ from flask import Flask, render_template, session, redirect, request, jsonify, u
 from flask_socketio import SocketIO, emit
 from functools import wraps
 
-# Optional gevent monkey-patching for production use with gunicorn -k gevent
-# This is highly recommended to avoid deprecation warnings from eventlet.
-try:
-    if os.environ.get('GUNICORN_WORKER') == 'gevent' or 'gevent' in os.environ.get('WORKER_CLASS', ''):
-        from gevent import monkey
-        monkey.patch_all()
-except ImportError:
-    pass
-
 try:
     import psutil
     HAS_PSUTIL = True
@@ -19,9 +10,8 @@ except ImportError:
     HAS_PSUTIL = False
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'ats_monitor_v1_secret_key_change_me')
-# async_mode=None allows auto-detection (gevent, eventlet, or threading)
-socketio = SocketIO(app, async_mode=None, cors_allowed_origins='*')
+app.secret_key = 'ats_monitor_v1_secret_key_change_me'
+socketio = SocketIO(app, async_mode='threading', cors_allowed_origins='*')
 
 # sid → {fd, pid}
 _term_sessions = {}
@@ -29,16 +19,15 @@ _term_sessions = {}
 # ══════════════════════════════════════════════════════
 #   CONFIG (Optimized for Linux)
 # ══════════════════════════════════════════════════════
-# Respect user preference for /home/gaia, but allow env override
-ATS_HOME     = os.environ.get('ATS_HOME', '/home/gaia')
+ATS_HOME     = '/home/gaia/ats'
 DB_FILE      = os.path.join(ATS_HOME, 'ats.db')
 LOG_FILE     = os.path.join(ATS_HOME, 'ats.log')
 AUDIT_FILE   = os.path.join(ATS_HOME, 'audit.trace')
 SEC_FILE     = os.path.join(ATS_HOME, 'security.log')
 METRICS_FILE = os.path.join(ATS_HOME, 'metrics.prom')
-BACKUP_DIR   = os.environ.get('BACKUP_DIR', '/opt/extra1_1tb/backups')
+BACKUP_DIR   = '/opt/extra1_1tb/backups'
 
-# Ensure core directories exist
+# Ensure directories exist (Linux)
 for d in [ATS_HOME, BACKUP_DIR]:
     if not os.path.exists(d):
         try: os.makedirs(d, exist_ok=True)
@@ -73,7 +62,6 @@ def dbq(sql, args=(), fetch_all=False, fetch_one=False):
     if not os.path.exists(DB_FILE):
         return None
     try:
-        # Connect to DB in read-only mode to prevent lock issues
         conn = sqlite3.connect(f'file:{DB_FILE}?mode=ro', uri=True, timeout=5)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
@@ -95,7 +83,7 @@ def dbq(sql, args=(), fetch_all=False, fetch_one=False):
 # ══════════════════════════════════════════════════════
 def port_open(port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(0.3)
+    s.settimeout(0.5)
     try:
         return s.connect_ex(('127.0.0.1', int(port))) == 0
     except:
@@ -106,10 +94,11 @@ def port_open(port):
 
 def systemd_active(name):
     try:
-        # systemctl is the fast path for Linux
-        r = subprocess.run(['systemctl', 'is-active', '--quiet', name], timeout=1.5)
+        # systemctl is the source of truth on Linux
+        r = subprocess.run(['systemctl', 'is-active', '--quiet', name], timeout=2)
         return r.returncode == 0
     except:
+        # Fallback to psutil if systemctl fails
         if HAS_PSUTIL:
             try:
                 for p in psutil.process_iter(['name']):
@@ -120,11 +109,11 @@ def systemd_active(name):
 def tail_file(path, n=300):
     if not os.path.exists(path): return ""
     try:
-        r = subprocess.run(['tail', '-n', str(n), path], capture_output=True, text=True, timeout=1.5)
+        # Native Linux tail is extremely fast and robust
+        r = subprocess.run(['tail', '-n', str(n), path], capture_output=True, text=True, timeout=2)
         if r.returncode == 0: return r.stdout
     except: pass
-    
-    # Python binary tail fallback
+    # Python fallback if tail fails
     try:
         with open(path, 'rb') as f:
             f.seek(0, 2)
@@ -156,6 +145,7 @@ def get_uptime_linux():
 
 def disk_info_linux(path):
     try:
+        # Standard Linux disk info using statvfs
         u = os.statvfs(path)
         total = (u.f_frsize * u.f_blocks) / 1024**3
         free  = (u.f_frsize * u.f_bfree) / 1024**3
@@ -164,6 +154,7 @@ def disk_info_linux(path):
         return {'path': path, 'used': round(used, 1), 'total': round(total, 1),
                 'free': round(free, 1), 'pct': pct}
     except:
+        # Fallback to psutil
         if HAS_PSUTIL:
             try:
                 u = psutil.disk_usage(path)
@@ -174,6 +165,7 @@ def disk_info_linux(path):
 
 def ping_ok_linux(host):
     try:
+        # Linux standard ping
         return subprocess.call(['ping', '-c', '1', '-W', '1', host],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
     except: return False
@@ -189,14 +181,14 @@ def api_overview():
     for s in svcs:
         online = systemd_active(s['name']) or port_open(s['port'])
         svc_list.append({
-            'name': s['name'], 'port': s['port'], 'domain': s.get('domain', 'localhost'),
+            'name': s['name'], 'port': s['port'], 'domain': s['domain'],
             'status': 'online' if online else 'offline',
             'runtime': s.get('runtime', 'python'), 'workers': s.get('workers', 0)
         })
     
     cpu = ram = swap = None
     if HAS_PSUTIL:
-        cpu = psutil.cpu_percent(interval=0.05)
+        cpu = psutil.cpu_percent(interval=0.1)
         mem = psutil.virtual_memory()
         ram = {'used': round(mem.used/1024**3, 2), 'total': round(mem.total/1024**3, 2), 'pct': mem.percent}
         swp = psutil.swap_memory()
@@ -229,7 +221,7 @@ def api_overview():
 @auth_required
 def api_logs():
     t = request.args.get('type', 'ats')
-    n = min(int(request.args.get('n', 300)), 1500)
+    n = min(int(request.args.get('n', 300)), 1000)
     paths = {'ats': LOG_FILE, 'security': SEC_FILE, 'metrics': METRICS_FILE}
     content = tail_file(paths.get(t, LOG_FILE), n)
     return jsonify({'lines': content.splitlines(), 'type': t})
@@ -237,7 +229,7 @@ def api_logs():
 @app.route('/api/audit')
 @auth_required
 def api_audit():
-    n = min(int(request.args.get('n', 200)), 1000)
+    n = min(int(request.args.get('n', 200)), 500)
     entries = []
     if os.path.exists(AUDIT_FILE):
         try:
@@ -245,7 +237,7 @@ def api_audit():
                 lines = f.readlines()
             for line in lines[-n:]:
                 try: entries.append(json.loads(line))
-                except: entries.append({'target': line.strip(), 'action': 'RAW', 'timestamp': ''})
+                except: entries.append({'target': line.strip(), 'action': 'RAW'})
         except: pass
     entries.reverse()
     return jsonify({'entries': entries})
@@ -256,7 +248,7 @@ def api_database():
     table = request.args.get('table', 'services')
     allowed = ['services', 'backups', 'deployments', 'metrics_history', 'remote_configs']
     if table not in allowed: return jsonify({'error': 'denied'}), 400
-    rows = dbq(f'SELECT * FROM {table} ORDER BY rowid DESC LIMIT 200', fetch_all=True) or []
+    rows = dbq(f'SELECT * FROM {table} ORDER BY rowid DESC LIMIT 100', fetch_all=True) or []
     cols = list(rows[0].keys()) if rows else []
     return jsonify({'table': table, 'columns': cols, 'rows': rows})
 
@@ -272,39 +264,35 @@ def api_stats():
         bk = dbq("SELECT COUNT(*) as c FROM backups WHERE service_name=?", (nm,), fetch_one=True) or {'c': 0}
         online = systemd_active(nm) or port_open(s['port'])
         out.append({
-            'name': nm, 'port': s['port'], 'domain': s.get('domain', 'localhost'), 'status': 'online' if online else 'offline',
+            'name': nm, 'port': s['port'], 'domain': s['domain'], 'status': 'online' if online else 'offline',
             'deploy_total': dep['total'], 'deploy_ok': dep['ok'], 'last_deploy': last_dep, 'backup_count': bk['c']
         })
     return jsonify({'services': out})
 
 # ══════════════════════════════════════════════════════
-#   LINUX PTY TERMINAL ENGINE (Optimized)
+#   LINUX PTY TERMINAL ENGINE
 # ══════════════════════════════════════════════════════
 
 def _read_pty(sid, fd):
     while sid in _term_sessions:
         try:
-            r, _, _ = select.select([fd], [], [], 0.05)
+            r, _, _ = select.select([fd], [], [], 0.1)
             if r:
                 data = os.read(fd, 8192)
                 if not data: break
                 socketio.emit('terminal_output', {'data': data.decode('utf-8', errors='replace')}, namespace='/terminal', room=sid)
         except: break
-    if sid in _term_sessions:
-        socketio.emit('terminal_output', {'data': '\r\n\x1b[31m[Session ended]\x1b[0m\r\n'}, namespace='/terminal', room=sid)
+    socketio.emit('terminal_output', {'data': '\r\n\x1b[31m[Session ended]\x1b[0m\r\n'}, namespace='/terminal', room=sid)
 
 @socketio.on('connect', namespace='/terminal')
 def on_term_connect():
     sid = request.sid
     pid, fd = pty.fork()
     if pid == 0:
-        # Child:Interactive bash with custom prompt and home dir
-        os.chdir(ATS_HOME)
-        env = os.environ.copy()
-        env['TERM'] = 'xterm-256color'
-        os.execvpe('/bin/bash', ['/bin/bash', '--login'], env)
+        # Child: become interactive bash
+        os.execvpe('/bin/bash', ['/bin/bash', '--login'], os.environ)
     else:
-        # Parent: IO relay
+        # Parent: relay IO
         _term_sessions[sid] = {'fd': fd, 'pid': pid}
         threading.Thread(target=_read_pty, args=(sid, fd), daemon=True).start()
 
@@ -319,8 +307,10 @@ def on_term_input(data):
 def on_term_resize(data):
     sess = _term_sessions.get(request.sid)
     if sess:
-        rows, cols = int(data.get('rows', 24)), int(data.get('cols', 80))
+        rows = int(data.get('rows', 24))
+        cols = int(data.get('cols', 80))
         try:
+            # Correct fcntl call for terminal resizing on Linux
             fcntl.ioctl(sess['fd'], termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
         except: pass
 
@@ -329,15 +319,9 @@ def on_term_disconnect():
     sess = _term_sessions.pop(request.sid, None)
     if sess:
         try:
-            os.kill(sess['pid'], signal.SIGKILL)
+            os.kill(sess['pid'], signal.SIGKILL) # Kill the bash child
             os.close(sess['fd'])
         except: pass
 
-# Production-ready entry point
 if __name__ == '__main__':
-    # When running directly (development)
     socketio.run(app, host='0.0.0.0', port=9998, allow_unsafe_werkzeug=True)
-else:
-    # When running via gunicorn
-    # Recommended command: gunicorn -k gevent --worker-connections 1000 -w 1 --bind 0.0.0.0:9998 app:app
-    pass
