@@ -55,6 +55,32 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
+// ── THEME SWITCHER ────────────────────────────────────────
+function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('theme', t);
+    document.querySelectorAll('.theme-opt').forEach(b => {
+        b.classList.toggle('active', b.dataset.theme === t);
+    });
+}
+setTheme(localStorage.getItem('theme') || 'jetblack');
+
+document.getElementById('themeBtn')?.addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('themeDropdown')?.classList.toggle('open');
+});
+
+document.querySelectorAll('.theme-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+        setTheme(btn.dataset.theme);
+        document.getElementById('themeDropdown')?.classList.remove('open');
+    });
+});
+
+document.addEventListener('click', () => {
+    document.getElementById('themeDropdown')?.classList.remove('open');
+});
+
 // ── MOBILE TOGGLE ──────────────────────────────────────────
 const mobileToggle = document.getElementById('mobileToggle');
 const sidebar = document.getElementById('sidebar');

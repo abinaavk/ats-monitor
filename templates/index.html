@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ATS Monitor</title>
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'jetblack');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/style.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
 </head>
@@ -18,6 +19,15 @@
     <span class="topbar-title">ATS MONITOR</span>
   </div>
   <div class="topbar-right">
+    <div class="theme-wrap">
+      <button class="theme-btn" id="themeBtn"><span class="icon">◐</span> THEME</button>
+      <div class="theme-dropdown" id="themeDropdown">
+        <button class="theme-opt" data-theme="jetblack"><span class="theme-dot td-jetblack"></span>Jetblack</button>
+        <button class="theme-opt" data-theme="light"><span class="theme-dot td-light"></span>Light</button>
+        <button class="theme-opt" data-theme="midnight"><span class="theme-dot td-midnight"></span>Midnight</button>
+        <button class="theme-opt" data-theme="rose"><span class="theme-dot td-rose"></span>Rose</button>
+      </div>
+    </div>
     <span class="topbar-time" id="clock">--:--:--</span>
     <span class="topbar-refresh" id="refreshIndicator" title="Polling active">↻</span>
   </div>
