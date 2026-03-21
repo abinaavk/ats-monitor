@@ -194,7 +194,8 @@ def api_overview():
     try:
         uptime_secs = int(datetime.datetime.now().timestamp() - psutil.boot_time()) if HAS_PSUTIL else 0
         days, rem = divmod(uptime_secs, 86400)
-        hours, mins = divmod(rem, 3600)
+        hours, rem2 = divmod(rem, 3600)
+        mins, _ = divmod(rem2, 60)
         uptime = f"{days}d {hours}h {mins}m" if days > 0 else f"{hours}h {mins}m"
     except: uptime = "N/A"
 

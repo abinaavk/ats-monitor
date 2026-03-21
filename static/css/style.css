@@ -56,19 +56,19 @@
 
 /* ===== ROSE ===== */
 [data-theme="rose"] {
-    --bg: #f9f3f0; --bg-warm: #f3e8e3; --surface: #fff;
-    --glass: rgba(249,243,240,0.88);
-    --border: rgba(160,90,70,0.07); --border-accent: rgba(160,90,70,0.13);
-    --text-1: #2e1a15; --text-2: #7a5248; --text-3: #b08a80; --text-4: #d4bab4;
-    --accent: #b85238; --accent-soft: rgba(184,82,56,0.07);
-    --badge-low: #5e9468; --badge-low-bg: rgba(94,148,104,0.1);
-    --badge-med: #c49842; --badge-med-bg: rgba(196,152,66,0.1);
-    --badge-high: #b85238; --badge-high-bg: rgba(184,82,56,0.1);
-    --badge-max: #a84048; --badge-max-bg: rgba(168,64,72,0.1);
-    --sh-card: 0 1px 3px rgba(160,90,70,0.03); --sh-card-hover: 0 8px 28px rgba(160,90,70,0.07);
-    --sh-dropdown: 0 12px 40px rgba(160,90,70,0.09);
-    --scroll-t: rgba(160,90,70,0.08); --scroll-h: rgba(160,90,70,0.18);
-    --hover-tint: rgba(160,90,70,0.015); --nav-bg: rgba(160,90,70,0.03);
+    --bg: #f0e6de; --bg-warm: #e8dbd1; --surface: #f7f0eb;
+    --glass: rgba(240,230,222,0.92);
+    --border: rgba(140,70,50,0.12); --border-accent: rgba(140,70,50,0.22);
+    --text-1: #2a1410; --text-2: #6b4035; --text-3: #9a7065; --text-4: #c4a89e;
+    --accent: #b85238; --accent-soft: rgba(184,82,56,0.1);
+    --badge-low: #4d7a58; --badge-low-bg: rgba(77,122,88,0.14);
+    --badge-med: #b08530; --badge-med-bg: rgba(176,133,48,0.12);
+    --badge-high: #b85238; --badge-high-bg: rgba(184,82,56,0.12);
+    --badge-max: #a03838; --badge-max-bg: rgba(160,56,56,0.12);
+    --sh-card: 0 1px 4px rgba(120,60,40,0.06); --sh-card-hover: 0 8px 28px rgba(120,60,40,0.1);
+    --sh-dropdown: 0 12px 40px rgba(120,60,40,0.14);
+    --scroll-t: rgba(140,70,50,0.12); --scroll-h: rgba(140,70,50,0.25);
+    --hover-tint: rgba(140,70,50,0.025); --nav-bg: rgba(140,70,50,0.06);
 }
 
 /* ===== BASE ===== */
@@ -85,7 +85,7 @@ body {
     font-family: 'Funnel Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg); color: var(--text-1);
     line-height: 1.65; min-height: 100vh;
-    overflow-x: hidden; font-size: 16px;
+    overflow-x: hidden; font-size: 19px;
     transition: background 0.4s, color 0.4s;
 }
 
