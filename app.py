@@ -150,22 +150,24 @@ def disk_info_linux(path):
 #   API
 # ══════════════════════════════════════════════════════
 def _live_proc_metrics(svc_name):
-    """Find processes matching svc_name via psutil and return cpu%/ram%."""
+    """Find processes matching svc_name via psutil and return cpu%/ram%/ram_mb."""
     if not HAS_PSUTIL: return None
-    cpu = 0.0; mem = 0.0; found = False
+    cpu = 0.0; mem = 0.0; mem_mb = 0.0; found = False
     try:
-        for p in psutil.process_iter(['pid', 'name', 'cmdline', 'cpu_percent', 'memory_percent']):
+        for p in psutil.process_iter(['pid', 'name', 'cmdline', 'cpu_percent', 'memory_percent', 'memory_info']):
             try:
                 info = p.info
                 cmd = ' '.join(info.get('cmdline') or [])
                 if svc_name.lower() in cmd.lower() or svc_name.lower() in (info.get('name') or '').lower():
-                    p.cpu_percent()  # first call returns 0, prime it
+                    p.cpu_percent()
                     cpu += p.cpu_percent(interval=0.05) or 0
                     mem += info.get('memory_percent') or 0
+                    mi = info.get('memory_info')
+                    if mi: mem_mb += mi.rss
                     found = True
             except (psutil.NoSuchProcess, psutil.AccessDenied): continue
     except: pass
-    if found: return {'cpu': round(cpu, 1), 'ram': round(mem, 1)}
+    if found: return {'cpu': round(cpu, 1), 'ram': round(mem, 1), 'ram_mb': round(mem_mb / 1024**2, 1)}
     return None
 @app.route('/api/overview')
 @auth_required
@@ -288,13 +290,13 @@ def api_stats():
         
         # Uptime/Metric trend (Last 10 points)
         trend = []
-        current_metrics = {'cpu': 0, 'ram': 0}
+        current_metrics = {'cpu': 0, 'ram': 0, 'ram_mb': 0}
         if has_metrics:
             rows = dbq("SELECT cpu, ram_pct FROM metrics_history WHERE service_name=? ORDER BY timestamp DESC LIMIT 10", (nm,), fetch_all=True)
             if rows:
                 trend = [r['cpu'] for r in rows]
                 trend.reverse()
-                current_metrics = {'cpu': rows[0]['cpu'], 'ram': rows[0]['ram_pct']}
+                current_metrics = {'cpu': rows[0]['cpu'], 'ram': rows[0]['ram_pct'], 'ram_mb': 0}
 
         # Fallback: live psutil if DB has no metrics
         if current_metrics['cpu'] == 0 and current_metrics['ram'] == 0:

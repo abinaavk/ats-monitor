@@ -62,7 +62,7 @@ body {
   color: var(--text);
   min-height: 100vh;
   min-height: 100dvh;
-  font-size: 19px;
+  font-size: 21px;
   line-height: 1.65;
   overflow-x: hidden;
   transition: background 0.4s, color 0.4s;
@@ -646,6 +646,9 @@ body {
 .hero-val.amber  { color:var(--amber);  text-shadow:0 0 12px rgba(255,179,0,0.35); }
 .hero-val.purple { color:var(--purple); text-shadow:0 0 12px rgba(192,132,252,0.35); }
 .hero-lbl { font-size:0.45rem; font-weight:700; letter-spacing:0.14em; color:var(--muted); margin-top:0.3rem; }
+
+.skel-hero-val { width:50%; height:1.4rem; margin:0 auto 4px; border-radius:4px; }
+.skel-hero-lbl { width:70%; height:0.5rem; margin:0 auto; border-radius:3px; }
 
 /* ── STATS RESOURCE BARS ────────────────────────────────────── */
 .stats-section-title {

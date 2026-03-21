@@ -532,7 +532,7 @@ async function fetchStats() {
                         <div class="res-bar-wrap">${resBar(curr.ram)}</div>
                         <div class="res-pct" style="color:${rColor}">${curr.ram.toFixed(1)}%</div>
                     </div>
-                    <div class="res-detail">avg ${avgR}% &middot; peak ${maxR}%</div>
+                    <div class="res-detail">${curr.ram_mb ? curr.ram_mb.toFixed(0) + ' MB' : ''} &middot; avg ${avgR}% &middot; peak ${maxR}%</div>
 
                     <div class="stats-section-title">DEPLOYMENTS</div>
                     <div class="dep-stats">
