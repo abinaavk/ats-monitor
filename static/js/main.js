@@ -403,98 +403,128 @@ function initTerminal() {
 // ═══════════════════════════════════════════════════════════
 //   STATS (PER-SERVICE)
 // ═══════════════════════════════════════════════════════════
+function resBar(pct) {
+    const p = Math.min(pct, 100);
+    const cls = p > 90 ? 'res-fill crit' : p > 75 ? 'res-fill warn' : p > 50 ? 'res-fill' : 'res-fill low';
+    return `<div class="res-track"><div class="${cls}" style="width:${p}%"></div></div>`;
+}
+
 async function fetchStats() {
     const d = await api('/api/stats');
     if (!d) return;
 
-    // Render Hero Stats
-    if (d.global) {
-        setText('st-total-svcs', d.global.total_services, 'st-svcs');
-        setText('st-total-deploys', d.global.total_deployments, 'st-deploys');
-        setText('st-success-rate', d.global.deployment_success_rate + '%', 'st-rate');
-        setText('st-total-bk', d.global.total_backups, 'st-bk');
+    const svcs = d.services || [];
+    const onCount = svcs.filter(s => s.status === 'online').length;
+    const offCount = svcs.length - onCount;
+    const g = d.global || {};
 
-        setText('st-db-size', d.global.db_size_mb, 'st-db-size');
-        setText('st-log-size', d.global.log_size_mb, 'st-log-size');
-        setText('st-recent-errors', d.global.recent_errors, 'st-errors');
-        setText('st-deploy-24h', d.global.deploys_24h, 'st-d24h');
+    let avgCpu = 0, avgRam = 0, maxCpu = 0, maxRam = 0, totalBk = 0;
+    if (svcs.length > 0) {
+        let cpuSum = 0, ramSum = 0;
+        svcs.forEach(s => {
+            const c = (s.current_metrics || {}).cpu || 0;
+            const r = (s.current_metrics || {}).ram || 0;
+            cpuSum += c; ramSum += r;
+            if (c > maxCpu) maxCpu = c;
+            if (r > maxRam) maxRam = r;
+            totalBk += (s.backup_count || 0);
+        });
+        avgCpu = cpuSum / svcs.length;
+        avgRam = ramSum / svcs.length;
+    }
+    const totalDep = g.total_deployments || 0;
+    const succRate = g.deployment_success_rate || 0;
 
-        setText('st-net-io', d.global.net_sent_gb + '/' + d.global.net_recv_gb, 'st-net');
-        setText('st-disk-io', d.global.disk_read_gb + '/' + d.global.disk_write_gb, 'st-disk');
-        setText('st-load-avg', d.global.load_avg ? d.global.load_avg[0].toFixed(2) : '--', 'st-load');
-        setText('st-cpu-temp', d.global.cpu_temp > 0 ? d.global.cpu_temp + '°C' : 'N/A', 'st-temp');
-
-        setText('st-proc-count', d.global.proc_count, 'st-proc');
-        setText('st-thread-count', d.global.thread_count, 'st-thread');
-        setText('st-zombie-count', d.global.zombie_count, 'st-zombie');
-        setText('st-active-workers', d.global.active_workers, 'st-workers');
+    const heroEl = document.getElementById('statsHero');
+    if (heroEl) {
+        heroEl.innerHTML = `
+            <div class="stats-hero-grid">
+                <div class="hero-card"><div class="hero-val green">${onCount}</div><div class="hero-lbl">ONLINE</div></div>
+                <div class="hero-card"><div class="hero-val red">${offCount}</div><div class="hero-lbl">OFFLINE</div></div>
+                <div class="hero-card"><div class="hero-val">${svcs.length}</div><div class="hero-lbl">SERVICES</div></div>
+                <div class="hero-card"><div class="hero-val cyan">${totalDep}</div><div class="hero-lbl">DEPLOYS</div></div>
+                <div class="hero-card"><div class="hero-val ${succRate >= 80 ? 'green' : succRate >= 50 ? 'amber' : 'red'}">${succRate}%</div><div class="hero-lbl">SUCCESS RATE</div></div>
+                <div class="hero-card"><div class="hero-val cyan">${totalBk}</div><div class="hero-lbl">BACKUPS</div></div>
+                <div class="hero-card"><div class="hero-val amber">${avgCpu.toFixed(1)}%</div><div class="hero-lbl">AVG CPU</div></div>
+                <div class="hero-card"><div class="hero-val purple">${g.active_workers || 0}</div><div class="hero-lbl">WORKERS</div></div>
+            </div>`;
     }
 
     const grid = document.getElementById('statsGrid');
     if (!grid) return;
 
-    if (!d.services || d.services.length === 0) {
+    if (svcs.length === 0) {
         grid.innerHTML = '<div style="color:var(--text2);padding:3rem;text-align:center;grid-column:1/-1">No service data available.</div>';
         return;
     }
 
-    grid.innerHTML = d.services.map(s => {
-        const rate = s.deploy_total > 0 ? (s.deploy_ok / s.deploy_total * 100).toFixed(1) : 0;
-        const lastDep = s.last_deploy ? (s.last_deploy.status + ' (' + s.last_deploy.timestamp.substring(11,16) + ')') : 'None';
-        
-        let sparkHtml = '';
-        if (s.trend && s.trend.length > 0) {
-            sparkHtml = `<div class="sparkline-box">` + 
-                s.trend.map(val => `<div class="spark-bar" style="height:${Math.max(10, val)}%"></div>`).join('') + 
-                `</div>`;
-        }
-
+    grid.innerHTML = svcs.map(s => {
         const curr = s.current_metrics || {cpu: 0, ram: 0};
-        const cpuColor = curr.cpu > 80 ? 'var(--red)' : curr.cpu > 50 ? 'var(--amber)' : 'var(--green)';
-        const ramColor = curr.ram > 80 ? 'var(--red)' : curr.ram > 50 ? 'var(--amber)' : 'var(--cyan)';
+        const cTrend = s.trend || [];
+        const avgC = cTrend.length > 0 ? (cTrend.reduce((a,b)=>a+b,0) / cTrend.length).toFixed(1) : curr.cpu.toFixed(1);
+        const maxC = cTrend.length > 0 ? Math.max(...cTrend).toFixed(1) : curr.cpu.toFixed(1);
+        const avgR = curr.ram.toFixed(1);
+        const maxR = curr.ram.toFixed(1);
+
+        const cColor = curr.cpu > 80 ? 'var(--red)' : curr.cpu > 50 ? 'var(--amber)' : 'var(--green)';
+        const rColor = curr.ram > 80 ? 'var(--red)' : curr.ram > 50 ? 'var(--amber)' : 'var(--cyan)';
+
+        const sparkHtml = cTrend.length > 0
+            ? '<div class="sparkline-box">' + cTrend.map(v => `<div class="spark-bar" style="height:${Math.max(10,v)}%"></div>`).join('') + '</div>'
+            : '';
+
+        const rate = s.deploy_total > 0 ? (s.deploy_ok / s.deploy_total * 100).toFixed(1) : 0;
+        const depFail = (s.deploy_total || 0) - (s.deploy_ok || 0);
+        const depBarCls = rate >= 80 ? 'dep-fill ok' : rate >= 50 ? 'dep-fill warn' : 'dep-fill bad';
+
+        const lastDep = s.last_deploy
+            ? `<span class="last-dep ${s.last_deploy.status === 'success' ? 'dep-ok' : 'dep-fail'}">${esc(s.last_deploy.status)} ${esc(s.last_deploy.timestamp || '')}</span>`
+            : '<span style="color:var(--muted)">No deployments</span>';
 
         return `
             <div class="stats-card ${s.status}">
                 <div class="stats-card-header">
                     <div class="stats-card-name">${esc(s.name)}</div>
-                    <div class="svc-badge ${s.status}">${s.status}</div>
+                    <div class="svc-badge ${s.status}"><span class="dot"></span>${s.status}</div>
                 </div>
                 <div class="stats-card-body">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:1rem">
-                        <div style="text-align:center; flex:1">
-                            <div style="font-size:0.55rem; color:var(--text2); margin-bottom:4px">CPU</div>
-                            <div style="font-size:1.2rem; font-weight:800; color:${cpuColor}">${curr.cpu.toFixed(1)}%</div>
-                            <div style="font-size:0.5rem; color:var(--text2)">avg ${s.avg_cpu}%</div>
-                        </div>
-                        <div style="width:1px; background:var(--border); margin:0 15px"></div>
-                        <div style="text-align:center; flex:1">
-                            <div style="font-size:0.55rem; color:var(--text2); margin-bottom:4px">RAM</div>
-                            <div style="font-size:1.2rem; font-weight:800; color:${ramColor}">${curr.ram.toFixed(1)}%</div>
-                            <div style="font-size:0.5rem; color:var(--text2)">peak ${s.max_ram}%</div>
-                        </div>
+                    <div class="svc-meta-row">
+                        <span class="svc-meta-item"><span class="svc-meta-lbl">Host</span><span class="svc-meta-val">${esc(s.domain || 'localhost')}</span></span>
+                        <span class="svc-meta-item"><span class="svc-meta-lbl">Port</span><span class="svc-meta-val" style="color:var(--amber)">:${s.port}</span></span>
+                        <span class="svc-meta-item"><span class="svc-meta-lbl">Since</span><span class="svc-meta-val" style="color:var(--purple)">${esc(s.created_at || '—')}</span></span>
                     </div>
 
-                    <div class="stats-row">
-                        <span class="stats-row-label">Host</span>
-                        <span class="stats-row-val">${esc(s.domain)}:${s.port}</span>
+                    <div class="stats-section-title">PERFORMANCE</div>
+                    <div class="res-row">
+                        <div class="res-label">CPU</div>
+                        <div class="res-bar-wrap">${resBar(curr.cpu)}</div>
+                        <div class="res-pct" style="color:${cColor}">${curr.cpu.toFixed(1)}%</div>
                     </div>
-                    <div class="stats-row">
-                        <span class="stats-row-label">Integrity</span>
-                        <span class="stats-row-val">${rate}% success (${s.deploy_ok}/${s.deploy_total})</span>
+                    <div class="res-detail">avg ${avgC}% &middot; peak ${maxC}%</div>
+                    <div class="res-row">
+                        <div class="res-label">RAM</div>
+                        <div class="res-bar-wrap">${resBar(curr.ram)}</div>
+                        <div class="res-pct" style="color:${rColor}">${curr.ram.toFixed(1)}%</div>
                     </div>
-                    
-                    <div class="stats-divider"></div>
-                    
-                    <div class="stats-row">
-                        <span class="stats-row-label">Activity</span>
-                        <span class="stats-row-val">${esc(lastDep)}</span>
+                    <div class="res-detail">avg ${avgR}% &middot; peak ${maxR}%</div>
+
+                    <div class="stats-section-title">DEPLOYMENTS</div>
+                    <div class="dep-stats">
+                        <div class="dep-stat"><span class="dep-num">${s.deploy_total || 0}</span><span class="dep-lbl">Total</span></div>
+                        <div class="dep-stat"><span class="dep-num green">${s.deploy_ok || 0}</span><span class="dep-lbl">Success</span></div>
+                        <div class="dep-stat"><span class="dep-num red">${depFail}</span><span class="dep-lbl">Failed</span></div>
+                        <div class="dep-stat"><span class="dep-num ${rate >= 80 ? 'green' : rate >= 50 ? 'amber' : 'red'}">${rate}%</span><span class="dep-lbl">Rate</span></div>
                     </div>
-                    <div class="stats-row">
-                        <span class="stats-row-label">Backups</span>
-                        <span class="stats-row-val" style="color:var(--cyan)">${s.backup_count} versions</span>
+                    <div class="dep-rate-bar"><div class="${depBarCls}" style="width:${rate}%"></div></div>
+                    <div class="res-detail">Last: ${lastDep}</div>
+
+                    <div class="stats-section-title">BACKUPS</div>
+                    <div class="res-row">
+                        <span class="res-label">Versions</span>
+                        <span class="res-pct" style="color:var(--cyan)">${s.backup_count || 0}</span>
                     </div>
 
-                    ${sparkHtml}
+                    ${sparkHtml ? '<div class="stats-section-title">CPU TREND</div>' + sparkHtml : ''}
                 </div>
             </div>`;
     }).join('');
