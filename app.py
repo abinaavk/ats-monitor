@@ -368,10 +368,11 @@ def _read_pty(sid, fd):
             if r:
                 data = os.read(fd, 8192)
                 if not data: break
-                socketio.emit('terminal_output', {'data': data.decode('utf-8', errors='replace')}, namespace='/terminal', room=sid)
+                text = data.decode('utf-8', errors='replace')
+                socketio.emit('terminal_output', text, namespace='/terminal', room=sid)
         except: break
     if sid in _term_sessions:
-        socketio.emit('terminal_output', {'data': '\r\n[Session ended]\r\n'}, namespace='/terminal', room=sid)
+        socketio.emit('terminal_output', '\r\n[Session ended]\r\n', namespace='/terminal', room=sid)
 
 @socketio.on('connect', namespace='/terminal')
 def on_term_connect():

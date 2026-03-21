@@ -538,7 +538,10 @@ a { color: inherit; text-decoration: none; }
     padding: 6px 8px 4px;
     height: calc(100vh - 200px);
     min-height: 500px; overflow: hidden;
+    font-family: 'Courier New', Courier, monospace !important;
+    letter-spacing: 0 !important;
 }
+#terminal-container .xterm { font-family: 'Courier New', Courier, monospace !important; letter-spacing: 0 !important; }
 #terminal-container .xterm-viewport { background: transparent !important; }
 #terminal-container .xterm-screen { background: transparent !important; }
 
