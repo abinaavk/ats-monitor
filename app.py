@@ -85,22 +85,14 @@ BACKUP_DIR   = os.environ.get('BACKUP_DIR', '/opt/extra1_1tb/backups')
 
 
 # ══════════════════════════════════════════════════════
-#   AUTH (Bypassed)
+#   AUTH
 # ══════════════════════════════════════════════════════
-def auth_required(f):
-    @wraps(f)
-    def wrap(*a, **kw): return f(*a, **kw)
-    return wrap
 
 @app.route('/')
-@auth_required
 def index(): return render_template('index.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login(): return redirect(url_for('index'))
-
 @app.route('/api/audit')
-@auth_required
+
 def api_audit():
     n = min(int(request.args.get('n', 200)), 1000)
     entries = []
@@ -206,7 +198,7 @@ def _live_proc_metrics(svc_name):
     if found: return {'cpu': round(cpu, 1), 'ram': round(mem, 1), 'ram_mb': round(mem_mb / 1024**2, 1)}
     return None
 @app.route('/api/overview')
-@auth_required
+
 def api_overview():
     svcs = dbq('SELECT * FROM services ORDER BY name', fetch_all=True) or []
     svc_list = []
@@ -271,7 +263,7 @@ def api_overview():
     })
 
 @app.route('/api/logs')
-@auth_required
+
 def api_logs():
     t = request.args.get('type', 'ats')
     paths = {'ats': LOG_FILE, 'security': SEC_FILE, 'metrics': METRICS_FILE}
@@ -279,7 +271,7 @@ def api_logs():
     return jsonify({'lines': content.splitlines(), 'type': t})
 
 @app.route('/api/database')
-@auth_required
+
 def api_database():
     table = request.args.get('table', 'services')
     allowed = ['services', 'backups', 'deployments', 'metrics_history', 'remote_configs']
@@ -289,7 +281,7 @@ def api_database():
     return jsonify({'table': table, 'columns': cols, 'rows': rows})
 
 @app.route('/api/stats')
-@auth_required
+
 def api_stats():
     svcs = dbq('SELECT * FROM services ORDER BY name', fetch_all=True) or []
     out = []
