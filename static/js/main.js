@@ -367,7 +367,7 @@ function initTerminal() {
     const isDark = ['jetblack','midnight'].includes(document.documentElement.getAttribute('data-theme'));
     term = new Terminal({
         cursorBlink: true,
-        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+        fontFamily: "'Funnel Sans', monospace",
         fontSize: 14,
         theme: {
             background: isDark ? '#0a0f0f' : '#faf9f6',
