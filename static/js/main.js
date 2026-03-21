@@ -62,6 +62,33 @@ function setTheme(t) {
     document.querySelectorAll('.theme-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.theme === t);
     });
+    if (term) updateTermTheme();
+}
+
+function updateTermTheme() {
+    const isDark = ['jetblack','midnight'].includes(document.documentElement.getAttribute('data-theme'));
+    term.options.theme = {
+        background: isDark ? '#0a0f0f' : '#faf9f6',
+        foreground: isDark ? '#dcefef' : '#1a1916',
+        cursor: isDark ? '#4fb0b0' : '#b8612a',
+        selectionBackground: isDark ? 'rgba(79,176,176,0.25)' : 'rgba(184,97,42,0.15)',
+        black: isDark ? '#2e3436' : '#1a1916',
+        red: isDark ? '#ef2929' : '#b04848',
+        green: isDark ? '#8ae234' : '#4d8a5e',
+        yellow: isDark ? '#fce94f' : '#a88a32',
+        blue: isDark ? '#729fcf' : '#2a7a8a',
+        magenta: isDark ? '#ad7fa8' : '#7a5aaa',
+        cyan: isDark ? '#34e2e2' : '#2a7a8a',
+        white: isDark ? '#eeeeec' : '#5c5a55',
+        brightBlack: isDark ? '#555753' : '#908d86',
+        brightRed: isDark ? '#ef2929' : '#a84048',
+        brightGreen: isDark ? '#8ae234' : '#5e9468',
+        brightYellow: isDark ? '#fce94f' : '#c49842',
+        brightBlue: isDark ? '#729fcf' : '#b8612a',
+        brightMagenta: isDark ? '#ad7fa8' : '#b85238',
+        brightCyan: isDark ? '#34e2e2' : '#b8612a',
+        brightWhite: isDark ? '#ffffff' : '#1a1916'
+    };
 }
 setTheme(localStorage.getItem('theme') || 'jetblack');
 
@@ -337,15 +364,32 @@ function initTerminal() {
         return;
     }
 
+    const isDark = ['jetblack','midnight'].includes(document.documentElement.getAttribute('data-theme'));
     term = new Terminal({
         cursorBlink: true,
-        fontFamily: "'Azeret Mono', monospace",
-        fontSize: 13,
+        fontFamily: "'Funnel Sans', monospace",
+        fontSize: 14,
         theme: {
-            background: '#000000',
-            foreground: '#e2e8f4',
-            cursor: '#00ff9d',
-            selectionBackground: 'rgba(0,245,155,0.2)'
+            background: isDark ? '#0a0f0f' : '#faf9f6',
+            foreground: isDark ? '#dcefef' : '#1a1916',
+            cursor: isDark ? '#4fb0b0' : '#b8612a',
+            selectionBackground: isDark ? 'rgba(79,176,176,0.25)' : 'rgba(184,97,42,0.15)',
+            black: isDark ? '#2e3436' : '#1a1916',
+            red: isDark ? '#ef2929' : '#b04848',
+            green: isDark ? '#8ae234' : '#4d8a5e',
+            yellow: isDark ? '#fce94f' : '#a88a32',
+            blue: isDark ? '#729fcf' : '#2a7a8a',
+            magenta: isDark ? '#ad7fa8' : '#7a5aaa',
+            cyan: isDark ? '#34e2e2' : '#2a7a8a',
+            white: isDark ? '#eeeeec' : '#5c5a55',
+            brightBlack: isDark ? '#555753' : '#908d86',
+            brightRed: isDark ? '#ef2929' : '#a84048',
+            brightGreen: isDark ? '#8ae234' : '#5e9468',
+            brightYellow: isDark ? '#fce94f' : '#c49842',
+            brightBlue: isDark ? '#729fcf' : '#b8612a',
+            brightMagenta: isDark ? '#ad7fa8' : '#b85238',
+            brightCyan: isDark ? '#34e2e2' : '#b8612a',
+            brightWhite: isDark ? '#ffffff' : '#1a1916'
         }
     });
 
