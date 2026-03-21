@@ -170,7 +170,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ===== MAIN ===== */
-.main { max-width: var(--w); margin: 0 auto; padding: 0 var(--pad) 6rem; }
+.main { max-width: var(--w); margin: 0 auto; padding: 1.5rem var(--pad) 6rem; }
 
 /* Tab content */
 .tabcontent { display: none; animation: reveal 0.3s var(--ease); }

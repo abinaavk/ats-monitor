@@ -94,6 +94,7 @@ document.querySelectorAll('.nav-link').forEach(btn => {
         if (activeTab === 'terminal') {
             if (!socket || !socket.connected) initTerminal();
             resetTermTimeout();
+            if (term && fitAddon) setTimeout(() => fitAddon.fit(), 50);
         } else {
             refreshActive();
         }
@@ -351,8 +352,9 @@ function initTerminal() {
     fitAddon = new FitAddon.FitAddon();
     term.loadAddon(fitAddon);
     term.open(document.getElementById('terminal-container'));
-    
-    setTimeout(() => fitAddon.fit(), 100);
+
+    setTimeout(() => { if (fitAddon) fitAddon.fit(); }, 150);
+    setTimeout(() => { if (fitAddon) fitAddon.fit(); }, 500);
 
     socket = io('/terminal', { autoConnect: false });
     socket.connect();
@@ -363,6 +365,7 @@ function initTerminal() {
             statusEl.textContent = 'CONNECTED';
             statusEl.className = 'term-status connected';
         }
+        if (fitAddon) fitAddon.fit();
         socket.emit('terminal_resize', {cols: term.cols, rows: term.rows});
         resetTermTimeout();
     });
