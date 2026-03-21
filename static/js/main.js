@@ -75,9 +75,9 @@ if (sidebarOverlay) {
 }
 
 // ── TABS (Sidebar Nav) ──────────────────────────────────────
-document.querySelectorAll('.nav-item').forEach(btn => {
+document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tabcontent').forEach(s => s.classList.remove('active'));
         btn.classList.add('active');
         activeTab = btn.dataset.tab;
@@ -89,8 +89,8 @@ document.querySelectorAll('.nav-item').forEach(btn => {
         if (scrollArea) scrollArea.scrollTop = 0;
         
         // Mobile behavior: close sidebar after click
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('visible');
+        if (sidebar) sidebar.classList.remove('open');
+        if (sidebarOverlay) sidebarOverlay.classList.remove('visible');
 
         if (activeTab === 'terminal') {
             if (!socket || !socket.connected) initTerminal();
@@ -102,9 +102,9 @@ document.querySelectorAll('.nav-item').forEach(btn => {
 });
 
 // ── LOG SUB-TABS ───────────────────────────────────────────
-document.querySelectorAll('.log-tab').forEach(btn => {
+document.querySelectorAll('.logtab').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.log-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.logtab').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         activeLogType = btn.dataset.logtype;
         fetchLogs();
@@ -252,7 +252,7 @@ function metRow(label, status, detail) {
 
 function setInner(id, html) {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = html || '<div style="padding:1rem;color:var(--text-dim)">No data.</div>';
+    if (el) el.innerHTML = html || '<div style="padding:1rem;color:var(--text2)">No data.</div>';
 }
 
 function setPill(id, ok, label) {
@@ -266,7 +266,7 @@ function renderServiceCards(services) {
     const grid = document.getElementById('ov-services');
     if (!grid) return;
     if (!services || services.length === 0) {
-        grid.innerHTML = '<div style="color:var(--text-dim);padding:2rem;text-align:center;grid-column:1/-1">No services.</div>';
+        grid.innerHTML = '<div style="color:var(--text2);padding:2rem;text-align:center;grid-column:1/-1">No services.</div>';
         return;
     }
     grid.innerHTML = services.map(svc => `
@@ -313,7 +313,7 @@ async function fetchLogs(isRedraw = false) {
     
     viewer.innerHTML = filtered.map(line => {
         const cls = classifyLog(line, activeLogType);
-        return `<div class="log-entry ${cls}">${esc(line)}</div>`;
+        return `<div class="log-line ${cls}">${esc(line)}</div>`;
     }).join('');
 
     document.getElementById('logLineCount').textContent = filtered.length + ' lines';
@@ -323,7 +323,7 @@ async function fetchLogs(isRedraw = false) {
 function classifyLog(line, type) {
     const u = line.toUpperCase();
     if (u.includes('ERROR') || u.includes('CRITICAL') || u.includes('FAILED')) return 'log-error';
-    if (u.includes('WARN')) return 'log-warn';
+    if (u.includes('WARN')) return 'log-warning';
     if (u.includes('INFO')) return 'log-info';
     return '';
 }
@@ -434,7 +434,7 @@ async function fetchStats() {
     if (!grid) return;
 
     if (!d.services || d.services.length === 0) {
-        grid.innerHTML = '<div style="color:var(--text-dim);padding:3rem;text-align:center;grid-column:1/-1">No service data available.</div>';
+        grid.innerHTML = '<div style="color:var(--text2);padding:3rem;text-align:center;grid-column:1/-1">No service data available.</div>';
         return;
     }
 
@@ -450,8 +450,8 @@ async function fetchStats() {
         }
 
         const curr = s.current_metrics || {cpu: 0, ram: 0};
-        const cpuColor = curr.cpu > 80 ? 'var(--error)' : curr.cpu > 50 ? 'var(--warning)' : 'var(--accent)';
-        const ramColor = curr.ram > 80 ? 'var(--error)' : curr.ram > 50 ? 'var(--warning)' : 'var(--info)';
+        const cpuColor = curr.cpu > 80 ? 'var(--red)' : curr.cpu > 50 ? 'var(--amber)' : 'var(--green)';
+        const ramColor = curr.ram > 80 ? 'var(--red)' : curr.ram > 50 ? 'var(--amber)' : 'var(--cyan)';
 
         return `
             <div class="stats-card ${s.status}">
@@ -462,15 +462,15 @@ async function fetchStats() {
                 <div class="stats-card-body">
                     <div style="display:flex; justify-content:space-between; margin-bottom:1rem">
                         <div style="text-align:center; flex:1">
-                            <div style="font-size:0.55rem; color:var(--text-dim); margin-bottom:4px">CPU</div>
+                            <div style="font-size:0.55rem; color:var(--text2); margin-bottom:4px">CPU</div>
                             <div style="font-size:1.2rem; font-weight:800; color:${cpuColor}">${curr.cpu.toFixed(1)}%</div>
-                            <div style="font-size:0.5rem; color:var(--text-dim)">avg ${s.avg_cpu}%</div>
+                            <div style="font-size:0.5rem; color:var(--text2)">avg ${s.avg_cpu}%</div>
                         </div>
                         <div style="width:1px; background:var(--border); margin:0 15px"></div>
                         <div style="text-align:center; flex:1">
-                            <div style="font-size:0.55rem; color:var(--text-dim); margin-bottom:4px">RAM</div>
+                            <div style="font-size:0.55rem; color:var(--text2); margin-bottom:4px">RAM</div>
                             <div style="font-size:1.2rem; font-weight:800; color:${ramColor}">${curr.ram.toFixed(1)}%</div>
-                            <div style="font-size:0.5rem; color:var(--text-dim)">peak ${s.max_ram}%</div>
+                            <div style="font-size:0.5rem; color:var(--text2)">peak ${s.max_ram}%</div>
                         </div>
                     </div>
 
@@ -491,7 +491,7 @@ async function fetchStats() {
                     </div>
                     <div class="stats-row">
                         <span class="stats-row-label">Backups</span>
-                        <span class="stats-row-val" style="color:var(--info)">${s.backup_count} versions</span>
+                        <span class="stats-row-val" style="color:var(--cyan)">${s.backup_count} versions</span>
                     </div>
 
                     ${sparkHtml}
@@ -519,7 +519,7 @@ function filterAuditEntries() {
         : auditCache;
 
     if (filtered.length === 0) {
-        list.innerHTML = '<div style="color:var(--text-dim);padding:3rem;text-align:center;font-size:0.75rem">No audit records found.</div>';
+        list.innerHTML = '<div style="color:var(--text2);padding:3rem;text-align:center;font-size:0.75rem">No audit records found.</div>';
         document.getElementById('auditCount').textContent = '0 entries';
         return;
     }

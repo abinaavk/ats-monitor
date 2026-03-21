@@ -346,6 +346,14 @@ body {
 .svc-badge.offline { color:var(--red); }
 .svc-badge.offline .dot { background:var(--red); }
 
+.svc-top { display:flex; justify-content:space-between; align-items:center; }
+.svc-link { font-size:0.62rem; color:var(--cyan); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-decoration:none; }
+.svc-link:hover { color:#fff; text-shadow:0 0 10px var(--cyan); }
+.svc-footer { display:flex; gap:0.55rem; font-size:0.57rem; margin-top:2px; }
+.svc-stat { display:flex; gap:4px; align-items:center; }
+.stat-lbl { color:var(--text2); font-size:0.55rem; }
+.stat-val { color:var(--amber); font-weight:700; font-size:0.6rem; }
+
 /* ── METRICS TABLE ─────────────────────────────────────────── */
 .metrics-table { border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:0.3rem; background:var(--card); }
 

@@ -7,13 +7,7 @@ try:
 except ImportError:
     pass
 
-import json, sqlite3, subprocess, datetime, socket, threading, select, signal, struct
-
-IS_WINDOWS = os.name == 'nt'
-
-if not IS_WINDOWS:
-    import pty, fcntl, termios
-
+import json, sqlite3, subprocess, datetime, socket, threading, select, signal, pty, fcntl, termios, struct
 from flask import Flask, render_template, session, redirect, request, jsonify, url_for
 from flask_socketio import SocketIO, emit
 from functools import wraps
@@ -303,7 +297,7 @@ def api_stats():
     })
 
 # ══════════════════════════════════════════════════════
-#   TERMINAL (Cross-platform: Linux PTY / Windows subprocess)
+#   TERMINAL
 # ══════════════════════════════════════════════════════
 def _read_pty(sid, fd):
     while sid in _term_sessions:
@@ -317,85 +311,39 @@ def _read_pty(sid, fd):
     if sid in _term_sessions:
         socketio.emit('terminal_output', {'data': '\r\n[Session ended]\r\n'}, namespace='/terminal', room=sid)
 
-def _read_subprocess(sid, proc):
-    while sid in _term_sessions:
-        try:
-            data = proc.stdout.read(8192)
-            if not data: break
-            socketio.emit('terminal_output', {'data': data}, namespace='/terminal', room=sid)
-        except Exception:
-            break
-    if sid in _term_sessions:
-        socketio.emit('terminal_output', {'data': '\r\n[Session ended]\r\n'}, namespace='/terminal', room=sid)
-
 @socketio.on('connect', namespace='/terminal')
 def on_term_connect():
     sid = request.sid
-
-    if not IS_WINDOWS:
-        # Linux: use real PTY for full interactive terminal (supports sudo, colors, etc.)
-        pid, fd = pty.fork()
-        if pid == 0:
-            os.chdir(ATS_HOME)
-            os.execvpe('/bin/bash', ['/bin/bash', '--login'], os.environ)
-        else:
-            _term_sessions[sid] = {'fd': fd, 'pid': pid, 'type': 'pty'}
-            threading.Thread(target=_read_pty, args=(sid, fd), daemon=True).start()
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.chdir(ATS_HOME)
+        os.execvpe('/bin/bash', ['/bin/bash', '--login'], os.environ)
     else:
-        # Windows: use subprocess with cmd or powershell
-        shell = os.environ.get('COMSPEC', 'cmd.exe')
-        proc = subprocess.Popen(
-            [shell],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            bufsize=0,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
-        )
-        _term_sessions[sid] = {'proc': proc, 'type': 'subprocess'}
-        threading.Thread(target=_read_subprocess, args=(sid, proc), daemon=True).start()
+        _term_sessions[sid] = {'fd': fd, 'pid': pid}
+        threading.Thread(target=_read_pty, args=(sid, fd), daemon=True).start()
 
 @socketio.on('terminal_input', namespace='/terminal')
 def on_term_input(data):
     sess = _term_sessions.get(request.sid)
-    if not sess: return
-    try:
-        inp = data['input'].encode()
-        if sess['type'] == 'pty':
-            os.write(sess['fd'], inp)
-        else:
-            proc = sess['proc']
-            if proc.stdin and not proc.stdin.closed:
-                proc.stdin.write(inp)
-                proc.stdin.flush()
-    except: pass
+    if sess:
+        try: os.write(sess['fd'], data['input'].encode())
+        except: pass
 
 @socketio.on('terminal_resize', namespace='/terminal')
 def on_term_resize(data):
     sess = _term_sessions.get(request.sid)
-    if not sess: return
-    if sess['type'] == 'pty':
-        try:
-            fcntl.ioctl(sess['fd'], termios.TIOCSWINSZ,
-                        struct.pack('HHHH', int(data.get('rows', 24)), int(data.get('cols', 80)), 0, 0))
+    if sess:
+        try: fcntl.ioctl(sess['fd'], termios.TIOCSWINSZ, struct.pack('HHHH', int(data.get('rows', 24)), int(data.get('cols', 80)), 0, 0))
         except: pass
-    # Windows cmd does not support PTY resize via ioctl — safe to ignore
 
 @socketio.on('disconnect', namespace='/terminal')
 def on_term_disconnect():
-    sid = request.sid
-    sess = _term_sessions.pop(sid, None)
-    if not sess: return
-    try:
-        if sess['type'] == 'pty':
+    sess = _term_sessions.pop(request.sid, None)
+    if sess:
+        try:
             os.kill(sess['pid'], signal.SIGKILL)
             os.close(sess['fd'])
-        else:
-            proc = sess['proc']
-            proc.terminate()
-            try: proc.wait(timeout=2)
-            except: proc.kill()
-    except: pass
+        except: pass
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=9998, allow_unsafe_werkzeug=True)
