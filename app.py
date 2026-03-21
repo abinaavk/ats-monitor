@@ -380,7 +380,11 @@ def on_term_connect():
     pid, fd = pty.fork()
     if pid == 0:
         os.chdir(ATS_HOME)
-        os.execvpe('/bin/bash', ['/bin/bash', '--login'], os.environ)
+        env = os.environ.copy()
+        env['TERM'] = 'xterm-256color'
+        env['COLORTERM'] = 'truecolor'
+        env['FORCE_COLOR'] = '1'
+        os.execvpe('/bin/bash', ['/bin/bash', '--login'], env)
     else:
         _term_sessions[sid] = {'fd': fd, 'pid': pid}
         threading.Thread(target=_read_pty, args=(sid, fd), daemon=True).start()
