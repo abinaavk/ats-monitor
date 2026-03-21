@@ -149,6 +149,24 @@ def disk_info_linux(path):
 # ══════════════════════════════════════════════════════
 #   API
 # ══════════════════════════════════════════════════════
+def _live_proc_metrics(svc_name):
+    """Find processes matching svc_name via psutil and return cpu%/ram%."""
+    if not HAS_PSUTIL: return None
+    cpu = 0.0; mem = 0.0; found = False
+    try:
+        for p in psutil.process_iter(['pid', 'name', 'cmdline', 'cpu_percent', 'memory_percent']):
+            try:
+                info = p.info
+                cmd = ' '.join(info.get('cmdline') or [])
+                if svc_name.lower() in cmd.lower() or svc_name.lower() in (info.get('name') or '').lower():
+                    p.cpu_percent()  # first call returns 0, prime it
+                    cpu += p.cpu_percent(interval=0.05) or 0
+                    mem += info.get('memory_percent') or 0
+                    found = True
+            except (psutil.NoSuchProcess, psutil.AccessDenied): continue
+    except: pass
+    if found: return {'cpu': round(cpu, 1), 'ram': round(mem, 1)}
+    return None
 @app.route('/api/overview')
 @auth_required
 def api_overview():
@@ -170,6 +188,13 @@ def api_overview():
 
     try: load = [round(x, 2) for x in os.getloadavg()]
     except: load = [0, 0, 0]
+
+    try:
+        uptime_secs = int(datetime.datetime.now().timestamp() - psutil.boot_time()) if HAS_PSUTIL else 0
+        days, rem = divmod(uptime_secs, 86400)
+        hours, mins = divmod(rem, 3600)
+        uptime = f"{days}d {hours}h {mins}m" if days > 0 else f"{hours}h {mins}m"
+    except: uptime = "N/A"
 
     # Database Health
     db_exists = os.path.exists(DB_FILE)
@@ -196,7 +221,7 @@ def api_overview():
 
     return jsonify({
         'services': svc_list, 'online': sum(1 for s in svc_list if s['status'] == 'online'),
-        'total': len(svc_list), 'cpu': cpu, 'ram': ram, 'swap': swap, 'load': load,
+        'total': len(svc_list), 'cpu': cpu, 'ram': ram, 'swap': swap, 'load': load, 'uptime': uptime,
         'disk_root': disk_info_linux('/'), 'disk_storage': disk_info_linux('/opt/extra1_1tb'),
         'db_integrity': integrity_ok, 'db_status': db_status, 'db_exists': db_exists, 
         'db_stats': db_stats, 'db_path': DB_FILE,
@@ -270,6 +295,12 @@ def api_stats():
                 trend = [r['cpu'] for r in rows]
                 trend.reverse()
                 current_metrics = {'cpu': rows[0]['cpu'], 'ram': rows[0]['ram_pct']}
+
+        # Fallback: live psutil if DB has no metrics
+        if current_metrics['cpu'] == 0 and current_metrics['ram'] == 0:
+            live = _live_proc_metrics(nm)
+            if live:
+                current_metrics = live
 
         out.append({
             'name': nm,
