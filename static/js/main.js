@@ -563,7 +563,7 @@ function filterAuditEntries() {
         else if (action.includes('webhook')) cat = 'webhook';
 
         return `
-            <div class="audit-entry">
+            <div class="audit-entry entry-${cat}">
                 <div class="audit-left">
                     <span class="audit-action ${cat}">${esc(e.action || 'SYSTEM')}</span>
                     <span class="audit-time">${esc(e.timestamp || '--:--')}</span>

@@ -75,7 +75,7 @@
 :root {
     --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 100px;
     --ease: cubic-bezier(0.16,1,0.3,1);
-    --pad: 2.5rem; --w: 1100px;
+    --pad: 2.5rem; --w: 1400px;
     --topbar-h: 56px;
 }
 
@@ -346,15 +346,18 @@ a { color: inherit; text-decoration: none; }
 .log-viewer {
     background: var(--bg-warm); border: 1px solid var(--border);
     border-top: none; border-radius: 0 0 var(--r-md) var(--r-md);
-    padding: 1rem; min-height: 300px;
-    max-height: calc(100vh - 300px); overflow-y: auto;
-    font-size: 0.8125rem; line-height: 1.65;
+    padding: 1rem; min-height: 500px;
+    max-height: calc(100vh - 200px); overflow-y: auto;
+    font-size: 0.8125rem; line-height: 1.7;
 }
-.log-line { white-space: pre-wrap; word-break: break-all; padding: 1px 4px; border-radius: 3px; }
-.log-line.log-info { color: var(--accent); }
-.log-line.log-warning { color: var(--badge-med); }
-.log-line.log-error { color: var(--badge-max); }
-.log-line.log-critical { color: var(--badge-max); font-weight: 700; border-left: 2px solid var(--badge-max); padding-left: 8px; }
+.log-line { white-space: pre-wrap; word-break: break-all; padding: 2px 8px; border-radius: 4px; margin: 1px 0; }
+.log-line.log-info { color: var(--accent); border-left: 2px solid var(--accent); padding-left: 10px; }
+.log-line.log-warning { color: var(--badge-med); background: var(--badge-med-bg); border-left: 2px solid var(--badge-med); padding-left: 10px; }
+.log-line.log-error { color: var(--badge-max); background: var(--badge-max-bg); border-left: 2px solid var(--badge-max); padding-left: 10px; font-weight: 600; }
+.log-line.log-critical { color: var(--badge-max); background: var(--badge-max-bg); border-left: 3px solid var(--badge-max); padding-left: 10px; font-weight: 700; }
+.log-line.log-debug { color: var(--text-4); font-style: italic; }
+.log-line.log-plain { color: var(--text-2); }
+.log-line.log-prom-comment { color: var(--text-4); font-style: italic; }
 
 /* ===== AUDIT ===== */
 .audit-controls { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
@@ -364,9 +367,14 @@ a { color: inherit; text-decoration: none; }
     border-radius: var(--r-md); padding: 1rem 1.25rem;
     display: flex; gap: 1rem; align-items: flex-start;
     font-size: 0.75rem; transition: all 0.35s var(--ease);
-    box-shadow: var(--sh-card);
+    box-shadow: var(--sh-card); border-left: 3px solid var(--border);
 }
 .audit-entry:hover { border-color: var(--border-accent); box-shadow: var(--sh-card-hover); transform: translateY(-1px); }
+.audit-entry.entry-deploy { border-left-color: var(--badge-low); }
+.audit-entry.entry-destroy { border-left-color: var(--badge-max); }
+.audit-entry.entry-backup { border-left-color: var(--accent); }
+.audit-entry.entry-update { border-left-color: var(--badge-med); }
+.audit-entry.entry-webhook { border-left-color: var(--accent); }
 .audit-left { display: flex; flex-direction: column; gap: 4px; min-width: 110px; flex-shrink: 0; }
 .audit-right { flex: 1; min-width: 0; }
 .audit-time { color: var(--text-4); font-size: 0.6875rem; font-variant-numeric: tabular-nums; }
@@ -418,8 +426,8 @@ a { color: inherit; text-decoration: none; }
     text-transform: uppercase;
 }
 .data-table td {
-    padding: 0.55rem 1rem; border-bottom: 1px solid var(--border);
-    color: var(--text-2); max-width: 200px;
+    padding: 0.65rem 1rem; border-bottom: 1px solid var(--border);
+    color: var(--text-2); max-width: 300px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .data-table tr:hover td { background: var(--hover-tint); }
@@ -527,7 +535,9 @@ a { color: inherit; text-decoration: none; }
 #terminal-container {
     background: var(--bg-warm); border: 1px solid var(--border);
     border-radius: 0 0 var(--r-md) var(--r-md);
-    padding: 6px 8px 4px; min-height: 400px; overflow: hidden;
+    padding: 6px 8px 4px;
+    height: calc(100vh - 200px);
+    min-height: 500px; overflow: hidden;
 }
 #terminal-container .xterm-viewport { background: transparent !important; }
 #terminal-container .xterm-screen { background: transparent !important; }
