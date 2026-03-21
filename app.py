@@ -7,13 +7,7 @@ try:
 except ImportError:
     pass
 
-import json, sqlite3, subprocess, datetime, socket, threading, select, signal, struct, sys
-
-HAS_PTY = sys.platform != 'win32'
-if HAS_PTY:
-    import pty, fcntl, termios
-else:
-    pty = fcntl = termios = None
+import json, sqlite3, subprocess, datetime, socket, threading, select, signal, pty, fcntl, termios, struct
 from flask import Flask, render_template, session, redirect, request, jsonify, url_for
 from flask_socketio import SocketIO, emit
 from functools import wraps
@@ -63,13 +57,8 @@ def keepalive():
         return jsonify({'ok': True})
     return jsonify({'error': 'unauthorized'}), 401
 
-# FORCE async_mode to gevent for stability (fallback to threading on Windows)
-try:
-    import gevent as _gevent
-    _async_mode = 'gevent'
-except ImportError:
-    _async_mode = 'threading'
-socketio = SocketIO(app, async_mode=_async_mode, cors_allowed_origins='*')
+# FORCE async_mode to gevent for stability
+socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins='*')
 
 # sid → {fd, pid}
 _term_sessions = {}
@@ -372,62 +361,56 @@ def api_stats():
 # ══════════════════════════════════════════════════════
 #   TERMINAL
 # ══════════════════════════════════════════════════════
+def _read_pty(sid, fd):
+    while sid in _term_sessions:
+        try:
+            r, _, _ = select.select([fd], [], [], 0.05)
+            if r:
+                data = os.read(fd, 8192)
+                if not data: break
+                text = data.decode('utf-8', errors='replace')
+                socketio.emit('terminal_output', text, namespace='/terminal', room=sid)
+        except: break
+    if sid in _term_sessions:
+        socketio.emit('terminal_output', '\r\n[Session ended]\r\n', namespace='/terminal', room=sid)
 
-if HAS_PTY:
-    def _read_pty(sid, fd):
-        while sid in _term_sessions:
-            try:
-                r, _, _ = select.select([fd], [], [], 0.05)
-                if r:
-                    data = os.read(fd, 8192)
-                    if not data: break
-                    text = data.decode('utf-8', errors='replace')
-                    socketio.emit('terminal_output', text, namespace='/terminal', room=sid)
-            except: break
-        if sid in _term_sessions:
-            socketio.emit('terminal_output', '\r\n[Session ended]\r\n', namespace='/terminal', room=sid)
+@socketio.on('connect', namespace='/terminal')
+def on_term_connect():
+    sid = request.sid
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.chdir(ATS_HOME)
+        env = os.environ.copy()
+        env['TERM'] = 'xterm-256color'
+        env['COLORTERM'] = 'truecolor'
+        env['FORCE_COLOR'] = '1'
+        os.execvpe('/bin/bash', ['/bin/bash', '--login'], env)
+    else:
+        _term_sessions[sid] = {'fd': fd, 'pid': pid}
+        threading.Thread(target=_read_pty, args=(sid, fd), daemon=True).start()
 
-    @socketio.on('connect', namespace='/terminal')
-    def on_term_connect():
-        sid = request.sid
-        pid, fd = pty.fork()
-        if pid == 0:
-            os.chdir(ATS_HOME)
-            env = os.environ.copy()
-            env['TERM'] = 'xterm-256color'
-            env['COLORTERM'] = 'truecolor'
-            env['FORCE_COLOR'] = '1'
-            os.execvpe('/bin/bash', ['/bin/bash', '--login'], env)
-        else:
-            _term_sessions[sid] = {'fd': fd, 'pid': pid}
-            threading.Thread(target=_read_pty, args=(sid, fd), daemon=True).start()
+@socketio.on('terminal_input', namespace='/terminal')
+def on_term_input(data):
+    sess = _term_sessions.get(request.sid)
+    if sess:
+        try: os.write(sess['fd'], data['input'].encode())
+        except: pass
 
-    @socketio.on('terminal_input', namespace='/terminal')
-    def on_term_input(data):
-        sess = _term_sessions.get(request.sid)
-        if sess:
-            try: os.write(sess['fd'], data['input'].encode())
-            except: pass
+@socketio.on('terminal_resize', namespace='/terminal')
+def on_term_resize(data):
+    sess = _term_sessions.get(request.sid)
+    if sess:
+        try: fcntl.ioctl(sess['fd'], termios.TIOCSWINSZ, struct.pack('HHHH', int(data.get('rows', 24)), int(data.get('cols', 80)), 0, 0))
+        except: pass
 
-    @socketio.on('terminal_resize', namespace='/terminal')
-    def on_term_resize(data):
-        sess = _term_sessions.get(request.sid)
-        if sess:
-            try: fcntl.ioctl(sess['fd'], termios.TIOCSWINSZ, struct.pack('HHHH', int(data.get('rows', 24)), int(data.get('cols', 80)), 0, 0))
-            except: pass
-
-    @socketio.on('disconnect', namespace='/terminal')
-    def on_term_disconnect():
-        sess = _term_sessions.pop(request.sid, None)
-        if sess:
-            try:
-                os.kill(sess['pid'], signal.SIGKILL)
-                os.close(sess['fd'])
-            except: pass
-else:
-    @socketio.on('connect', namespace='/terminal')
-    def on_term_connect():
-        socketio.emit('terminal_output', '\r\n[Terminal not available on Windows]\r\n', namespace='/terminal', room=request.sid)
+@socketio.on('disconnect', namespace='/terminal')
+def on_term_disconnect():
+    sess = _term_sessions.pop(request.sid, None)
+    if sess:
+        try:
+            os.kill(sess['pid'], signal.SIGKILL)
+            os.close(sess['fd'])
+        except: pass
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=9998, allow_unsafe_werkzeug=True)
