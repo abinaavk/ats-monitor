@@ -65,58 +65,31 @@ function setTheme(t) {
 }
 setTheme(localStorage.getItem('theme') || 'jetblack');
 
-document.getElementById('themeBtn')?.addEventListener('click', e => {
+document.getElementById('theme-btn')?.addEventListener('click', e => {
     e.stopPropagation();
-    document.getElementById('themeDropdown')?.classList.toggle('open');
+    document.querySelector('.theme-dots')?.classList.toggle('open');
 });
 
 document.querySelectorAll('.theme-opt').forEach(btn => {
     btn.addEventListener('click', () => {
         setTheme(btn.dataset.theme);
-        document.getElementById('themeDropdown')?.classList.remove('open');
+        document.querySelector('.theme-dots')?.classList.remove('open');
     });
 });
 
 document.addEventListener('click', () => {
-    document.getElementById('themeDropdown')?.classList.remove('open');
+    document.querySelector('.theme-dots')?.classList.remove('open');
 });
 
-// ── MOBILE TOGGLE ──────────────────────────────────────────
-const mobileToggle = document.getElementById('mobileToggle');
-const sidebar = document.getElementById('sidebar');
-const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-if (mobileToggle) {
-    mobileToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
-        sidebarOverlay.classList.toggle('visible');
-    });
-}
-
-if (sidebarOverlay) {
-    sidebarOverlay.addEventListener('click', () => {
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('visible');
-    });
-}
-
-// ── TABS (Sidebar Nav) ──────────────────────────────────────
-document.querySelectorAll('.tab').forEach(btn => {
+// ── TABS ──────────────────────────────────────────────────
+document.querySelectorAll('.nav-link').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tabcontent').forEach(s => s.classList.remove('active'));
         btn.classList.add('active');
         activeTab = btn.dataset.tab;
         const tabEl = document.getElementById('tab-' + activeTab);
         if (tabEl) tabEl.classList.add('active');
-        
-        // Scroll content to top on tab switch
-        const scrollArea = document.querySelector('.content-scroll');
-        if (scrollArea) scrollArea.scrollTop = 0;
-        
-        // Mobile behavior: close sidebar after click
-        if (sidebar) sidebar.classList.remove('open');
-        if (sidebarOverlay) sidebarOverlay.classList.remove('visible');
 
         if (activeTab === 'terminal') {
             if (!socket || !socket.connected) initTerminal();

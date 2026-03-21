@@ -5,218 +5,120 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ATS Monitor</title>
 <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'jetblack');</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/style.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
 </head>
 <body>
 
-<!-- ════ TOP BAR ════ -->
-<header class="topbar">
-  <div class="topbar-left">
-    <span class="dot-live"></span>
-    <span class="topbar-title">ATS MONITOR</span>
-  </div>
-  <div class="topbar-right">
-    <div class="theme-wrap">
-      <button class="theme-btn" id="themeBtn"><span class="icon">◐</span> THEME</button>
-      <div class="theme-dropdown" id="themeDropdown">
-        <button class="theme-opt" data-theme="jetblack"><span class="theme-dot td-jetblack"></span>Jetblack</button>
-        <button class="theme-opt" data-theme="light"><span class="theme-dot td-light"></span>Light</button>
-        <button class="theme-opt" data-theme="midnight"><span class="theme-dot td-midnight"></span>Midnight</button>
-        <button class="theme-opt" data-theme="rose"><span class="theme-dot td-rose"></span>Rose</button>
+<header class="site-header">
+  <div class="nav-inner">
+    <div class="nav-links">
+      <button class="nav-link active" data-tab="overview">Overview</button>
+      <button class="nav-link" data-tab="metrics">Metrics</button>
+      <button class="nav-link" data-tab="logs">Logs</button>
+      <button class="nav-link" data-tab="audit">Audit</button>
+      <button class="nav-link" data-tab="database">Database</button>
+      <button class="nav-link" data-tab="stats">Stats</button>
+      <button class="nav-link" data-tab="terminal">Terminal</button>
+    </div>
+    <div class="nav-controls">
+      <span class="topbar-time" id="clock">--:--:--</span>
+      <div class="theme-picker">
+        <button id="theme-btn" class="theme-btn" title="Change theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+        <div class="theme-dots" id="themeDropdown">
+          <button class="theme-opt" data-theme="jetblack"><span class="theme-dot t-jetblack"></span>Jet Black</button>
+          <button class="theme-opt" data-theme="light"><span class="theme-dot t-light"></span>Light</button>
+          <button class="theme-opt" data-theme="midnight"><span class="theme-dot t-midnight"></span>Midnight</button>
+          <button class="theme-opt" data-theme="rose"><span class="theme-dot t-rose"></span>Rose</button>
+        </div>
       </div>
     </div>
-    <span class="topbar-time" id="clock">--:--:--</span>
-    <span class="topbar-refresh" id="refreshIndicator" title="Polling active">↻</span>
   </div>
 </header>
 
-<!-- ════ TAB BAR ════ -->
-<nav class="tabbar">
-  <button class="tab active" data-tab="overview">OVERVIEW</button>
-  <button class="tab" data-tab="metrics">METRICS</button>
-  <button class="tab" data-tab="logs">LOGS</button>
-  <button class="tab" data-tab="audit">AUDIT</button>
-  <button class="tab" data-tab="database">DATABASE</button>
-  <button class="tab" data-tab="stats">STATS</button>
-  <button class="tab" data-tab="terminal">TERMINAL</button>
-</nav>
+<main class="main">
 
-<!-- ══════════════════════════════════════════════════════
-     TAB: OVERVIEW
-══════════════════════════════════════════════════════ -->
+<!-- TAB: OVERVIEW -->
 <section class="tabcontent active" id="tab-overview">
-
+  <div class="sec-label">System Overview</div>
   <div class="stat-row">
-    <div class="stat-card">
-      <div class="stat-label">SERVICES ONLINE</div>
-      <div class="stat-value green" id="ov-online"><span class="skel skel-val"></span></div>
-      <div class="stat-sub" id="ov-total"><span class="skel skel-sub"></span></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">OFFLINE</div>
-      <div class="stat-value red" id="ov-offline"><span class="skel skel-val"></span></div>
-      <div class="stat-sub">services down</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">CPU</div>
-      <div class="stat-value" id="ov-cpu"><span class="skel skel-val"></span></div>
-      <div class="stat-sub" id="ov-load"><span class="skel skel-sub"></span></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">UPTIME</div>
-      <div class="stat-value cyan" id="ov-uptime"><span class="skel skel-val"></span></div>
-      <div class="stat-sub">system</div>
-    </div>
+    <div class="stat-card"><div class="stat-label">Services Online</div><div class="stat-value green" id="ov-online"><span class="skel skel-val"></span></div><div class="stat-sub" id="ov-total"><span class="skel skel-sub"></span></div></div>
+    <div class="stat-card"><div class="stat-label">Offline</div><div class="stat-value red" id="ov-offline"><span class="skel skel-val"></span></div><div class="stat-sub">services down</div></div>
+    <div class="stat-card"><div class="stat-label">CPU</div><div class="stat-value" id="ov-cpu"><span class="skel skel-val"></span></div><div class="stat-sub" id="ov-load"><span class="skel skel-sub"></span></div></div>
+    <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-value cyan" id="ov-uptime"><span class="skel skel-val"></span></div><div class="stat-sub">system</div></div>
   </div>
 
-  <div class="section-title">SYSTEM RESOURCES</div>
+  <div class="sec-label">Resources</div>
   <div class="resource-grid">
-    <div class="resource-card">
-      <div class="resource-header"><span>RAM</span><span id="ov-ram-val">—</span></div>
-      <div class="bar-track"><div class="bar-fill" id="ov-ram-bar" style="width:0%"></div></div>
-      <div class="resource-footer" id="ov-ram-detail">—</div>
-    </div>
-    <div class="resource-card">
-      <div class="resource-header"><span>SWAP</span><span id="ov-swap-val">—</span></div>
-      <div class="bar-track"><div class="bar-fill amber" id="ov-swap-bar" style="width:0%"></div></div>
-      <div class="resource-footer" id="ov-swap-detail">—</div>
-    </div>
-    <div class="resource-card">
-      <div class="resource-header"><span id="lbl-disk1">DISK /</span><span id="ov-disk1-val">—</span></div>
-      <div class="bar-track"><div class="bar-fill cyan" id="ov-disk1-bar" style="width:0%"></div></div>
-      <div class="resource-footer" id="ov-disk1-detail">—</div>
-    </div>
-    <div class="resource-card">
-      <div class="resource-header"><span id="lbl-disk2">DISK /opt</span><span id="ov-disk2-val">—</span></div>
-      <div class="bar-track"><div class="bar-fill cyan" id="ov-disk2-bar" style="width:0%"></div></div>
-      <div class="resource-footer" id="ov-disk2-detail">—</div>
-    </div>
+    <div class="resource-card"><div class="resource-header"><span>RAM</span><span id="ov-ram-val">—</span></div><div class="bar-track"><div class="bar-fill" id="ov-ram-bar" style="width:0%"></div></div><div class="resource-footer" id="ov-ram-detail">—</div></div>
+    <div class="resource-card"><div class="resource-header"><span>SWAP</span><span id="ov-swap-val">—</span></div><div class="bar-track"><div class="bar-fill" id="ov-swap-bar" style="width:0%"></div></div><div class="resource-footer" id="ov-swap-detail">—</div></div>
+    <div class="resource-card"><div class="resource-header"><span>DISK /</span><span id="ov-disk1-val">—</span></div><div class="bar-track"><div class="bar-fill" id="ov-disk1-bar" style="width:0%"></div></div><div class="resource-footer" id="ov-disk1-detail">—</div></div>
+    <div class="resource-card"><div class="resource-header"><span>DISK /opt</span><span id="ov-disk2-val">—</span></div><div class="bar-track"><div class="bar-fill" id="ov-disk2-bar" style="width:0%"></div></div><div class="resource-footer" id="ov-disk2-detail">—</div></div>
   </div>
 
-  <div class="section-title">NETWORK</div>
+  <div class="sec-label">Network</div>
   <div class="pill-row">
     <span class="pill" id="ov-inet">INTERNET —</span>
     <span class="pill" id="ov-dns">DNS —</span>
     <span class="pill" id="ov-cf">CLOUDFLARE —</span>
   </div>
 
-  <div class="section-title">SERVICES</div>
+  <div class="sec-label">Services</div>
   <div class="svc-grid" id="ov-services">
     <div class="svc-card skel-card"><div class="skel skel-full"></div><div class="skel skel-half"></div><div class="skel skel-third"></div></div>
     <div class="svc-card skel-card"><div class="skel skel-full"></div><div class="skel skel-half"></div><div class="skel skel-third"></div></div>
     <div class="svc-card skel-card"><div class="skel skel-full"></div><div class="skel skel-half"></div><div class="skel skel-third"></div></div>
-    <div class="svc-card skel-card"><div class="skel skel-full"></div><div class="skel skel-half"></div><div class="skel skel-third"></div></div>
-    <div class="svc-card skel-card"><div class="skel skel-full"></div><div class="skel skel-half"></div><div class="skel skel-third"></div></div>
-    <div class="svc-card skel-card"><div class="skel skel-full"></div><div class="skel skel-half"></div><div class="skel skel-third"></div></div>
   </div>
-
 </section>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB: METRICS
-══════════════════════════════════════════════════════ -->
+<!-- TAB: METRICS -->
 <section class="tabcontent" id="tab-metrics">
-
-  <div class="section-title">DISK SPACE</div>
-  <div class="metrics-table" id="mt-disk">
-    <div class="skel-row"></div><div class="skel-row"></div>
-  </div>
-
-  <div class="section-title">NETWORK CHECKS</div>
-  <div class="metrics-table" id="mt-network">
-    <div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div>
-  </div>
-
-  <div class="section-title">SERVICE HEALTH</div>
-  <div class="metrics-table" id="mt-services">
-    <div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div>
-  </div>
-
-  <div class="section-title">SYSTEM RESOURCES</div>
-  <div class="metrics-table" id="mt-resources">
-    <div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div>
-  </div>
-
-  <div class="section-title">DATABASE INTEGRITY</div>
-  <div class="metrics-table" id="mt-dbintegrity">
-    <div class="skel-row"></div><div class="skel-row"></div>
-  </div>
-
+  <div class="sec-label">Disk Space</div><div class="metrics-table" id="mt-disk"><div class="skel-row"></div><div class="skel-row"></div></div>
+  <div class="sec-label">Network Checks</div><div class="metrics-table" id="mt-network"><div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>
+  <div class="sec-label">Service Health</div><div class="metrics-table" id="mt-services"><div class="skel-row"></div><div class="skel-row"></div></div>
+  <div class="sec-label">System Resources</div><div class="metrics-table" id="mt-resources"><div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>
+  <div class="sec-label">Database Integrity</div><div class="metrics-table" id="mt-dbintegrity"><div class="skel-row"></div><div class="skel-row"></div></div>
 </section>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB: LOGS
-══════════════════════════════════════════════════════ -->
+<!-- TAB: LOGS -->
 <section class="tabcontent" id="tab-logs">
-
   <div class="log-subtabs">
     <button class="logtab active" data-logtype="ats">ATS LOG</button>
     <button class="logtab" data-logtype="security">SECURITY</button>
     <button class="logtab" data-logtype="metrics">METRICS.PROM</button>
   </div>
-
   <div class="log-controls">
     <div style="display:flex;gap:0.8rem;align-items:center;flex:1">
-      <label class="toggle-label">
-        <input type="checkbox" id="logAutoScroll" checked>
-        <span>AUTO-SCROLL</span>
-      </label>
-      <input type="text" id="logFilter" class="filter-input" style="max-width:200px;margin:0" placeholder="Filter terminal…">
+      <label class="toggle-label"><input type="checkbox" id="logAutoScroll" checked><span>Auto-scroll</span></label>
+      <input type="text" id="logFilter" class="filter-input" style="max-width:200px" placeholder="Filter...">
     </div>
     <div style="display:flex;gap:0.6rem;align-items:center">
-      <button id="clearLogs" class="topbar-logout" style="cursor:pointer;color:var(--text2)">CLEAR</button>
+      <button id="clearLogs" class="term-btn">Clear</button>
       <span class="log-count" id="logLineCount">— lines</span>
     </div>
   </div>
-
   <div class="log-viewer" id="logViewer">
-    <div class="skel-log-line"></div>
-    <div class="skel-log-line" style="width:80%"></div>
-    <div class="skel-log-line" style="width:92%"></div>
-    <div class="skel-log-line" style="width:75%"></div>
-    <div class="skel-log-line" style="width:88%"></div>
-    <div class="skel-log-line" style="width:65%"></div>
-    <div class="skel-log-line" style="width:95%"></div>
-    <div class="skel-log-line" style="width:70%"></div>
+    <div class="skel-log-line"></div><div class="skel-log-line" style="width:80%"></div><div class="skel-log-line" style="width:92%"></div><div class="skel-log-line" style="width:75%"></div><div class="skel-log-line" style="width:88%"></div>
   </div>
-
 </section>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB: AUDIT
-══════════════════════════════════════════════════════ -->
+<!-- TAB: AUDIT -->
 <section class="tabcontent" id="tab-audit">
-
   <div class="audit-controls">
-    <input class="filter-input" type="text" id="auditFilter" placeholder="Filter by action or service…">
+    <input class="filter-input" type="text" id="auditFilter" placeholder="Filter by action or service..." style="flex:1">
     <span class="log-count" id="auditCount">— entries</span>
   </div>
-
   <div class="audit-list" id="auditList">
-    <div class="audit-entry skel-card">
-      <div class="skel skel-badge"></div>
-      <div style="flex:1"><div class="skel skel-full"></div><div class="skel skel-half" style="margin-top:6px"></div></div>
-    </div>
-    <div class="audit-entry skel-card">
-      <div class="skel skel-badge"></div>
-      <div style="flex:1"><div class="skel skel-full"></div><div class="skel skel-half" style="margin-top:6px"></div></div>
-    </div>
-    <div class="audit-entry skel-card">
-      <div class="skel skel-badge"></div>
-      <div style="flex:1"><div class="skel skel-full"></div><div class="skel skel-half" style="margin-top:6px"></div></div>
-    </div>
+    <div class="audit-entry skel-card"><div class="skel skel-badge"></div><div style="flex:1"><div class="skel skel-full"></div><div class="skel skel-half" style="margin-top:6px"></div></div></div>
+    <div class="audit-entry skel-card"><div class="skel skel-badge"></div><div style="flex:1"><div class="skel skel-full"></div><div class="skel skel-half" style="margin-top:6px"></div></div></div>
   </div>
-
 </section>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB: DATABASE
-══════════════════════════════════════════════════════ -->
+<!-- TAB: DATABASE -->
 <section class="tabcontent" id="tab-database">
-
   <div class="db-subtabs">
     <button class="dbtab active" data-dbtable="services">SERVICES</button>
     <button class="dbtab" data-dbtable="deployments">DEPLOYMENTS</button>
@@ -224,7 +126,6 @@
     <button class="dbtab" data-dbtable="metrics_history">METRICS</button>
     <button class="dbtab" data-dbtable="remote_configs">REMOTE</button>
   </div>
-
   <div class="db-info" id="dbTableInfo"><span class="db-badge">—</span></div>
   <div class="table-wrap">
     <table class="data-table" id="dbTable">
@@ -236,12 +137,9 @@
       </tbody>
     </table>
   </div>
-
 </section>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB: STATS
-══════════════════════════════════════════════════════ -->
+<!-- TAB: STATS -->
 <section class="tabcontent" id="tab-stats">
   <div class="stats-hero" id="statsHero">
     <div class="stats-hero-grid">
@@ -256,80 +154,26 @@
     </div>
   </div>
   <div class="stats-grid" id="statsGrid">
-    <div class="stats-card skel-card">
-      <div class="skel" style="width:40%;height:1rem;margin:0.75rem 0.9rem"></div>
-      <div style="padding:0.75rem 0.9rem;display:flex;flex-direction:column;gap:0.5rem">
-        <div class="skel" style="width:60%;height:0.6rem"></div>
-        <div class="skel" style="width:100%;height:5px;border-radius:3px"></div>
-        <div class="skel" style="width:80%;height:0.5rem"></div>
-        <div class="skel" style="width:100%;height:5px;border-radius:3px"></div>
-        <div class="skel" style="width:70%;height:0.5rem"></div>
-        <div class="skel" style="width:100%;height:0.45rem;margin-top:0.3rem"></div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.3rem">
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-        </div>
-        <div class="skel" style="width:100%;height:5px;border-radius:3px"></div>
-      </div>
-    </div>
-    <div class="stats-card skel-card">
-      <div class="skel" style="width:40%;height:1rem;margin:0.75rem 0.9rem"></div>
-      <div style="padding:0.75rem 0.9rem;display:flex;flex-direction:column;gap:0.5rem">
-        <div class="skel" style="width:60%;height:0.6rem"></div>
-        <div class="skel" style="width:100%;height:5px;border-radius:3px"></div>
-        <div class="skel" style="width:80%;height:0.5rem"></div>
-        <div class="skel" style="width:100%;height:5px;border-radius:3px"></div>
-        <div class="skel" style="width:70%;height:0.5rem"></div>
-        <div class="skel" style="width:100%;height:0.45rem;margin-top:0.3rem"></div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.3rem">
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-        </div>
-        <div class="skel" style="width:100%;height:5px;border-radius:3px"></div>
-      </div>
-    </div>
-    <div class="stats-card skel-card">
-      <div class="skel" style="width:40%;height:1rem;margin:0.75rem 0.9rem"></div>
-      <div style="padding:0.75rem 0.9rem;display:flex;flex-direction:column;gap:0.5rem">
-        <div class="skel" style="width:60%;height:0.6rem"></div>
-        <div class="skel" style="width:100%;height:5px;border-radius:3px"></div>
-        <div class="skel" style="width:80%;height:0.5rem"></div>
-        <div class="skel" style="width:100%;height:5px;border-radius:3px"></div>
-        <div class="skel" style="width:70%;height:0.5rem"></div>
-        <div class="skel" style="width:100%;height:0.45rem;margin-top:0.3rem"></div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.3rem">
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-          <div class="skel" style="height:1.2rem;border-radius:4px"></div>
-        </div>
-        <div class="skel" style="width:100%;height:5px;border-radius:3px"></div>
-      </div>
-    </div>
+    <div class="stats-card skel-card" style="height:380px"></div>
+    <div class="stats-card skel-card" style="height:380px"></div>
+    <div class="stats-card skel-card" style="height:380px"></div>
   </div>
 </section>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB: TERMINAL
-══════════════════════════════════════════════════════ -->
+<!-- TAB: TERMINAL -->
 <section class="tabcontent" id="tab-terminal">
-
   <div class="term-toolbar">
     <span class="term-status" id="term-status">DISCONNECTED</span>
-    <button class="term-btn" id="term-reconnect-btn">RECONNECT</button>
-    <button class="term-btn" id="term-clear-btn">CLEAR</button>
+    <button class="term-btn" id="term-reconnect-btn">Reconnect</button>
+    <button class="term-btn" id="term-clear-btn">Clear</button>
     <span style="flex:1"></span>
     <span class="term-hint">bash · gaiaserver</span>
   </div>
   <div id="terminal-container"></div>
-
 </section>
 
-<div style="height:env(safe-area-inset-bottom, 16px)"></div>
+</main>
+
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
