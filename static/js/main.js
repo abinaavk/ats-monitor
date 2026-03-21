@@ -609,3 +609,17 @@ function esc(str) {
     if (str == null) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+// ── IDLE TIMEOUT (10 min) ────────────────────────────────
+let idleTimer = null;
+const IDLE_LIMIT = 10 * 60 * 1000;
+
+function resetIdle() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => { window.location.href = '/logout'; }, IDLE_LIMIT);
+}
+
+['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
+    document.addEventListener(evt, resetIdle, {passive: true});
+});
+resetIdle();

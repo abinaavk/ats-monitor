@@ -3,196 +3,67 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ATS Monitor — Login</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'jetblack');</script>
+<link rel="stylesheet" href="/static/css/style.css">
+<title>ATS Monitor</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg:      #070708;
-    --card:    #0d0e10;
-    --border:  #1c1e22;
-    --green:   #00ff88;
-    --cyan:    #00d4ff;
-    --red:     #ff3355;
-    --amber:   #ffaa00;
-    --text:    #e8eaed;
-    --muted:   #4a4e58;
-    --font:    'Azeret Mono', monospace;
-  }
-
-  html, body {
-    height: 100%;
-    background: var(--bg);
-    font-family: var(--font);
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(0,255,136,0.04) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 50% at 80% 20%, rgba(0,212,255,0.04) 0%, transparent 60%);
-    pointer-events: none;
-  }
-
-  .card {
-    width: 100%;
-    max-width: 380px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 2.5rem 2rem;
-    position: relative;
-  }
-
-  .card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 20%; right: 20%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--green), transparent);
-    opacity: 0.6;
-  }
-
-  .logo {
-    text-align: center;
-    margin-bottom: 2rem;
-  }
-
-  .logo-badge {
-    display: inline-block;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    color: var(--green);
-    background: rgba(0,255,136,0.08);
-    border: 1px solid rgba(0,255,136,0.2);
-    border-radius: 4px;
-    padding: 4px 10px;
-    margin-bottom: 0.75rem;
-  }
-
-  .logo h1 {
-    font-size: 1.6rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--text);
-  }
-
-  .logo p {
-    font-size: 0.7rem;
-    color: var(--muted);
-    margin-top: 0.3rem;
-    letter-spacing: 0.05em;
-  }
-
-  .dot {
-    display: inline-block;
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 6px var(--green);
-    margin-right: 6px;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.4; }
-  }
-
-  label {
-    display: block;
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    color: var(--muted);
+.login-wrap {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 2rem;
+}
+.login-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 3rem 2.5rem;
+    text-align: center; max-width: 380px; width: 100%;
+    box-shadow: var(--sh-card);
+    animation: reveal 0.5s var(--ease) forwards;
+}
+@keyframes reveal { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+.login-title {
+    font-family: 'Funnel Display', Georgia, serif;
+    font-size: 1.5rem; font-weight: 400;
+    letter-spacing: -0.02em; color: var(--text-1);
     margin-bottom: 0.5rem;
-  }
-
-  input[type="password"] {
-    width: 100%;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 0.9rem;
-    padding: 0.75rem 1rem;
-    outline: none;
-    transition: border-color 0.2s;
-    letter-spacing: 0.1em;
-  }
-
-  input[type="password"]:focus {
-    border-color: rgba(0,255,136,0.4);
-    background: rgba(0,255,136,0.03);
-  }
-
-  button {
-    margin-top: 1rem;
-    width: 100%;
-    background: rgba(0,255,136,0.1);
-    border: 1px solid rgba(0,255,136,0.3);
-    border-radius: 6px;
-    color: var(--green);
-    font-family: var(--font);
-    font-size: 0.75rem;
-    font-weight: 700;
+}
+.login-sub {
+    font-size: 0.8125rem; color: var(--text-3); margin-bottom: 2rem;
+}
+.login-input {
+    width: 100%; background: var(--bg-warm); border: 1px solid var(--border);
+    border-radius: var(--r-pill); color: var(--text-1);
+    font-family: inherit; font-size: 0.9375rem;
+    padding: 12px 18px; outline: none; text-align: center;
+    transition: all 0.3s var(--ease); margin-bottom: 1rem;
     letter-spacing: 0.15em;
-    padding: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  button:hover {
-    background: rgba(0,255,136,0.18);
-    border-color: rgba(0,255,136,0.6);
-  }
-
-  .error {
-    margin-top: 0.75rem;
-    font-size: 0.7rem;
-    color: var(--red);
-    text-align: center;
-    letter-spacing: 0.05em;
-  }
-
-  .footer {
-    text-align: center;
-    margin-top: 2rem;
-    font-size: 0.6rem;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-  }
+}
+.login-input::placeholder { color: var(--text-4); letter-spacing: normal; }
+.login-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+.login-btn {
+    width: 100%; background: var(--accent); color: var(--bg);
+    border: none; border-radius: var(--r-pill);
+    font-family: inherit; font-size: 0.875rem; font-weight: 700;
+    padding: 12px; cursor: pointer; transition: all 0.3s var(--ease);
+}
+.login-btn:hover { transform: scale(1.02); opacity: 0.9; }
+.login-btn:active { transform: scale(0.98); }
+.login-error {
+    color: var(--badge-max); font-size: 0.75rem; font-weight: 600;
+    margin-top: 0.75rem; animation: shake 0.4s ease;
+}
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo">
-    <div class="logo-badge"><span class="dot"></span>ATS MONITOR</div>
-    <h1>gaiasentinel</h1>
-    <p>READ-ONLY INFRASTRUCTURE DASHBOARD</p>
-  </div>
-
-  <form method="POST" action="/login">
-    <label>ACCESS PASSWORD</label>
-    <input type="password" name="password" autofocus placeholder="••••••••••••" autocomplete="current-password">
-    <button type="submit">AUTHENTICATE →</button>
-    {% if error %}
-    <p class="error">✗ {{ error }}</p>
-    {% endif %}
-  </form>
-
-  <p class="footer">ATS v1.0.2 · monitor.gaiasentinel.online</p>
+<div class="login-wrap">
+    <div class="login-card">
+        <div class="login-title">ATS Monitor</div>
+        <div class="login-sub">Enter password to continue</div>
+        <form method="POST" action="/login">
+            <input type="password" name="password" class="login-input" placeholder="Password" autofocus required>
+            <button type="submit" class="login-btn">Enter</button>
+        </form>
+        {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
+    </div>
 </div>
 </body>
 </html>

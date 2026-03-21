@@ -20,6 +20,42 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'ats_monitor_v1_secret_key_change_me')
+app.permanent_session_lifetime = datetime.timedelta(minutes=10)
+
+ACCESS_PASSWORD = 'abi@arv'
+
+@app.before_request
+def check_auth():
+    if request.endpoint in ('login', 'logout', 'static'): return
+    if not session.get('authenticated'):
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'unauthorized'}), 401
+        return redirect('/login')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        pwd = request.form.get('password', '')
+        if pwd == ACCESS_PASSWORD:
+            session.permanent = True
+            session['authenticated'] = True
+            session['last_activity'] = datetime.datetime.now().isoformat()
+            return redirect('/')
+        return render_template('login.html', error='Invalid password')
+    if session.get('authenticated'): return redirect('/')
+    return render_template('login.html', error=None)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
+
+@app.route('/api/session-keepalive', methods=['POST'])
+def keepalive():
+    if session.get('authenticated'):
+        session['last_activity'] = datetime.datetime.now().isoformat()
+        return jsonify({'ok': True})
+    return jsonify({'error': 'unauthorized'}), 401
 
 # FORCE async_mode to gevent for stability
 socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins='*')
