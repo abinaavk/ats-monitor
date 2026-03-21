@@ -444,6 +444,47 @@ function initTerminal() {
         setTimeout(() => socket.connect(), 100);
         term.clear();
     });
+
+    document.getElementById('term-paste-btn')?.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text && socket && socket.connected) {
+                socket.emit('terminal_input', {input: text});
+                resetTermTimeout();
+            }
+        } catch (e) {
+            console.warn('Clipboard read failed:', e);
+        }
+    });
+
+    document.getElementById('terminal-container')?.addEventListener('contextmenu', async (e) => {
+        e.preventDefault();
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text && socket && socket.connected) {
+                socket.emit('terminal_input', {input: text});
+                resetTermTimeout();
+            }
+        } catch (err) {
+            console.warn('Clipboard read failed:', err);
+        }
+    });
+
+    document.addEventListener('keydown', async (e) => {
+        if (activeTab !== 'terminal') return;
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
+            e.preventDefault();
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text && socket && socket.connected) {
+                    socket.emit('terminal_input', {input: text});
+                    resetTermTimeout();
+                }
+            } catch (err) {
+                console.warn('Clipboard read failed:', err);
+            }
+        }
+    });
 }
 
 // ═══════════════════════════════════════════════════════════
