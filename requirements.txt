@@ -1,4 +1,5 @@
 flask
-waitress
-psutil
 flask-socketio
+psutil
+gevent
+gevent-websocket

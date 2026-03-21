@@ -20,7 +20,6 @@
   <div class="topbar-right">
     <span class="topbar-time" id="clock">--:--:--</span>
     <span class="topbar-refresh" id="refreshIndicator" title="Polling active">↻</span>
-    <a href="/logout" class="topbar-logout">EXIT</a>
   </div>
 </header>
 
@@ -76,12 +75,12 @@
       <div class="resource-footer" id="ov-swap-detail">—</div>
     </div>
     <div class="resource-card">
-      <div class="resource-header"><span>DISK /</span><span id="ov-disk1-val">—</span></div>
+      <div class="resource-header"><span id="lbl-disk1">DISK /</span><span id="ov-disk1-val">—</span></div>
       <div class="bar-track"><div class="bar-fill cyan" id="ov-disk1-bar" style="width:0%"></div></div>
       <div class="resource-footer" id="ov-disk1-detail">—</div>
     </div>
     <div class="resource-card">
-      <div class="resource-header"><span>DISK /opt</span><span id="ov-disk2-val">—</span></div>
+      <div class="resource-header"><span id="lbl-disk2">DISK /opt</span><span id="ov-disk2-val">—</span></div>
       <div class="bar-track"><div class="bar-fill cyan" id="ov-disk2-bar" style="width:0%"></div></div>
       <div class="resource-footer" id="ov-disk2-detail">—</div>
     </div>
@@ -150,11 +149,17 @@
   </div>
 
   <div class="log-controls">
-    <label class="toggle-label">
-      <input type="checkbox" id="logAutoScroll" checked>
-      <span>AUTO-SCROLL</span>
-    </label>
-    <span class="log-count" id="logLineCount">— lines</span>
+    <div style="display:flex;gap:0.8rem;align-items:center;flex:1">
+      <label class="toggle-label">
+        <input type="checkbox" id="logAutoScroll" checked>
+        <span>AUTO-SCROLL</span>
+      </label>
+      <input type="text" id="logFilter" class="filter-input" style="max-width:200px;margin:0" placeholder="Filter terminal…">
+    </div>
+    <div style="display:flex;gap:0.6rem;align-items:center">
+      <button id="clearLogs" class="topbar-logout" style="cursor:pointer;color:var(--text2)">CLEAR</button>
+      <span class="log-count" id="logLineCount">— lines</span>
+    </div>
   </div>
 
   <div class="log-viewer" id="logViewer">
