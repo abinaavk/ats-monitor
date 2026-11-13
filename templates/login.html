@@ -3,67 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark light">
 <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'jetblack');</script>
 <link rel="stylesheet" href="/static/css/style.css">
 <title>ATS Monitor</title>
 <style>
 .login-wrap {
-    display: flex; align-items: center; justify-content: center;
-    min-height: 100vh; padding: 2rem;
+    min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 }
-.login-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--r-lg); padding: 3rem 2.5rem;
-    text-align: center; max-width: 380px; width: 100%;
-    box-shadow: var(--sh-card);
-    animation: reveal 0.5s var(--ease) forwards;
+.login-aside {
+    background: var(--bg-2); border-right: 1px solid var(--line); padding: 2.5rem;
+    display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;
 }
-@keyframes reveal { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
-.login-title {
-    font-family: 'Funnel Display', Georgia, serif;
-    font-size: 1.5rem; font-weight: 400;
-    letter-spacing: -0.02em; color: var(--text-1);
-    margin-bottom: 0.5rem;
+.login-aside::before {
+    content: ''; position: absolute; inset: 0; opacity: 0.55; pointer-events: none;
+    background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 48px 48px; background-position: -1px -1px;
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 40%, transparent);
+            mask-image: linear-gradient(180deg, transparent, #000 40%, transparent);
 }
-.login-sub {
-    font-size: 0.8125rem; color: var(--text-3); margin-bottom: 2rem;
-}
+.login-aside > * { position: relative; }
+.login-headline { font-size: clamp(1.75rem, 3.2vw, 2.75rem); font-weight: 600; letter-spacing: -0.03em; line-height: 1.08; max-width: 14ch; }
+.login-headline span { color: var(--text-3); }
+.login-foot { font-family: var(--mono); font-size: 0.75rem; color: var(--text-3); display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.login-main { display: flex; align-items: center; justify-content: center; padding: 2rem; }
+.login-card { width: 100%; max-width: 340px; animation: rise 0.4s var(--ease) both; }
+.login-card h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+.login-sub { font-size: 0.875rem; color: var(--text-3); margin: 0.35rem 0 1.75rem; }
+.login-label { display: block; font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 0.45rem; }
 .login-input {
-    width: 100%; background: var(--bg-warm); border: 1px solid var(--border);
-    border-radius: var(--r-pill); color: var(--text-1);
-    font-family: inherit; font-size: 0.9375rem;
-    padding: 12px 18px; outline: none; text-align: center;
-    transition: all 0.3s var(--ease); margin-bottom: 1rem;
-    letter-spacing: 0.15em;
+    width: 100%; background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r);
+    color: var(--text-1); font-family: var(--mono); font-size: 0.9375rem; padding: 0.7rem 0.8rem; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s; margin-bottom: 1rem;
 }
-.login-input::placeholder { color: var(--text-4); letter-spacing: normal; }
-.login-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+.login-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .login-btn {
-    width: 100%; background: var(--accent); color: var(--bg);
-    border: none; border-radius: var(--r-pill);
-    font-family: inherit; font-size: 0.875rem; font-weight: 700;
-    padding: 12px; cursor: pointer; transition: all 0.3s var(--ease);
+    width: 100%; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--r);
+    font-size: 0.875rem; font-weight: 600; padding: 0.75rem; cursor: pointer; transition: filter 0.15s, transform 0.1s;
 }
-.login-btn:hover { transform: scale(1.02); opacity: 0.9; }
-.login-btn:active { transform: scale(0.98); }
+.login-btn:hover { filter: brightness(1.08); }
+.login-btn:active { transform: translateY(1px); }
 .login-error {
-    color: var(--badge-max); font-size: 0.75rem; font-weight: 600;
-    margin-top: 0.75rem; animation: shake 0.4s ease;
+    margin-top: 1rem; padding: 0.6rem 0.75rem; border: 1px solid var(--bad); background: var(--bad-soft);
+    color: var(--bad); font-size: 0.8125rem; border-radius: var(--r);
 }
-@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+@media (max-width: 800px) {
+    .login-wrap { grid-template-columns: 1fr; }
+    .login-aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 1.5rem; gap: 2rem; }
+    .login-headline { font-size: 1.5rem; }
+    .login-foot { display: none; }
+}
 </style>
 </head>
 <body>
 <div class="login-wrap">
-    <div class="login-card">
-        <div class="login-title">ATS Monitor</div>
-        <div class="login-sub">Enter password to continue</div>
-        <form method="POST" action="/login">
-            <input type="password" name="password" class="login-input" placeholder="Password" autofocus required>
-            <button type="submit" class="login-btn">Enter</button>
-        </form>
-        {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
-    </div>
+    <aside class="login-aside">
+        <div class="brand">
+            <div class="brand-mark" aria-hidden="true"></div>
+            <div>
+                <div class="brand-name">ATS Monitor</div>
+                <div class="brand-host">gaiaserver</div>
+            </div>
+        </div>
+        <p class="login-headline">Every service. <span>One quiet screen.</span></p>
+        <div class="login-foot"><span>services</span><span>logs</span><span>audit</span><span>terminal</span></div>
+    </aside>
+    <main class="login-main">
+        <div class="login-card">
+            <h1>Sign in</h1>
+            <p class="login-sub">Enter the monitor password to continue.</p>
+            <form method="POST" action="/login">
+                <label class="login-label" for="pw">Password</label>
+                <input id="pw" type="password" name="password" class="login-input" autocomplete="current-password" autofocus required>
+                <button type="submit" class="login-btn">Continue</button>
+            </form>
+            {% if error %}<div class="login-error" role="alert">{{ error }}</div>{% endif %}
+        </div>
+    </main>
 </div>
 </body>
 </html>

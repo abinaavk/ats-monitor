@@ -4,46 +4,72 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ATS Monitor</title>
+<meta name="color-scheme" content="dark light">
 <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'jetblack');</script>
 <link rel="stylesheet" href="/static/css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 
 <header class="site-header">
   <div class="nav-inner">
-    <div class="nav-links">
-      <button class="nav-link active" data-tab="overview">Overview</button>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div>
+        <div class="brand-name">ATS Monitor</div>
+        <div class="brand-host">gaiaserver</div>
+      </div>
+    </div>
+    <nav class="nav-links" aria-label="Sections">
+      <button class="nav-link active" data-tab="overview" aria-current="page">Overview</button>
       <button class="nav-link" data-tab="metrics">Metrics</button>
       <button class="nav-link" data-tab="logs">Logs</button>
       <button class="nav-link" data-tab="audit">Audit</button>
       <button class="nav-link" data-tab="database">Database</button>
       <button class="nav-link" data-tab="stats">Stats</button>
       <button class="nav-link" data-tab="terminal">Terminal</button>
-    </div>
+    </nav>
     <div class="nav-controls">
-      <span class="topbar-time" id="clock">--:--:--</span>
-      <div class="theme-picker">
-        <button id="theme-btn" class="theme-btn" title="Change theme">
-          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-        </button>
-        <div class="theme-dots" id="themeDropdown">
-          <button class="theme-opt" data-theme="jetblack"><span class="theme-dot t-jetblack"></span>Jet Black</button>
-          <button class="theme-opt" data-theme="light"><span class="theme-dot t-light"></span>Light</button>
-          <button class="theme-opt" data-theme="midnight"><span class="theme-dot t-midnight"></span>Midnight</button>
-          <button class="theme-opt" data-theme="rose"><span class="theme-dot t-rose"></span>Rose</button>
+      <div class="side-status">
+        <span class="live-dot">live</span>
+        <span class="topbar-time" id="clock">--:--:--</span>
+      </div>
+      <div class="side-actions">
+        <div class="theme-picker">
+          <button id="theme-btn" class="theme-btn" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="themeDropdown">
+            <span class="theme-swatch" aria-hidden="true"></span>
+            <span class="theme-name" id="theme-name">Graphite</span>
+            <svg aria-hidden="true" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 7.5 6 4l3.5 3.5"/></svg>
+          </button>
+          <div class="theme-dots" id="themeDropdown">
+            <button class="theme-opt" data-theme="jetblack"><span class="theme-dot t-jetblack"></span>Graphite</button>
+            <button class="theme-opt" data-theme="light"><span class="theme-dot t-light"></span>Paper</button>
+            <button class="theme-opt" data-theme="midnight"><span class="theme-dot t-midnight"></span>Ink</button>
+            <button class="theme-opt" data-theme="rose"><span class="theme-dot t-rose"></span>Clay</button>
+          </div>
         </div>
+        <a class="logout-btn" href="/logout" title="Sign out">Sign out</a>
       </div>
     </div>
   </div>
 </header>
 
-<main class="main">
+<main class="main" id="main" tabindex="-1">
+
+<div class="page-head">
+  <div>
+    <h1 class="page-title" id="pageTitle">Overview</h1>
+    <p class="page-sub" id="pageSub">Live state of every service on this host.</p>
+  </div>
+  <div class="page-meta">refreshed <b id="lastUpdated">—</b></div>
+</div>
 
 <!-- TAB: OVERVIEW -->
 <section class="tabcontent active" id="tab-overview">
-  <div class="sec-label">System Overview</div>
+  <div class="status-banner pending" id="statusBanner"><span class="sb-icon"></span><span id="sbText">Checking services…</span><span class="sb-sub" id="sbSub"></span></div>
   <div class="stat-row">
     <div class="stat-card"><div class="stat-label">Services Online</div><div class="stat-value green" id="ov-online"><span class="skel skel-val"></span></div><div class="stat-sub" id="ov-total"><span class="skel skel-sub"></span></div></div>
     <div class="stat-card"><div class="stat-label">Offline</div><div class="stat-value red" id="ov-offline"><span class="skel skel-val"></span></div><div class="stat-sub">services down</div></div>
@@ -91,16 +117,16 @@
     <button class="logtab" data-logtype="metrics">METRICS.PROM</button>
   </div>
   <div class="log-controls">
-    <div style="display:flex;gap:0.8rem;align-items:center;flex:1">
+    <div style="display:flex;gap:1rem;align-items:center;flex:1;flex-wrap:wrap">
       <label class="toggle-label"><input type="checkbox" id="logAutoScroll" checked><span>Auto-scroll</span></label>
-      <input type="text" id="logFilter" class="filter-input" style="max-width:200px" placeholder="Filter...">
+      <input type="text" id="logFilter" class="filter-input" style="max-width:220px" aria-label="Filter log lines" placeholder="Filter lines…">
     </div>
     <div style="display:flex;gap:0.6rem;align-items:center">
       <button id="clearLogs" class="term-btn">Clear</button>
       <span class="log-count" id="logLineCount">— lines</span>
     </div>
   </div>
-  <div class="log-viewer" id="logViewer">
+  <div class="log-viewer" id="logViewer" tabindex="0" role="region" aria-label="Log output">
     <div class="skel-log-line"></div><div class="skel-log-line" style="width:80%"></div><div class="skel-log-line" style="width:92%"></div><div class="skel-log-line" style="width:75%"></div><div class="skel-log-line" style="width:88%"></div>
   </div>
 </section>
@@ -108,7 +134,7 @@
 <!-- TAB: AUDIT -->
 <section class="tabcontent" id="tab-audit">
   <div class="audit-controls">
-    <input class="filter-input" type="text" id="auditFilter" placeholder="Filter by action or service..." style="flex:1">
+    <input class="filter-input" type="text" id="auditFilter" placeholder="Filter by action or service…" aria-label="Filter audit entries">
     <span class="log-count" id="auditCount">— entries</span>
   </div>
   <div class="audit-list" id="auditList">
@@ -127,7 +153,7 @@
     <button class="dbtab" data-dbtable="remote_configs">REMOTE</button>
   </div>
   <div class="db-info" id="dbTableInfo"><span class="db-badge">—</span></div>
-  <div class="table-wrap">
+  <div class="table-wrap" tabindex="0" role="region" aria-label="Table rows">
     <table class="data-table" id="dbTable">
       <thead id="dbTableHead"></thead>
       <tbody id="dbTableBody">
