@@ -61,62 +61,116 @@ function setTheme(t) {
     localStorage.setItem('theme', t);
     document.querySelectorAll('.theme-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.theme === t);
+        b.setAttribute('aria-pressed', String(b.dataset.theme === t));
     });
+    const nameEl = document.getElementById('theme-name');
+    if (nameEl) nameEl.textContent = THEME_NAMES[t] || t;
     if (term) updateTermTheme();
 }
 
-function updateTermTheme() {
-    const isDark = ['jetblack','midnight'].includes(document.documentElement.getAttribute('data-theme'));
-    term.options.theme = {
-        background: isDark ? '#0a0f0f' : '#faf9f6',
-        foreground: isDark ? '#dcefef' : '#1a1916',
-        cursor: isDark ? '#4fb0b0' : '#b8612a',
-        selectionBackground: isDark ? 'rgba(79,176,176,0.25)' : 'rgba(184,97,42,0.15)',
-        black: isDark ? '#2e3436' : '#1a1916',
-        red: isDark ? '#ef2929' : '#b04848',
-        green: isDark ? '#8ae234' : '#4d8a5e',
-        yellow: isDark ? '#fce94f' : '#a88a32',
-        blue: isDark ? '#729fcf' : '#2a7a8a',
-        magenta: isDark ? '#ad7fa8' : '#7a5aaa',
-        cyan: isDark ? '#34e2e2' : '#2a7a8a',
-        white: isDark ? '#eeeeec' : '#5c5a55',
-        brightBlack: isDark ? '#555753' : '#908d86',
-        brightRed: isDark ? '#ef2929' : '#a84048',
-        brightGreen: isDark ? '#8ae234' : '#5e9468',
-        brightYellow: isDark ? '#fce94f' : '#c49842',
-        brightBlue: isDark ? '#729fcf' : '#b8612a',
-        brightMagenta: isDark ? '#ad7fa8' : '#b85238',
-        brightCyan: isDark ? '#34e2e2' : '#b8612a',
-        brightWhite: isDark ? '#ffffff' : '#1a1916'
+const THEME_NAMES = { jetblack: 'Graphite', light: 'Paper', midnight: 'Ink', rose: 'Clay' };
+
+// xterm palettes follow the active theme (dark themes share ANSI colours)
+function termPalette() {
+    const t = document.documentElement.getAttribute('data-theme');
+    const css = getComputedStyle(document.documentElement);
+    const v = n => css.getPropertyValue(n).trim();
+    const isDark = ['jetblack', 'midnight'].includes(t);
+    return {
+        background: v('--term-bg'),
+        foreground: v('--text-1'),
+        cursor: v('--accent'),
+        cursorAccent: v('--term-bg'),
+        selectionBackground: isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.14)',
+        black: isDark ? '#3a3a36' : '#1c1b18',
+        red: isDark ? '#f0605a' : '#b3261e',
+        green: isDark ? '#62c48a' : '#2b7a4b',
+        yellow: isDark ? '#e6b23c' : '#9a6a06',
+        blue: isDark ? '#6ea4ff' : '#285ea8',
+        magenta: isDark ? '#c792ea' : '#7a4a9a',
+        cyan: isDark ? '#5fcfcf' : '#1f7a7a',
+        white: isDark ? '#d8d6cf' : '#55534b',
+        brightBlack: isDark ? '#6b6a63' : '#85827a',
+        brightRed: isDark ? '#ff7a74' : '#cc3b32',
+        brightGreen: isDark ? '#7fdba3' : '#3a9460',
+        brightYellow: isDark ? '#f3c75a' : '#b8820f',
+        brightBlue: isDark ? '#8dbaff' : '#3b78cc',
+        brightMagenta: isDark ? '#d8aaf5' : '#9460b5',
+        brightCyan: isDark ? '#7fe0e0' : '#2a9494',
+        brightWhite: isDark ? '#ffffff' : '#000000'
     };
+}
+
+function updateTermTheme() {
+    term.options.theme = termPalette();
 }
 setTheme(localStorage.getItem('theme') || 'jetblack');
 
+function setThemeMenu(open) {
+    document.querySelector('.theme-dots')?.classList.toggle('open', open);
+    document.getElementById('theme-btn')?.setAttribute('aria-expanded', String(open));
+}
+
 document.getElementById('theme-btn')?.addEventListener('click', e => {
     e.stopPropagation();
-    document.querySelector('.theme-dots')?.classList.toggle('open');
+    setThemeMenu(!document.querySelector('.theme-dots')?.classList.contains('open'));
+});
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.querySelector('.theme-dots.open')) {
+        setThemeMenu(false);
+        document.getElementById('theme-btn')?.focus();
+    }
 });
 
 document.querySelectorAll('.theme-opt').forEach(btn => {
     btn.addEventListener('click', () => {
         setTheme(btn.dataset.theme);
-        document.querySelector('.theme-dots')?.classList.remove('open');
+        setThemeMenu(false);
     });
 });
 
-document.addEventListener('click', () => {
-    document.querySelector('.theme-dots')?.classList.remove('open');
-});
+document.addEventListener('click', () => setThemeMenu(false));
 
 // ── TABS ──────────────────────────────────────────────────
+const TAB_META = {
+    overview: ['Overview',  'Live state of every service on this host.'],
+    metrics:  ['Metrics',   'Pass / warn / fail checks across disk, network, services and the database.'],
+    logs:     ['Logs',      'Tail of the ATS, security and Prometheus logs.'],
+    audit:    ['Audit',     'Who did what, and when.'],
+    database: ['Database',  'Read-only view of the monitor tables.'],
+    stats:    ['Stats',     'Per-service performance, deployments and backups.'],
+    terminal: ['Terminal',  'Interactive shell on the server. Sessions end after 10 minutes idle.']
+};
+
+function syncHeadHeight() {
+    const h = document.querySelector('.site-header');
+    if (h) document.documentElement.style.setProperty('--head-h', h.getBoundingClientRect().height + 'px');
+}
+window.addEventListener('resize', syncHeadHeight);
+if (window.ResizeObserver) new ResizeObserver(syncHeadHeight).observe(document.querySelector('.site-header'));
+syncHeadHeight();
+
+function stamp() {
+    const el = document.getElementById('lastUpdated');
+    if (el) el.textContent = new Date().toLocaleTimeString('en-GB');
+}
 document.querySelectorAll('.nav-link').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tabcontent').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-link').forEach(b => b.removeAttribute('aria-current'));
         btn.classList.add('active');
+        btn.setAttribute('aria-current', 'page');
         activeTab = btn.dataset.tab;
         const tabEl = document.getElementById('tab-' + activeTab);
         if (tabEl) tabEl.classList.add('active');
+        const meta = TAB_META[activeTab];
+        if (meta) {
+            document.getElementById('pageTitle').textContent = meta[0];
+            document.getElementById('pageSub').textContent = meta[1];
+        }
+        document.querySelector('.page-head').style.display = activeTab === 'terminal' ? 'none' : '';
 
         if (activeTab === 'terminal') {
             if (!socket || !socket.connected) initTerminal();
@@ -183,8 +237,22 @@ async function api(url) {
 function setBar(barId, pct, warnAt, critAt) {
     const el = document.getElementById(barId);
     if (!el) return;
-    el.style.width = Math.min(pct, 100) + '%';
-    el.style.opacity = pct > (critAt || 90) ? '1' : '0.8';
+    el.style.width = Math.max(0, Math.min(pct, 100)) + '%';
+    el.classList.toggle('crit', pct > critAt);
+    el.classList.toggle('warn', pct > warnAt && pct <= critAt);
+}
+
+function renderBanner(d) {
+    const box = document.getElementById('statusBanner');
+    if (!box) return;
+    const down = d.total - d.online;
+    const netDown = [['internet', 'Internet'], ['dns', 'DNS']].filter(([k]) => d[k] === false || d[k] === 0).map(x => x[1]);
+    let cls = 'ok', text = 'All systems operational';
+    if (down > 0) { cls = 'bad'; text = down + (down === 1 ? ' service is' : ' services are') + ' offline'; }
+    else if (netDown.length) { cls = 'bad'; text = netDown.join(' and ') + ' check failing'; }
+    box.className = 'status-banner ' + cls;
+    document.getElementById('sbText').textContent = text;
+    document.getElementById('sbSub').textContent = d.online + ' of ' + d.total + ' services online';
 }
 
 async function fetchOverview() {
@@ -193,6 +261,7 @@ async function fetchOverview() {
 
     setText('ov-online',  d.online,  'online');
     setText('ov-offline', (d.total - d.online), 'offline');
+    document.getElementById('ov-offline')?.classList.toggle('zero', d.total - d.online === 0);
     setText('ov-total',   d.total + ' total', 'total');
 
     const cpuStr = d.cpu != null ? d.cpu.toFixed(1) + '%' : 'N/A';
@@ -225,8 +294,10 @@ async function fetchOverview() {
     setPill('ov-dns',  d.dns,      'DNS');
     setPill('ov-cf',   d.cloudflare, 'CLOUDFLARE');
 
+    renderBanner(d);
     renderServiceCards(d.services);
     renderMetrics(d);
+    stamp();
 }
 
 function renderMetrics(d) {
@@ -252,7 +323,7 @@ function renderMetrics(d) {
     setInner('mt-services', svcHtml);
 
     let resHtml = metRow('CPU Usage', d.cpu > 80 ? 'fail' : d.cpu > 60 ? 'warn' : 'pass', d.cpu + '%') +
-                  metRow('RAM Usage', d.ram ? d.ram.pct.toFixed(1) + '%' : '--', d.ram ? d.ram.used + ' / ' + d.ram.total + ' GB' : '--') +
+                  metRow('RAM Usage', d.ram ? (d.ram.pct > 90 ? 'fail' : d.ram.pct > 75 ? 'warn' : 'pass') : 'warn', d.ram ? d.ram.used + ' / ' + d.ram.total + ' GB' : '--') +
                   metRow('Load Avg', 'pass', d.load ? d.load.join(' ') : 'N/A');
     setInner('mt-resources', resHtml);
 
@@ -269,7 +340,7 @@ function renderMetrics(d) {
 
 function metRow(label, status, detail) {
     const cls = { pass: 'status-pass', fail: 'status-fail', warn: 'status-warn' }[status] || '';
-    const sym = { pass: '✓ PASS', fail: '✗ FAIL', warn: '⚠ WARN' }[status] || status;
+    const sym = { pass: 'PASS', fail: 'FAIL', warn: 'WARN' }[status] || status;
     return `<div class="metrics-row">
         <span class="metrics-row-label">${esc(label)}</span>
         <span class="metrics-row-status ${cls}">${sym}</span>
@@ -279,30 +350,31 @@ function metRow(label, status, detail) {
 
 function setInner(id, html) {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = html || '<div style="padding:1rem;color:var(--text2)">No data.</div>';
+    if (el) el.innerHTML = html || '<div class="empty-note">No data.</div>';
 }
 
 function setPill(id, ok, label) {
     const el = document.getElementById(id);
     if (!el) return;
     el.className = 'pill ' + (ok ? 'ok' : 'fail');
-    el.textContent = label + (ok ? ' ✓' : ' ✗');
+    el.textContent = label + (ok ? ' OK' : ' FAIL');
 }
 
 function renderServiceCards(services) {
     const grid = document.getElementById('ov-services');
     if (!grid) return;
     if (!services || services.length === 0) {
-        grid.innerHTML = '<div style="color:var(--text2);padding:2rem;text-align:center;grid-column:1/-1">No services.</div>';
+        delete grid.dataset.sig;
+        grid.innerHTML = '<div class="empty-note" style="grid-column:1/-1">No services registered.</div>';
         return;
     }
-    grid.innerHTML = services.map(svc => `
-        <div class="svc-card ${svc.status}">
+    const svcHtml = services.map(svc => `
+        <div class="svc-card ${esc(svc.status)}">
             <div class="svc-top">
                 <div class="svc-name">${esc(svc.name)}</div>
-                <div class="svc-badge ${svc.status}">${svc.status}</div>
+                <div class="svc-badge ${esc(svc.status)}">${esc(svc.status)}</div>
             </div>
-            <a href="https://${svc.domain}" target="_blank" class="svc-link">${esc(svc.domain || 'localhost')}</a>
+            <a href="https://${esc(svc.domain)}" target="_blank" rel="noopener noreferrer" class="svc-link">${esc(svc.domain || 'localhost')}</a>
             <div class="svc-footer">
                 <div class="svc-stat">
                     <span class="stat-lbl">Port</span>
@@ -315,6 +387,9 @@ function renderServiceCards(services) {
             </div>
         </div>
     `).join('');
+    if (grid.dataset.sig === svcHtml) return;
+    grid.dataset.sig = svcHtml;
+    grid.innerHTML = svcHtml;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -338,16 +413,23 @@ async function fetchLogs(isRedraw = false) {
 
     const wasAtBottom = viewer.scrollHeight - viewer.clientHeight <= viewer.scrollTop + 50;
     
+    if (filtered.length === 0) {
+        viewer.innerHTML = '<div class="log-empty">' + (logFilterVal ? 'No lines match the filter.' : 'Nothing logged yet.') + '</div>';
+        document.getElementById('logLineCount').textContent = '0 lines';
+        return;
+    }
     viewer.innerHTML = filtered.map(line => {
         const cls = classifyLog(line, activeLogType);
         return `<div class="log-line ${cls}">${esc(line)}</div>`;
     }).join('');
 
     document.getElementById('logLineCount').textContent = filtered.length + ' lines';
+    stamp();
     if (logAutoScroll && wasAtBottom) viewer.scrollTop = viewer.scrollHeight;
 }
 
 function classifyLog(line, type) {
+    if (type === 'metrics' && line.startsWith('#')) return 'log-prom-comment';
     const u = line.toUpperCase();
     if (u.includes('ERROR') || u.includes('CRITICAL') || u.includes('FAILED')) return 'log-error';
     if (u.includes('WARN')) return 'log-warning';
@@ -364,39 +446,26 @@ function initTerminal() {
         return;
     }
 
-    const isDark = ['jetblack','midnight'].includes(document.documentElement.getAttribute('data-theme'));
     term = new Terminal({
         cursorBlink: true,
-        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-        fontSize: 14,
-        theme: {
-            background: isDark ? '#0a0f0f' : '#faf9f6',
-            foreground: isDark ? '#dcefef' : '#1a1916',
-            cursor: isDark ? '#4fb0b0' : '#b8612a',
-            selectionBackground: isDark ? 'rgba(79,176,176,0.25)' : 'rgba(184,97,42,0.15)',
-            black: isDark ? '#2e3436' : '#1a1916',
-            red: isDark ? '#ef2929' : '#b04848',
-            green: isDark ? '#8ae234' : '#4d8a5e',
-            yellow: isDark ? '#fce94f' : '#a88a32',
-            blue: isDark ? '#729fcf' : '#2a7a8a',
-            magenta: isDark ? '#ad7fa8' : '#7a5aaa',
-            cyan: isDark ? '#34e2e2' : '#2a7a8a',
-            white: isDark ? '#eeeeec' : '#5c5a55',
-            brightBlack: isDark ? '#555753' : '#908d86',
-            brightRed: isDark ? '#ef2929' : '#a84048',
-            brightGreen: isDark ? '#8ae234' : '#5e9468',
-            brightYellow: isDark ? '#fce94f' : '#c49842',
-            brightBlue: isDark ? '#729fcf' : '#b8612a',
-            brightMagenta: isDark ? '#ad7fa8' : '#b85238',
-            brightCyan: isDark ? '#34e2e2' : '#b8612a',
-            brightWhite: isDark ? '#ffffff' : '#1a1916'
-        }
+        fontFamily: "'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace",
+        fontSize: 13,
+        theme: termPalette()
     });
 
     fitAddon = new FitAddon.FitAddon();
     term.loadAddon(fitAddon);
     term.open(document.getElementById('terminal-container'));
 
+    if (document.fonts && document.fonts.load) {
+        // re-measure cells once the web font is in (xterm ignores same-value assignments)
+        document.fonts.load('13px "IBM Plex Mono"').then(() => {
+            const f = term.options.fontFamily;
+            term.options.fontFamily = 'monospace';
+            term.options.fontFamily = f;
+            if (fitAddon) fitAddon.fit();
+        });
+    }
     setTimeout(() => { if (fitAddon) fitAddon.fit(); }, 150);
     setTimeout(() => { if (fitAddon) fitAddon.fit(); }, 500);
 
@@ -527,25 +596,27 @@ async function fetchStats() {
         heroEl.innerHTML = `
             <div class="stats-hero-grid">
                 <div class="hero-card"><div class="hero-val green">${onCount}</div><div class="hero-lbl">ONLINE</div></div>
-                <div class="hero-card"><div class="hero-val red">${offCount}</div><div class="hero-lbl">OFFLINE</div></div>
+                <div class="hero-card"><div class="hero-val ${offCount > 0 ? 'red' : 'zero'}">${offCount}</div><div class="hero-lbl">OFFLINE</div></div>
                 <div class="hero-card"><div class="hero-val">${svcs.length}</div><div class="hero-lbl">SERVICES</div></div>
                 <div class="hero-card"><div class="hero-val cyan">${totalDep}</div><div class="hero-lbl">DEPLOYS</div></div>
                 <div class="hero-card"><div class="hero-val ${succRate >= 80 ? 'green' : succRate >= 50 ? 'amber' : 'red'}">${succRate}%</div><div class="hero-lbl">SUCCESS RATE</div></div>
                 <div class="hero-card"><div class="hero-val cyan">${totalBk}</div><div class="hero-lbl">BACKUPS</div></div>
-                <div class="hero-card"><div class="hero-val amber">${avgCpu.toFixed(1)}%</div><div class="hero-lbl">AVG CPU</div></div>
+                <div class="hero-card"><div class="hero-val ${avgCpu > 80 ? 'red' : avgCpu > 60 ? 'amber' : 'zero'}">${avgCpu.toFixed(1)}%</div><div class="hero-lbl">AVG CPU</div></div>
                 <div class="hero-card"><div class="hero-val purple">${g.active_workers || 0}</div><div class="hero-lbl">WORKERS</div></div>
             </div>`;
     }
 
+    stamp();
     const grid = document.getElementById('statsGrid');
     if (!grid) return;
 
     if (svcs.length === 0) {
-        grid.innerHTML = '<div style="color:var(--text2);padding:3rem;text-align:center;grid-column:1/-1">No service data available.</div>';
+        delete grid.dataset.sig;
+        grid.innerHTML = '<div class="empty-note" style="grid-column:1/-1">No service data available.</div>';
         return;
     }
 
-    grid.innerHTML = svcs.map(s => {
+    const statsHtml = svcs.map(s => {
         const curr = s.current_metrics || {cpu: 0, ram: 0};
         const cTrend = s.trend || [];
         const avgC = cTrend.length > 0 ? (cTrend.reduce((a,b)=>a+b,0) / cTrend.length).toFixed(1) : curr.cpu.toFixed(1);
@@ -553,8 +624,8 @@ async function fetchStats() {
         const avgR = curr.ram.toFixed(1);
         const maxR = curr.ram.toFixed(1);
 
-        const cColor = curr.cpu > 80 ? 'var(--red)' : curr.cpu > 50 ? 'var(--amber)' : 'var(--green)';
-        const rColor = curr.ram > 80 ? 'var(--red)' : curr.ram > 50 ? 'var(--amber)' : 'var(--cyan)';
+        const cCls = s.status !== 'online' ? '' : curr.cpu > 80 ? 'bad' : curr.cpu > 50 ? 'warn' : 'ok';
+        const rCls = s.status !== 'online' ? '' : curr.ram > 80 ? 'bad' : curr.ram > 50 ? 'warn' : 'ok';
 
         const sparkHtml = cTrend.length > 0
             ? '<div class="sparkline-box">' + cTrend.map(v => `<div class="spark-bar" style="height:${Math.max(10,v)}%"></div>`).join('') + '</div>'
@@ -566,32 +637,32 @@ async function fetchStats() {
 
         const lastDep = s.last_deploy
             ? `<span class="last-dep ${s.last_deploy.status === 'success' ? 'dep-ok' : 'dep-fail'}">${esc(s.last_deploy.status)} ${esc(s.last_deploy.timestamp || '')}</span>`
-            : '<span style="color:var(--muted)">No deployments</span>';
+            : '<span class="stat-lbl">No deployments</span>';
 
         return `
-            <div class="stats-card ${s.status}">
+            <div class="stats-card ${esc(s.status)}">
                 <div class="stats-card-header">
                     <div class="stats-card-name">${esc(s.name)}</div>
-                    <div class="svc-badge ${s.status}"><span class="dot"></span>${s.status}</div>
+                    <div class="svc-badge ${esc(s.status)}">${esc(s.status)}</div>
                 </div>
                 <div class="stats-card-body">
                     <div class="svc-meta-row">
                         <span class="svc-meta-item"><span class="svc-meta-lbl">Host</span><span class="svc-meta-val">${esc(s.domain || 'localhost')}</span></span>
-                        <span class="svc-meta-item"><span class="svc-meta-lbl">Port</span><span class="svc-meta-val" style="color:var(--amber)">:${s.port}</span></span>
-                        <span class="svc-meta-item"><span class="svc-meta-lbl">Since</span><span class="svc-meta-val" style="color:var(--purple)">${esc(s.created_at || '—')}</span></span>
+                        <span class="svc-meta-item"><span class="svc-meta-lbl">Port</span><span class="svc-meta-val">:${s.port}</span></span>
+                        <span class="svc-meta-item"><span class="svc-meta-lbl">Since</span><span class="svc-meta-val">${esc(s.created_at || '—')}</span></span>
                     </div>
 
                     <div class="stats-section-title">PERFORMANCE</div>
                     <div class="res-row">
                         <div class="res-label">CPU</div>
                         <div class="res-bar-wrap">${resBar(curr.cpu)}</div>
-                        <div class="res-pct" style="color:${cColor}">${curr.cpu.toFixed(1)}%</div>
+                        <div class="res-pct ${cCls}">${curr.cpu.toFixed(1)}%</div>
                     </div>
                     <div class="res-detail">avg ${avgC}% &middot; peak ${maxC}%</div>
                     <div class="res-row">
                         <div class="res-label">RAM</div>
                         <div class="res-bar-wrap">${resBar(curr.ram)}</div>
-                        <div class="res-pct" style="color:${rColor}">${curr.ram.toFixed(1)}%</div>
+                        <div class="res-pct ${rCls}">${curr.ram.toFixed(1)}%</div>
                     </div>
                     <div class="res-detail">${curr.ram_mb ? curr.ram_mb.toFixed(0) + ' MB' : ''} &middot; avg ${avgR}% &middot; peak ${maxR}%</div>
 
@@ -608,13 +679,16 @@ async function fetchStats() {
                     <div class="stats-section-title">BACKUPS</div>
                     <div class="res-row">
                         <span class="res-label">Versions</span>
-                        <span class="res-pct" style="color:var(--cyan)">${s.backup_count || 0}</span>
+                        <span class="res-pct">${s.backup_count || 0}</span>
                     </div>
 
                     ${sparkHtml ? '<div class="stats-section-title">CPU TREND</div>' + sparkHtml : ''}
                 </div>
             </div>`;
     }).join('');
+    if (grid.dataset.sig === statsHtml) return;
+    grid.dataset.sig = statsHtml;
+    grid.innerHTML = statsHtml;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -623,6 +697,7 @@ async function fetchStats() {
 async function fetchAudit() {
     const d = await api('/api/audit');
     if (!d || !d.entries) return;
+    stamp();
     auditCache = d.entries;
     filterAuditEntries();
 }
@@ -636,7 +711,7 @@ function filterAuditEntries() {
         : auditCache;
 
     if (filtered.length === 0) {
-        list.innerHTML = '<div style="color:var(--text2);padding:3rem;text-align:center;font-size:0.75rem">No audit records found.</div>';
+        list.innerHTML = '<div class="empty-note">No audit records found.</div>';
         document.getElementById('auditCount').textContent = '0 entries';
         return;
     }
@@ -669,11 +744,14 @@ function filterAuditEntries() {
 async function fetchDatabase() {
     const d = await api('/api/database?table=' + activeDbTable);
     if (!d) return;
+    stamp();
+    const info = document.getElementById('dbTableInfo');
+    if (info) info.innerHTML = '<span class="db-badge">' + esc(activeDbTable) + ' · ' + d.rows.length + ' rows</span>';
     const head = document.querySelector('.data-table thead');
     const body = document.querySelector('.data-table tbody');
     if (!head || !body) return;
 
-    head.innerHTML = '<tr>' + d.columns.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
+    head.innerHTML = '<tr>' + d.columns.map(c => `<th scope="col">${esc(c)}</th>`).join('') + '</tr>';
     body.innerHTML = d.rows.map(row => 
         '<tr>' + d.columns.map(col => `<td>${esc(row[col])}</td>`).join('') + '</tr>'
     ).join('');
@@ -683,7 +761,7 @@ async function fetchDatabase() {
 //   POLLING
 // ═══════════════════════════════════════════════════════════
 function refreshActive() {
-    if (activeTab === 'overview') fetchOverview();
+    if (activeTab === 'overview' || activeTab === 'metrics') fetchOverview();
     if (activeTab === 'logs') fetchLogs();
     if (activeTab === 'audit') fetchAudit();
     if (activeTab === 'database') fetchDatabase();
