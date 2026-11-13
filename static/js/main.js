@@ -140,6 +140,7 @@ const TAB_META = {
     audit:    ['Audit',     'Who did what, and when.'],
     database: ['Database',  'Read-only view of the monitor tables.'],
     stats:    ['Stats',     'Per-service performance, deployments and backups.'],
+    docker:   ['Docker',    'Containers, images, volumes and networks on this host.'],
     terminal: ['Terminal',  'Interactive shell on the server. Sessions end after 10 minutes idle.']
 };
 
@@ -766,6 +767,7 @@ function refreshActive() {
     if (activeTab === 'audit') fetchAudit();
     if (activeTab === 'database') fetchDatabase();
     if (activeTab === 'stats') fetchStats();
+    if (activeTab === 'docker' && typeof fetchDocker === 'function') fetchDocker();
 }
 
 setInterval(refreshActive, 5000);
