@@ -60,6 +60,11 @@ def keepalive():
 # FORCE async_mode to gevent for stability
 socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins='*')
 
+# Docker management (REST blueprint + authenticated `docker exec` shell namespace)
+import docker_api
+app.register_blueprint(docker_api.bp)
+docker_api.register_shell(socketio)
+
 # sid → {fd, pid}
 _term_sessions = {}
 

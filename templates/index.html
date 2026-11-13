@@ -30,6 +30,7 @@
       <button class="nav-link" data-tab="audit">Audit</button>
       <button class="nav-link" data-tab="database">Database</button>
       <button class="nav-link" data-tab="stats">Stats</button>
+      <button class="nav-link" data-tab="docker">Docker</button>
       <button class="nav-link" data-tab="terminal">Terminal</button>
     </nav>
     <div class="nav-controls">
@@ -186,6 +187,82 @@
   </div>
 </section>
 
+<!-- TAB: DOCKER -->
+<section class="tabcontent" id="tab-docker">
+  <div class="dk-banner" id="dkBanner" hidden></div>
+  <div class="db-subtabs dk-tabs" role="tablist" aria-label="Docker resources">
+    <button class="dk-tab active" role="tab" aria-selected="true" data-dk="containers">CONTAINERS <span class="dk-count" id="dkc-containers"></span></button>
+    <button class="dk-tab" role="tab" aria-selected="false" data-dk="images">IMAGES <span class="dk-count" id="dkc-images"></span></button>
+    <button class="dk-tab" role="tab" aria-selected="false" data-dk="volumes">VOLUMES <span class="dk-count" id="dkc-volumes"></span></button>
+    <button class="dk-tab" role="tab" aria-selected="false" data-dk="networks">NETWORKS <span class="dk-count" id="dkc-networks"></span></button>
+  </div>
+
+  <div class="dk-pane active" id="dk-containers">
+    <div class="dk-toolbar">
+      <input class="filter-input dk-search" type="search" id="dkSearch" placeholder="Search by name, image, id, port…" aria-label="Search containers">
+      <button class="term-btn" id="dkRefresh" title="Refresh now">Refresh</button>
+      <button class="dk-primary" id="dkNew">New container</button>
+    </div>
+    <div class="dk-chips" id="dkChips" role="group" aria-label="Filter by project"></div>
+    <div class="dk-grid" id="dkGrid"><div class="empty-note">Loading containers…</div></div>
+  </div>
+
+  <div class="dk-pane" id="dk-images">
+    <div class="dk-toolbar">
+      <input class="filter-input dk-search" type="text" id="dkPullRef" placeholder="Pull image, e.g. nginx:latest" aria-label="Image to pull" autocomplete="off" spellcheck="false">
+      <button class="dk-primary" id="dkPull">Pull</button>
+    </div>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Images"><table class="data-table"><thead><tr><th>Repository</th><th>Tag</th><th>ID</th><th>Size</th><th>Created</th><th></th></tr></thead><tbody id="dkImages"></tbody></table></div>
+  </div>
+
+  <div class="dk-pane" id="dk-volumes">
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Volumes"><table class="data-table"><thead><tr><th>Name</th><th>Driver</th><th>Scope</th><th>Used by</th><th></th></tr></thead><tbody id="dkVolumes"></tbody></table></div>
+  </div>
+
+  <div class="dk-pane" id="dk-networks">
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Networks"><table class="data-table"><thead><tr><th>Name</th><th>ID</th><th>Driver</th><th>Scope</th><th></th></tr></thead><tbody id="dkNetworks"></tbody></table></div>
+  </div>
+</section>
+
+<!-- Docker dialogs -->
+<dialog class="dk-dialog" id="dkText" aria-labelledby="dkTextTitle">
+  <div class="dk-dhead"><h2 id="dkTextTitle">Logs</h2>
+    <div class="dk-dtools" id="dkTextTools"></div>
+    <button class="term-btn" data-close>Close</button></div>
+  <pre class="dk-pre" id="dkTextBody" tabindex="0"></pre>
+</dialog>
+
+<dialog class="dk-dialog dk-dialog-sm" id="dkCreate" aria-labelledby="dkCreateTitle">
+  <form method="dialog" id="dkCreateForm" autocomplete="off">
+    <div class="dk-dhead"><h2 id="dkCreateTitle">New container</h2><button class="term-btn" type="button" data-close>Cancel</button></div>
+    <div class="dk-form">
+      <label>Image <input class="filter-input" name="image" required placeholder="nginx:latest" spellcheck="false"></label>
+      <label>Name <span class="dk-opt">optional</span><input class="filter-input" name="name" placeholder="web" spellcheck="false"></label>
+      <label>Ports <span class="dk-opt">one per line, host:container</span><textarea class="filter-input" name="ports" rows="2" placeholder="8080:80" spellcheck="false"></textarea></label>
+      <label>Environment <span class="dk-opt">one per line, KEY=value</span><textarea class="filter-input" name="env" rows="2" placeholder="TZ=Asia/Kolkata" spellcheck="false"></textarea></label>
+      <label>Volumes <span class="dk-opt">one per line, source:/path[:ro]</span><textarea class="filter-input" name="volumes" rows="2" placeholder="mydata:/data" spellcheck="false"></textarea></label>
+      <label>Restart policy
+        <select class="filter-input" name="restart"><option value="no">no</option><option value="unless-stopped">unless-stopped</option><option value="always">always</option><option value="on-failure">on-failure</option></select></label>
+      <div class="dk-form-err" id="dkCreateErr" role="alert" hidden></div>
+      <div class="dk-form-actions"><button class="dk-primary" type="submit" id="dkCreateGo">Create and start</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dk-dialog dk-dialog-sm" id="dkConfirm" aria-labelledby="dkConfirmTitle">
+  <div class="dk-dhead"><h2 id="dkConfirmTitle">Confirm</h2></div>
+  <p class="dk-confirm-msg" id="dkConfirmMsg"></p>
+  <label class="toggle-label dk-force" id="dkForceWrap" hidden><input type="checkbox" id="dkForce"><span>Force (kill if running)</span></label>
+  <div class="dk-form-actions"><button class="term-btn" data-close>Cancel</button><button class="dk-danger" id="dkConfirmGo">Confirm</button></div>
+</dialog>
+
+<dialog class="dk-dialog dk-dialog-term" id="dkShell" aria-labelledby="dkShellTitle">
+  <div class="dk-dhead"><h2 id="dkShellTitle">Shell</h2><span class="term-status" id="dkShellStatus">DISCONNECTED</span><button class="term-btn" data-close>Close</button></div>
+  <div id="dkShellTerm"></div>
+</dialog>
+
+<div class="dk-toast" id="dkToast" role="status" aria-live="polite" hidden></div>
+
 <!-- TAB: TERMINAL -->
 <section class="tabcontent" id="tab-terminal">
   <div class="term-toolbar">
@@ -205,5 +282,6 @@
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="/static/js/main.js"></script>
+<script src="/static/js/docker.js"></script>
 </body>
 </html>
