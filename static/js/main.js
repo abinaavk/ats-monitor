@@ -183,6 +183,36 @@ document.querySelectorAll('.nav-link').forEach(btn => {
     });
 });
 
+// ── PHONE TAB BAR ──────────────────────────────────────────
+// Bottom bar mirrors the sidebar buttons; it just clicks the real .nav-link.
+const MORE_TABS = ['metrics', 'audit', 'database', 'stats'];
+function setMoreSheet(open) {
+    const sheet = document.getElementById('moreSheet'), back = document.getElementById('moreBackdrop'), btn = document.getElementById('tbMore');
+    if (!sheet) return;
+    sheet.hidden = back.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+}
+function syncTabbar() {
+    document.querySelectorAll('.tb-btn[data-tab]').forEach(b => {
+        const on = b.dataset.tab === activeTab;
+        b.classList.toggle('active', on);
+        if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    document.getElementById('tbMore')?.classList.toggle('active', MORE_TABS.includes(activeTab));
+    document.querySelectorAll('.ms-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === activeTab));
+    document.body.dataset.tab = activeTab;
+}
+document.querySelectorAll('.nav-link').forEach(b => b.addEventListener('click', syncTabbar));
+document.querySelectorAll('.tb-btn[data-tab], .ms-btn').forEach(b => b.addEventListener('click', () => {
+    setMoreSheet(false);
+    document.querySelector('.nav-link[data-tab="' + b.dataset.tab + '"]')?.click();
+    window.scrollTo(0, 0);
+}));
+document.getElementById('tbMore')?.addEventListener('click', () => setMoreSheet(document.getElementById('moreSheet').hidden));
+document.getElementById('moreBackdrop')?.addEventListener('click', () => setMoreSheet(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') setMoreSheet(false); });
+syncTabbar();
+
 // ── LOG SUB-TABS ───────────────────────────────────────────
 document.querySelectorAll('.logtab').forEach(btn => {
     btn.addEventListener('click', () => {

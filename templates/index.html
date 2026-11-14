@@ -58,6 +58,21 @@
   </div>
 </header>
 
+<nav class="tabbar" id="tabbar" aria-label="Primary">
+  <button class="tb-btn active" data-tab="overview" aria-current="page"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="6" height="6"/><rect x="11" y="3" width="6" height="6"/><rect x="3" y="11" width="6" height="6"/><rect x="11" y="11" width="6" height="6"/></svg><span>Overview</span></button>
+  <button class="tb-btn" data-tab="docker"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2.5 17 6.2v7.6L10 17.5 3 13.8V6.2z"/><path d="M3 6.2 10 10l7-3.8M10 10v7.5"/></svg><span>Docker</span></button>
+  <button class="tb-btn" data-tab="logs"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h12M4 10h12M4 15h7"/></svg><span>Logs</span></button>
+  <button class="tb-btn" data-tab="terminal"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="3.5" width="15" height="13"/><path d="m6 8 3 2-3 2M11 13h3"/></svg><span>Terminal</span></button>
+  <button class="tb-btn" id="tbMore" aria-haspopup="true" aria-expanded="false" aria-controls="moreSheet"><svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor"><circle cx="4.5" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="15.5" cy="10" r="1.5"/></svg><span>More</span></button>
+</nav>
+<div class="more-backdrop" id="moreBackdrop" hidden></div>
+<div class="more-sheet" id="moreSheet" role="menu" hidden>
+  <button class="ms-btn" role="menuitem" data-tab="metrics">Metrics</button>
+  <button class="ms-btn" role="menuitem" data-tab="audit">Audit</button>
+  <button class="ms-btn" role="menuitem" data-tab="database">Database</button>
+  <button class="ms-btn" role="menuitem" data-tab="stats">Stats</button>
+</div>
+
 <main class="main" id="main" tabindex="-1">
 
 <div class="page-head">
