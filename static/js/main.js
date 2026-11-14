@@ -22,7 +22,7 @@ function resetTermTimeout() {
     termInactivityTimer = setTimeout(() => {
         if (socket && socket.connected) {
             socket.disconnect();
-            if (term) term.write('\r\n\x1b[31m[Session timed out due to 10m inactivity]\x1b[0m\r\n');
+            if (term) termShowOverlay('Session timed out', 'Closed after 10 minutes without typing. Start a new session to continue.');
         }
     }, TERM_TIMEOUT);
 }
@@ -176,7 +176,7 @@ document.querySelectorAll('.nav-link').forEach(btn => {
         if (activeTab === 'terminal') {
             if (!socket || !socket.connected) initTerminal();
             resetTermTimeout();
-            if (term && fitAddon) setTimeout(() => fitAddon.fit(), 50);
+            if (term && fitAddon) setTimeout(() => { termFit(); term.focus(); }, 50);
         } else {
             refreshActive();
         }
@@ -441,22 +441,152 @@ function classifyLog(line, type) {
 // ═══════════════════════════════════════════════════════════
 //   REAL TERMINAL (XTERM.JS + PTY)
 // ═══════════════════════════════════════════════════════════
+const TERM_FONT_MIN = 10, TERM_FONT_MAX = 22;
+let termFont = parseInt(localStorage.getItem('termFont'), 10) || (window.matchMedia('(max-width: 900px)').matches ? 12 : 14);
+let termMods = { ctrl: false, alt: false };
+let termToastTimer = null;
+let termWasConnected = false;
+
+function termSend(s) {
+    if (socket && socket.connected) {
+        socket.emit('terminal_input', {input: s});
+        resetTermTimeout();
+    }
+}
+
+function termToast(msg) {
+    const el = document.getElementById('term-toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = false;
+    clearTimeout(termToastTimer);
+    termToastTimer = setTimeout(() => { el.hidden = true; }, 1800);
+}
+
+function termSetMod(name, on) {
+    termMods[name] = on;
+    document.querySelector(`.term-keys [data-mod="${name}"]`)?.setAttribute('aria-pressed', String(on));
+}
+
+// sticky Ctrl / Alt from the key bar apply to the next typed character
+function termApplyMods(data) {
+    if (!termMods.ctrl && !termMods.alt) return data;
+    let out = data;
+    if (termMods.ctrl && data.length === 1) {
+        const c = data.toUpperCase().charCodeAt(0);
+        if (c >= 64 && c <= 95) out = String.fromCharCode(c - 64);
+        else if (data === ' ') out = '\x00';
+    }
+    if (termMods.alt) out = '\x1b' + out;
+    termSetMod('ctrl', false);
+    termSetMod('alt', false);
+    return out;
+}
+
+function termKeySeq(name) {
+    const appMode = term.modes && term.modes.applicationCursorKeysMode;
+    const arrow = ch => '\x1b' + (appMode ? 'O' : '[') + ch;
+    return {
+        esc: '\x1b', tab: '\t',
+        up: arrow('A'), down: arrow('B'), right: arrow('C'), left: arrow('D'),
+        home: '\x1b[H', end: '\x1b[F', pgup: '\x1b[5~', pgdn: '\x1b[6~'
+    }[name];
+}
+
+async function termCopy() {
+    const text = term.getSelection();
+    if (!text) { termToast('Select some text first'); return; }
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch (e) {
+        // clipboard API needs a secure context; fall back to a hidden textarea
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        ta.remove();
+    }
+    termToast('Copied');
+    term.focus();
+}
+
+async function termPaste() {
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text) term.paste(text);
+        term.focus();
+    } catch (e) {
+        term.focus();
+        termToast('Browser blocked clipboard. Use Ctrl+Shift+V or long-press to paste');
+    }
+}
+
+function termFit() {
+    if (!fitAddon || !document.getElementById('tab-terminal').classList.contains('active')) return;
+    try { fitAddon.fit(); } catch (_) {}
+}
+
+function termSetFont(px) {
+    termFont = Math.max(TERM_FONT_MIN, Math.min(TERM_FONT_MAX, px));
+    localStorage.setItem('termFont', termFont);
+    if (term) { term.options.fontSize = termFont; termFit(); }
+    document.getElementById('term-font-down').disabled = termFont <= TERM_FONT_MIN;
+    document.getElementById('term-font-up').disabled = termFont >= TERM_FONT_MAX;
+}
+
+function termShowOverlay(title, sub) {
+    document.getElementById('term-overlay-title').textContent = title;
+    document.getElementById('term-overlay-sub').textContent = sub;
+    document.getElementById('term-overlay').hidden = false;
+}
+function termHideOverlay() { document.getElementById('term-overlay').hidden = true; }
+
+function termReconnect() {
+    termHideOverlay();
+    term.reset();
+    if (socket.connected) socket.disconnect();
+    socket.connect();
+    term.focus();
+}
+
+// keep the terminal above the on-screen keyboard on phones
+function termSyncViewport() {
+    const tab = document.getElementById('tab-terminal');
+    const vv = window.visualViewport;
+    if (!vv || !tab) return;
+    const narrow = window.matchMedia('(max-width: 900px)').matches;
+    const keyboard = narrow && vv.height < window.innerHeight - 120;
+    tab.classList.toggle('kb-open', keyboard);
+    if (keyboard) {
+        tab.style.top = vv.offsetTop + 'px';
+        tab.style.height = vv.height + 'px';
+        tab.style.bottom = 'auto';
+    } else {
+        tab.style.top = tab.style.height = tab.style.bottom = '';
+    }
+    termFit();
+}
+
 function initTerminal() {
     if (term) {
-        if (socket && !socket.connected) socket.connect();
+        if (socket && !socket.connected) termReconnect();
         return;
     }
 
     term = new Terminal({
         cursorBlink: true,
         fontFamily: "'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace",
-        fontSize: 13,
+        fontSize: termFont,
+        scrollback: 5000,
+        allowProposedApi: true,
+        macOptionIsMeta: true,
         theme: termPalette()
     });
 
     fitAddon = new FitAddon.FitAddon();
     term.loadAddon(fitAddon);
     term.open(document.getElementById('terminal-container'));
+    termSetFont(termFont);
 
     if (document.fonts && document.fonts.load) {
         // re-measure cells once the web font is in (xterm ignores same-value assignments)
@@ -464,97 +594,122 @@ function initTerminal() {
             const f = term.options.fontFamily;
             term.options.fontFamily = 'monospace';
             term.options.fontFamily = f;
-            if (fitAddon) fitAddon.fit();
+            termFit();
         });
     }
-    setTimeout(() => { if (fitAddon) fitAddon.fit(); }, 150);
-    setTimeout(() => { if (fitAddon) fitAddon.fit(); }, 500);
+    setTimeout(termFit, 150);
+    setTimeout(termFit, 500);
 
     socket = io('/terminal', { autoConnect: false });
-    socket.connect();
 
     socket.on('connect', () => {
         const statusEl = document.getElementById('term-status');
-        if (statusEl) {
-            statusEl.textContent = 'CONNECTED';
-            statusEl.className = 'term-status connected';
-        }
-        if (fitAddon) fitAddon.fit();
+        statusEl.textContent = 'CONNECTED';
+        statusEl.className = 'term-status connected';
+        termHideOverlay();
+        if (termWasConnected) term.write('\r\n\x1b[2m[reconnected: new shell session]\x1b[0m\r\n');
+        termWasConnected = true;
+        termFit();
         socket.emit('terminal_resize', {cols: term.cols, rows: term.rows});
         resetTermTimeout();
+        if (activeTab === 'terminal') term.focus();
     });
 
     socket.on('terminal_output', (data) => {
         term.write(String(data));
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
         const statusEl = document.getElementById('term-status');
-        if (statusEl) {
-            statusEl.textContent = 'DISCONNECTED';
-            statusEl.className = 'term-status';
-        }
+        statusEl.textContent = 'DISCONNECTED';
+        statusEl.className = 'term-status';
+        if (reason === 'io client disconnect') return;
+        termShowOverlay('Connection lost', 'Trying to reconnect. A new connection starts a fresh shell, so unfinished commands are gone.');
     });
 
     term.onData(data => {
-        if (socket && socket.connected) {
-            socket.emit('terminal_input', {input: data});
-            resetTermTimeout();
+        termSend(termApplyMods(data));
+    });
+
+    // the pty size follows the visible grid, whatever caused the resize
+    term.onResize(({cols, rows}) => {
+        if (socket && socket.connected) socket.emit('terminal_resize', {cols, rows});
+    });
+    window.addEventListener('resize', termFit);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', termSyncViewport);
+        window.visualViewport.addEventListener('scroll', termSyncViewport);
+    }
+    if (window.ResizeObserver) new ResizeObserver(termFit).observe(document.getElementById('terminal-container'));
+
+    // Ctrl+C copies when text is selected (otherwise it is SIGINT); Ctrl+Shift+C always copies.
+    // Ctrl+Shift+V is left to the browser's native paste event, which xterm handles.
+    term.attachCustomKeyEventHandler((e) => {
+        if (e.type !== 'keydown') return true;
+        const mod = e.ctrlKey || e.metaKey;
+        if (mod && e.shiftKey && e.code === 'KeyV') return false;
+        if (mod && (e.shiftKey || e.metaKey || term.hasSelection()) && e.code === 'KeyC') {
+            if (term.hasSelection()) { termCopy(); term.clearSelection(); }
+            return false;
         }
+        return true;
     });
 
-    window.addEventListener('resize', () => {
-        if (fitAddon) fitAddon.fit();
-        if (socket && socket.connected) socket.emit('terminal_resize', {cols: term.cols, rows: term.rows});
+    // Enter on the "session ended" overlay starts a new session
+    document.addEventListener('keydown', (e) => {
+        if (activeTab !== 'terminal' || e.key !== 'Enter') return;
+        if (!document.getElementById('term-overlay').hidden) { e.preventDefault(); e.stopPropagation(); termReconnect(); }
+    }, true);
+
+    // toolbar
+    document.getElementById('term-clear-btn').addEventListener('click', () => { term.clear(); term.focus(); });
+    document.getElementById('term-reconnect-btn').addEventListener('click', termReconnect);
+    document.getElementById('term-overlay-btn').addEventListener('click', termReconnect);
+    document.getElementById('term-copy-btn').addEventListener('click', termCopy);
+    document.getElementById('term-paste-btn').addEventListener('click', termPaste);
+    document.getElementById('term-font-down').addEventListener('click', () => { termSetFont(termFont - 1); term.focus(); });
+    document.getElementById('term-font-up').addEventListener('click', () => { termSetFont(termFont + 1); term.focus(); });
+
+    const tab = document.getElementById('tab-terminal');
+    const keysBtn = document.getElementById('term-keys-btn');
+    const fullBtn = document.getElementById('term-full-btn');
+    const setKeys = (on) => {
+        tab.classList.toggle('keys-on', on);
+        keysBtn.setAttribute('aria-pressed', String(on));
+        localStorage.setItem('termKeys', on ? '1' : '0');
+        termFit();
+    };
+    // key bar defaults on for touch devices, off for desktops
+    const stored = localStorage.getItem('termKeys');
+    setKeys(stored === null ? window.matchMedia('(pointer: coarse)').matches : stored === '1');
+    keysBtn.addEventListener('click', () => setKeys(!tab.classList.contains('keys-on')));
+    fullBtn.addEventListener('click', () => {
+        const on = !tab.classList.contains('full');
+        tab.classList.toggle('full', on);
+        fullBtn.setAttribute('aria-pressed', String(on));
+        fullBtn.textContent = on ? 'Collapse' : 'Expand';
+        termFit(); term.focus();
     });
 
-    document.getElementById('term-clear-btn')?.addEventListener('click', () => term.clear());
-    document.getElementById('term-reconnect-btn')?.addEventListener('click', () => {
-        if (socket) socket.disconnect();
-        setTimeout(() => socket.connect(), 100);
-        term.clear();
-    });
-
-    document.getElementById('term-paste-btn')?.addEventListener('click', async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            if (text && socket && socket.connected) {
-                socket.emit('terminal_input', {input: text});
-                resetTermTimeout();
-            }
-        } catch (e) {
-            console.warn('Clipboard read failed:', e);
+    // key bar: pointerdown is cancelled so the soft keyboard stays open
+    const keys = document.getElementById('term-keys');
+    keys.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) e.preventDefault(); });
+    keys.addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        if (b.dataset.mod) {
+            termSetMod(b.dataset.mod, !termMods[b.dataset.mod]);
+        } else if (b.dataset.key) {
+            termSend(termApplyMods(termKeySeq(b.dataset.key)));
+        } else if (b.dataset.ctrl) {
+            termSend(String.fromCharCode(b.dataset.ctrl.toUpperCase().charCodeAt(0) - 64));
+        } else if (b.dataset.send) {
+            termSend(termApplyMods(b.dataset.send));
         }
+        term.focus();
     });
 
-    document.getElementById('terminal-container')?.addEventListener('contextmenu', async (e) => {
-        e.preventDefault();
-        try {
-            const text = await navigator.clipboard.readText();
-            if (text && socket && socket.connected) {
-                socket.emit('terminal_input', {input: text});
-                resetTermTimeout();
-            }
-        } catch (err) {
-            console.warn('Clipboard read failed:', err);
-        }
-    });
-
-    document.addEventListener('keydown', async (e) => {
-        if (activeTab !== 'terminal') return;
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
-            e.preventDefault();
-            try {
-                const text = await navigator.clipboard.readText();
-                if (text && socket && socket.connected) {
-                    socket.emit('terminal_input', {input: text});
-                    resetTermTimeout();
-                }
-            } catch (err) {
-                console.warn('Clipboard read failed:', err);
-            }
-        }
-    });
+    socket.connect();
 }
 
 // ═══════════════════════════════════════════════════════════

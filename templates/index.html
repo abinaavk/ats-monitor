@@ -267,13 +267,56 @@
 <section class="tabcontent" id="tab-terminal">
   <div class="term-toolbar">
     <span class="term-status" id="term-status">DISCONNECTED</span>
-    <button class="term-btn" id="term-reconnect-btn">Reconnect</button>
-    <button class="term-btn" id="term-paste-btn">Paste</button>
-    <button class="term-btn" id="term-clear-btn">Clear</button>
+    <button class="term-btn" id="term-reconnect-btn" title="Start a new shell session">Reconnect</button>
+    <span class="term-sep" aria-hidden="true"></span>
+    <button class="term-btn" id="term-copy-btn" title="Copy selected text (Ctrl+Shift+C)">Copy</button>
+    <button class="term-btn" id="term-paste-btn" title="Paste from clipboard (Ctrl+Shift+V)">Paste</button>
+    <button class="term-btn" id="term-clear-btn" title="Clear the screen">Clear</button>
+    <span class="term-sep" aria-hidden="true"></span>
+    <span class="term-group" role="group" aria-label="Font size">
+      <button class="term-btn term-btn-sq" id="term-font-down" title="Smaller text" aria-label="Smaller text">A&minus;</button>
+      <button class="term-btn term-btn-sq" id="term-font-up" title="Larger text" aria-label="Larger text">A+</button>
+    </span>
+    <button class="term-btn" id="term-keys-btn" aria-pressed="false" title="Show or hide the on-screen key bar">Keys</button>
+    <button class="term-btn" id="term-full-btn" aria-pressed="false" title="Hide the sidebar and fill the screen">Expand</button>
     <span style="flex:1"></span>
     <span class="term-hint">bash · gaiaserver</span>
   </div>
-  <div id="terminal-container"></div>
+  <div class="term-body">
+    <div id="terminal-container"></div>
+    <div class="term-overlay" id="term-overlay" role="alert" hidden>
+      <div class="term-overlay-box">
+        <div class="term-overlay-title" id="term-overlay-title">Session ended</div>
+        <div class="term-overlay-sub" id="term-overlay-sub">The shell is no longer running.</div>
+        <button class="term-btn term-btn-primary" id="term-overlay-btn">Start new session</button>
+        <div class="term-overlay-hint">or press Enter</div>
+      </div>
+    </div>
+    <div class="term-toast" id="term-toast" role="status" aria-live="polite" hidden></div>
+  </div>
+  <div class="term-keys" id="term-keys" role="toolbar" aria-label="Terminal keys">
+    <button type="button" data-key="esc">Esc</button>
+    <button type="button" data-key="tab">Tab</button>
+    <button type="button" data-mod="ctrl" aria-pressed="false">Ctrl</button>
+    <button type="button" data-mod="alt" aria-pressed="false">Alt</button>
+    <button type="button" data-key="up" aria-label="Up">&uarr;</button>
+    <button type="button" data-key="down" aria-label="Down">&darr;</button>
+    <button type="button" data-key="left" aria-label="Left">&larr;</button>
+    <button type="button" data-key="right" aria-label="Right">&rarr;</button>
+    <button type="button" data-key="home">Home</button>
+    <button type="button" data-key="end">End</button>
+    <button type="button" data-key="pgup">PgUp</button>
+    <button type="button" data-key="pgdn">PgDn</button>
+    <button type="button" data-send="|">|</button>
+    <button type="button" data-send="/">/</button>
+    <button type="button" data-send="-">-</button>
+    <button type="button" data-send="~">~</button>
+    <button type="button" data-send="&quot;">&quot;</button>
+    <button type="button" data-ctrl="c" class="k-warn">^C</button>
+    <button type="button" data-ctrl="d" class="k-warn">^D</button>
+    <button type="button" data-ctrl="z">^Z</button>
+    <button type="button" data-ctrl="l">^L</button>
+  </div>
 </section>
 
 </main>
