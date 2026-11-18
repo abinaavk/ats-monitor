@@ -7,6 +7,7 @@
 <meta name="color-scheme" content="dark light">
 <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'jetblack');</script>
 <link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="/static/css/manage.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
@@ -25,6 +26,7 @@
     </div>
     <nav class="nav-links" aria-label="Sections">
       <button class="nav-link active" data-tab="overview" aria-current="page">Overview</button>
+      <button class="nav-link" data-tab="manage">Manage</button>
       <button class="nav-link" data-tab="metrics">Metrics</button>
       <button class="nav-link" data-tab="logs">Logs</button>
       <button class="nav-link" data-tab="audit">Audit</button>
@@ -60,13 +62,14 @@
 
 <nav class="tabbar" id="tabbar" aria-label="Primary">
   <button class="tb-btn active" data-tab="overview" aria-current="page"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="6" height="6"/><rect x="11" y="3" width="6" height="6"/><rect x="3" y="11" width="6" height="6"/><rect x="11" y="11" width="6" height="6"/></svg><span>Overview</span></button>
+  <button class="tb-btn" data-tab="manage"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7M15 6h2M3 14h2M10 14h7"/><circle cx="12.5" cy="6" r="2.5"/><circle cx="7.5" cy="14" r="2.5"/></svg><span>Manage</span></button>
   <button class="tb-btn" data-tab="docker"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2.5 17 6.2v7.6L10 17.5 3 13.8V6.2z"/><path d="M3 6.2 10 10l7-3.8M10 10v7.5"/></svg><span>Docker</span></button>
-  <button class="tb-btn" data-tab="logs"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h12M4 10h12M4 15h7"/></svg><span>Logs</span></button>
   <button class="tb-btn" data-tab="terminal"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="3.5" width="15" height="13"/><path d="m6 8 3 2-3 2M11 13h3"/></svg><span>Terminal</span></button>
   <button class="tb-btn" id="tbMore" aria-haspopup="true" aria-expanded="false" aria-controls="moreSheet"><svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor"><circle cx="4.5" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="15.5" cy="10" r="1.5"/></svg><span>More</span></button>
 </nav>
 <div class="more-backdrop" id="moreBackdrop" hidden></div>
 <div class="more-sheet" id="moreSheet" role="menu" hidden>
+  <button class="ms-btn" role="menuitem" data-tab="logs">Logs</button>
   <button class="ms-btn" role="menuitem" data-tab="metrics">Metrics</button>
   <button class="ms-btn" role="menuitem" data-tab="audit">Audit</button>
   <button class="ms-btn" role="menuitem" data-tab="database">Database</button>
@@ -113,6 +116,28 @@
     <div class="svc-card skel-card"><div class="skel skel-full"></div><div class="skel skel-half"></div><div class="skel skel-third"></div></div>
     <div class="svc-card skel-card"><div class="skel skel-full"></div><div class="skel skel-half"></div><div class="skel skel-third"></div></div>
     <div class="svc-card skel-card"><div class="skel skel-full"></div><div class="skel skel-half"></div><div class="skel skel-third"></div></div>
+  </div>
+</section>
+
+<!-- TAB: MANAGE -->
+<section class="tabcontent" id="tab-manage">
+  <div class="mg-head">
+    <div class="mg-deps" id="mgDeps" role="list" aria-label="Dependencies"><span class="mg-skel mg-skel-chip"></span><span class="mg-skel mg-skel-chip"></span><span class="mg-skel mg-skel-chip"></span><span class="mg-skel mg-skel-chip"></span></div>
+    <div class="mg-head-actions">
+      <button class="term-btn mg-lg" id="mgSettingsBtn" disabled>Settings</button>
+      <button class="dk-primary mg-lg" id="mgDeployBtn" disabled>Deploy service</button>
+    </div>
+  </div>
+  <div class="mg-hints" id="mgHints" hidden></div>
+  <div class="mg-jobs" id="mgJobs" hidden aria-label="Running operations"></div>
+  <div id="mgBody">
+    <div class="mg-toolbar">
+      <input class="filter-input dk-search" type="search" id="mgSearch" placeholder="Search name, domain, repo, port..." aria-label="Search services" autocomplete="off">
+      <select class="filter-input" id="mgRuntime" aria-label="Filter by runtime"><option value="all">All runtimes</option><option value="python">Python</option><option value="node">Node</option><option value="docker">Docker</option></select>
+      <select class="filter-input mg-sortsel" id="mgSortSel" aria-label="Sort services"><option value="name">Sort: name</option><option value="status">Sort: status</option><option value="dep">Sort: last deploy</option><option value="runtime">Sort: runtime</option><option value="domain">Sort: domain</option><option value="port">Sort: port</option></select>
+    </div>
+    <div class="dk-chips" id="mgChips" role="group" aria-label="Filter by status"></div>
+    <div id="mgList" aria-live="polite"></div>
   </div>
 </section>
 
@@ -180,6 +205,14 @@
     </table>
   </div>
 </section>
+
+<!-- Manage dialogs (content is rendered by manage.js) -->
+<dialog class="dk-dialog mg-panel" id="mgPanel" aria-labelledby="mgPanelTitle"></dialog>
+<dialog class="dk-dialog mg-wide" id="mgDeploy" aria-labelledby="mgDeployTitle"></dialog>
+<dialog class="dk-dialog mg-wide" id="mgSettings" aria-labelledby="mgSettingsTitle"></dialog>
+<dialog class="dk-dialog mg-wide" id="mgJob" aria-labelledby="mgJobTitle"></dialog>
+<dialog class="dk-dialog dk-dialog-sm mg-confirm" id="mgConfirm" aria-labelledby="mgConfirmTitle"></dialog>
+<div class="dk-toast mg-toast" id="mgToast" popover="manual" role="status" aria-live="polite" hidden></div>
 
 <!-- TAB: STATS -->
 <section class="tabcontent" id="tab-stats">
@@ -341,5 +374,6 @@
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="/static/js/main.js"></script>
 <script src="/static/js/docker.js"></script>
+<script src="/static/js/manage.js"></script>
 </body>
 </html>
