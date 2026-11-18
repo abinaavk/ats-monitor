@@ -65,6 +65,10 @@ import docker_api
 app.register_blueprint(docker_api.bp)
 docker_api.register_shell(socketio)
 
+# Manage tab: bridge to the ats headless CLI (see docs/manage.md)
+import manage_api
+app.register_blueprint(manage_api.bp)
+
 # sid → {fd, pid}
 _term_sessions = {}
 

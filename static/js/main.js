@@ -135,6 +135,7 @@ document.addEventListener('click', () => setThemeMenu(false));
 // ── TABS ──────────────────────────────────────────────────
 const TAB_META = {
     overview: ['Overview',  'Live state of every service on this host.'],
+    manage:   ['Manage',    'Deploy, configure and operate the services on this host.'],
     metrics:  ['Metrics',   'Pass / warn / fail checks across disk, network, services and the database.'],
     logs:     ['Logs',      'Tail of the ATS, security and Prometheus logs.'],
     audit:    ['Audit',     'Who did what, and when.'],
@@ -185,7 +186,7 @@ document.querySelectorAll('.nav-link').forEach(btn => {
 
 // ── PHONE TAB BAR ──────────────────────────────────────────
 // Bottom bar mirrors the sidebar buttons; it just clicks the real .nav-link.
-const MORE_TABS = ['metrics', 'audit', 'database', 'stats'];
+const MORE_TABS = ['logs', 'metrics', 'audit', 'database', 'stats'];
 function setMoreSheet(open) {
     const sheet = document.getElementById('moreSheet'), back = document.getElementById('moreBackdrop'), btn = document.getElementById('tbMore');
     if (!sheet) return;
@@ -953,6 +954,7 @@ function refreshActive() {
     if (activeTab === 'database') fetchDatabase();
     if (activeTab === 'stats') fetchStats();
     if (activeTab === 'docker' && typeof fetchDocker === 'function') fetchDocker();
+    if (activeTab === 'manage' && typeof fetchManage === 'function') fetchManage();
 }
 
 setInterval(refreshActive, 5000);
