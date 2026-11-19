@@ -706,7 +706,7 @@ body:has(dialog.mg-panel[open], dialog.mg-wide[open]) { overflow: hidden; }
 .mg-op-table table { width: 100%; border-collapse: collapse; font-size: .75rem; }
 .mg-op-table td, .mg-op-table th { padding: .5rem; text-align: left; border-bottom: 1px solid var(--line); }
 .mg-op-save { position: sticky; bottom: 0; background: var(--surface); padding: .75rem 0; border-top: 1px solid var(--line); }
-.mg-op-global { padding: 1.25rem; overflow-y: auto; min-height: 0; }
+.mg-op-global { padding: 1.25rem; overflow-y: auto; min-height: 0; flex: 1; flex-shrink: 1; overscroll-behavior: contain; }
 #mgOperationsGlobal { max-height: min(90vh,900px); }
 @media (max-width: 700px) {
     .mg-op-fields { grid-template-columns: minmax(0,1fr); }
