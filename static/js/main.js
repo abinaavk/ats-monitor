@@ -632,7 +632,7 @@ function initTerminal() {
     setTimeout(termFit, 150);
     setTimeout(termFit, 500);
 
-    socket = io('/terminal', { autoConnect: false });
+    socket = io('/terminal', { autoConnect: false, forceNew: true, reconnectionAttempts: 3 });
 
     socket.on('connect', () => {
         const statusEl = document.getElementById('term-status');
@@ -666,12 +666,21 @@ function initTerminal() {
         term.write(String(data));
     });
 
+    socket.io.on('reconnect_failed', () => {
+        document.getElementById('term-status').textContent = 'CONNECTION FAILED';
+        termShowOverlay('Unable to reconnect', 'The terminal connection could not be restored. Start a new session to retry. If this repeats, the server connection needs attention.');
+    });
+
     socket.on('disconnect', (reason) => {
         const statusEl = document.getElementById('term-status');
         statusEl.textContent = 'DISCONNECTED';
         statusEl.className = 'term-status';
         if (reason === 'io client disconnect') return;
-        termShowOverlay('Connection lost', 'Trying to reconnect. A new connection starts a fresh shell, so unfinished commands are gone.');
+        clearTimeout(termInactivityTimer);
+        const reconnecting = socket.active;
+        termShowOverlay('Connection lost', reconnecting
+            ? 'Trying to reconnect. A new connection starts a fresh shell, so unfinished commands are gone.'
+            : 'The server closed the connection. Start a new session to reconnect.');
     });
 
     term.onData(data => {
