@@ -1,0 +1,6 @@
+.pwa-install[hidden] { display: none; }
+.pwa-install { position: fixed; z-index: 500; bottom: calc(80px + env(safe-area-inset-bottom)); right: max(12px, env(safe-area-inset-right)); left: max(12px, env(safe-area-inset-left)); margin-left: auto; max-width: 340px; padding: 12px; display: flex; flex-wrap: wrap; gap: 8px; background: var(--bg-2); color: var(--text-1); border: 1px solid var(--line-2); border-radius: 8px; box-shadow: 0 6px 24px #0004; font: 15px/1.5 system-ui; }
+.pwa-install button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--line-2); border-radius: 5px; background: var(--surface); color: var(--text-1); font: inherit; cursor: pointer; }
+.pwa-install p { flex-basis: 100%; margin: 0; }
+@media (min-width: 701px) { .pwa-install { bottom: 20px; } }
+@media (display-mode: standalone) { .pwa-install { display: none; } }

@@ -11,6 +11,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="theme-color" content="#17191c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ATS Monitor">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/static/css/pwa.css">
+<script src="/static/js/pwa.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -381,5 +388,10 @@
 <script src="/static/js/main.js"></script>
 <script src="/static/js/docker.js"></script>
 <script src="/static/js/manage.js"></script>
+<aside class="pwa-install" id="pwaInstall" hidden aria-label="Install ATS Monitor">
+<button type="button" id="pwaInstallButton">Install app</button>
+<p id="pwaInstallHelp" hidden></p>
+<button type="button" id="pwaInstallDismiss" aria-label="Dismiss install suggestion">Dismiss</button>
+</aside>
 </body>
 </html>
