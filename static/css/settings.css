@@ -259,3 +259,68 @@
         flex:1 1 100px
     }
 }
+
+/* Settings use the dashboard's type and surfaces with a stable section rail. */
+#tab-settings { font-family:var(--sans); }
+.st-layout { grid-template-columns:220px minmax(0,1fr); gap:24px; align-items:start; }
+.st-nav { position:sticky; top:24px; padding:6px; border:1px solid var(--line); background:var(--bg-2); gap:4px; min-width:0; }
+.st-nav .term-btn { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:4px; padding:12px; border-color:transparent; line-height:1.35; min-width:0; }
+.st-nav .term-btn span { font-weight:600; }
+.st-nav .term-btn small { font-size:.75rem; color:var(--text-3); font-weight:400; }
+.st-nav .active { border-color:var(--accent); }
+.st-panel { padding:28px; border-radius:var(--r-lg); }
+.st-panel h2,.st-dialog h2 { line-height:1.35; letter-spacing:-.015em; }
+.st-panel h3 { line-height:1.4; }
+.st-panel p { max-width:68ch; }
+.st-panel .st-note { font-size:.875rem; line-height:1.6; }
+.st-panel .term-btn,.st-dialog .term-btn { font-size:.875rem; padding:10px 14px; line-height:1.4; }
+.st-panel label,.st-dialog label { font-family:var(--sans); font-size:.9375rem; line-height:1.5; font-weight:500; }
+.st-panel input,.st-dialog input { padding:12px; font-family:var(--sans); border-radius:var(--r); }
+.st-panel .term-btn:focus-visible,.st-nav .term-btn:focus-visible,.st-dialog .term-btn:focus-visible,.st-audit:focus-visible,.st-panel .theme-opt:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.st-policy { gap:12px; margin-top:20px; }
+.st-policy article { padding:20px; border-radius:var(--r); display:flex; flex-direction:column; align-items:start; }
+.st-policy article p { flex:1; margin-bottom:16px; }
+.st-badge { line-height:1.4; border-radius:var(--r); }
+.st-heading > div:first-child { min-width:0; flex:1 1 240px; }
+.st-heading .st-actions { align-self:start; }
+#stDevices { display:grid; gap:12px; margin:24px 0 28px; }
+.st-device { padding:20px; border:1px solid var(--line); background:var(--bg-2); border-radius:var(--r); }
+.st-device h3 { font-size:1.0625rem; }
+.st-device p { font-size:.875rem; line-height:1.7; }
+.st-device .st-actions { padding-top:4px; }
+.st-panel .st-sensitive { color:var(--bad); }
+.st-audit { scrollbar-gutter:stable; padding-right:12px; }
+.st-audit li { font-size:.875rem; padding:12px 0; }
+.st-message { margin:0 0 16px; border-left:3px solid var(--accent); font-size:.9375rem; overflow-wrap:anywhere; }
+.st-message.error { border-left-color:var(--bad); }
+.st-dialog { border-radius:var(--r-lg); scrollbar-gutter:stable; }
+.st-dialog .st-actions { justify-content:flex-end; margin-top:24px; }
+.st-dialog input { max-width:none; }
+.st-panel .theme-picker { max-width:480px; }
+.st-panel .theme-opt { min-height:76px; padding:16px; }
+.st-panel .theme-dot { width:24px; height:24px; }
+@media(max-width:1100px) {
+    .st-layout { grid-template-columns:180px minmax(0,1fr); gap:20px; }
+    .st-panel { padding:24px; }
+    .st-policy { grid-template-columns:1fr; }
+}
+@media(max-width:800px) {
+    .st-layout { grid-template-columns:minmax(0,1fr); gap:16px; }
+    .st-nav { position:static; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding:4px; }
+    .st-nav .term-btn { align-items:center; min-height:48px; padding:10px 4px; font-size:.8125rem; }
+    .st-nav .term-btn small { display:none; }
+    .st-panel { padding:20px; }
+    .st-panel h2 { font-size:1.125rem; }
+    .st-heading .st-actions { gap:8px; }
+    .st-heading .term-btn { flex:1 1 140px; }
+    .st-policy article,.st-device { padding:16px; }
+    .st-device .st-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .st-device .st-actions .term-btn { padding:10px 8px; }
+    .st-dialog { padding:20px; max-height:calc(100dvh - 24px); width:calc(100% - 24px); }
+    .st-dialog .st-actions { display:grid; grid-template-columns:1fr 1fr; }
+    .st-panel .theme-dots { gap:8px; min-width:0; }
+    .st-panel .theme-opt { padding:12px; gap:8px; font-size:.9375rem; }
+}
+@media(prefers-reduced-motion:reduce) {
+    #tab-settings.active { animation:none; }
+}

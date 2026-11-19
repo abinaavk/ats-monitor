@@ -379,18 +379,18 @@
 <section class="tabcontent" id="tab-settings">
   <div class="st-layout">
     <nav class="st-nav" aria-label="Settings sections">
-      <button class="term-btn active" data-settings="general" aria-current="page">General</button>
-      <button class="term-btn" data-settings="account">Account</button>
-      <button class="term-btn" data-settings="security">Security</button>
-      <button class="term-btn" data-settings="appearance">Appearance</button>
-      <button class="term-btn" data-settings="devices">Devices</button>
+      <button class="term-btn active" id="st-nav-general" aria-controls="st-general" data-settings="general" aria-current="page"><span>General</span><small>Storage & deployment</small></button>
+      <button class="term-btn" id="st-nav-account" aria-controls="st-account" data-settings="account"><span>Account</span><small>Administrator profile</small></button>
+      <button class="term-btn" id="st-nav-security" aria-controls="st-security" data-settings="security"><span>Security</span><small>Authentication policies</small></button>
+      <button class="term-btn" id="st-nav-appearance" aria-controls="st-appearance" data-settings="appearance"><span>Appearance</span><small>Themes for this browser</small></button>
+      <button class="term-btn" id="st-nav-devices" aria-controls="st-devices" data-settings="devices"><span>Devices</span><small>Sessions & trusted access</small></button>
     </nav>
     <div class="st-content">
       <p id="stMessage" class="st-message" role="status" aria-live="polite"></p>
-      <section class="st-panel" id="st-general"><h2>Application settings</h2><p>Manage storage, saved domains, deployment defaults and Cloudflare using the existing host settings.</p><button class="term-btn" id="stHostSettings">Open host settings</button><p class="st-note">Host settings apply to this server. Appearance preferences are saved in this browser.</p></section>
-      <section class="st-panel" id="st-account" hidden><h2>Administrator profile</h2><p>This installation uses one shared administrator account. All authenticated devices have administrator access.</p><form id="stProfile"><label for="stDisplayName">Display name</label><input class="filter-input" id="stDisplayName" maxlength="80" required autocomplete="nickname"><p class="st-note">A shared profile label; it does not change the login password.</p><button class="term-btn" type="submit">Save profile</button></form></section>
-      <section class="st-panel" id="st-security" hidden><h2>Authentication and security</h2><div class="st-policy"><article><h3>Standard security</h3><p>Password required. Sessions expire after 10 minutes, including while you are active.</p><span class="st-badge">Default for new devices</span></article><article><h3>Trusted device</h3><p>Secure persistent authentication for 30 days. No repeated password entry during that period. Trust can be revoked at any time.</p><span class="st-badge">Enabled per device</span></article></div><p>Trust only devices you own and control. Changing a device’s mode requires your password and leaves other devices unchanged.</p><button class="term-btn" id="stOpenDevices">Manage device security</button></section>
-      <section class="st-panel" id="st-appearance" hidden><h2>Appearance</h2><p>Choose the theme for this browser. Your existing preference is preserved.</p>        <div class="theme-picker">
+      <section class="st-panel" id="st-general" aria-labelledby="st-nav-general"><h2>Application settings</h2><p>Manage storage, saved domains, deployment defaults and Cloudflare using the existing host settings.</p><button class="term-btn" id="stHostSettings">Open host settings</button><p class="st-note">Host settings apply to this server. Appearance preferences are saved in this browser.</p></section>
+      <section class="st-panel" id="st-account" aria-labelledby="st-nav-account" hidden><h2>Administrator profile</h2><p>This installation uses one shared administrator account. All authenticated devices have administrator access.</p><form id="stProfile"><label for="stDisplayName">Display name</label><input class="filter-input" id="stDisplayName" maxlength="80" required autocomplete="nickname"><p class="st-note">A shared profile label; it does not change the login password.</p><button class="term-btn" type="submit">Save profile</button></form></section>
+      <section class="st-panel" id="st-security" aria-labelledby="st-nav-security" hidden><h2>Authentication and security</h2><div class="st-policy"><article><h3>Standard security</h3><p>Password required. Sessions expire after 10 minutes, including while you are active.</p><span class="st-badge">Default for new devices</span></article><article><h3>Trusted device</h3><p>Secure persistent authentication for 30 days. No repeated password entry during that period. Trust can be revoked at any time.</p><span class="st-badge">Enabled per device</span></article></div><p>Trust only devices you own and control. Changing a device’s mode requires your password and leaves other devices unchanged.</p><button class="term-btn" id="stOpenDevices">Manage device security</button></section>
+      <section class="st-panel" id="st-appearance" aria-labelledby="st-nav-appearance" hidden><h2>Appearance</h2><p>Choose the theme for this browser. Your existing preference is preserved.</p>        <div class="theme-picker">
           <button id="theme-btn" class="theme-btn" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="themeDropdown">
             <span class="theme-swatch" aria-hidden="true"></span>
             <span class="theme-name" id="theme-name">Graphite</span>
@@ -404,7 +404,7 @@
           </div>
         </div>
 </section>
-      <section class="st-panel" id="st-devices" hidden><div class="st-heading"><div><h2>Devices</h2><p>Browsers registered by successful password sign-ins.</p></div><div class="st-actions"><button class="term-btn" id="stRefreshDevices">Refresh</button><button class="term-btn" id="stLogoutOthers">Log out all other devices</button></div></div><p class="st-note">Records begin after this update. Browser profiles and private windows register separately. Device descriptions are inferred, not verified identities.</p><div id="stDevices" aria-live="polite"></div><h3>Security activity</h3><ol id="stAudit" class="st-audit" tabindex="0" aria-label="Recent security activity"></ol></section>
+      <section class="st-panel" id="st-devices" aria-labelledby="st-nav-devices" hidden><div class="st-heading"><div><h2>Devices</h2><p>Browsers registered by successful password sign-ins.</p></div><div class="st-actions"><button class="term-btn" id="stRefreshDevices">Refresh</button><button class="term-btn st-sensitive" id="stLogoutOthers">Log out all other devices</button></div></div><p class="st-note">Records begin after this update. Browser profiles and private windows register separately. Device descriptions are inferred, not verified identities.</p><div id="stDevices" aria-live="polite"></div><h3>Security activity</h3><ol id="stAudit" class="st-audit" tabindex="0" aria-label="Recent security activity"></ol></section>
     </div>
   </div>
 </section>
