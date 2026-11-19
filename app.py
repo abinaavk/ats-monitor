@@ -376,56 +376,113 @@ def api_stats():
 # ══════════════════════════════════════════════════════
 #   TERMINAL
 # ══════════════════════════════════════════════════════
-def _read_pty(sid, fd):
-    while sid in _term_sessions:
+def _close_terminal(sid):
+    sess = _term_sessions.pop(sid, None)
+    if not sess:
+        return
+    try:
+        os.close(sess['fd'])
+    except OSError:
+        pass
+    try:
+        os.kill(sess['pid'], signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    # Reap without blocking the gevent event loop.
+    while True:
         try:
-            r, _, _ = select.select([fd], [], [], 0.05)
-            if r:
-                data = os.read(fd, 8192)
-                if not data: break
-                text = data.decode('utf-8', errors='replace')
-                socketio.emit('terminal_output', text, namespace='/terminal', room=sid)
-        except: break
-    if sid in _term_sessions:
-        socketio.emit('terminal_output', '\r\n[Session ended]\r\n', namespace='/terminal', room=sid)
+            if os.waitpid(sess['pid'], os.WNOHANG)[0]:
+                break
+        except ChildProcessError:
+            break
+        socketio.sleep(0.01)
+
+
+def _read_pty(sid, fd):
+    # The app also runs directly without monkey-patching. A native reader
+    # thread cannot reliably wake gevent's Socket.IO transport queue.
+    import codecs
+    from gevent.select import select as cooperative_select
+    decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
+    try:
+        while sid in _term_sessions:
+            ready, _, _ = cooperative_select([fd], [], [], 0.1)
+            if sid not in _term_sessions:
+                break
+            if not ready:
+                continue
+            data = os.read(fd, 8192)
+            if not data:
+                break
+            text = decoder.decode(data)
+            if text:
+                socketio.emit('terminal_output', text, namespace='/terminal', to=sid)
+            socketio.sleep(0)
+    except OSError:
+        pass  # PTYs report EIO when the child exits.
+    finally:
+        if sid in _term_sessions:
+            tail = decoder.decode(b'', final=True)
+            if tail:
+                socketio.emit('terminal_output', tail, namespace='/terminal', to=sid)
+            socketio.emit('terminal_output', '\r\n[Session ended]\r\n', namespace='/terminal', to=sid)
+            socketio.emit('terminal_exit', {}, namespace='/terminal', to=sid)
+            _close_terminal(sid)
+
 
 @socketio.on('connect', namespace='/terminal')
-def on_term_connect():
+def on_term_connect(auth=None):
+    if not session.get('authenticated'):
+        return False
     sid = request.sid
-    pid, fd = pty.fork()
+    # An absent legacy default must not kill an otherwise usable shell.
+    cwd = ATS_HOME if os.path.isdir(ATS_HOME) and os.access(ATS_HOME, os.X_OK) else os.path.expanduser('~')
+    if not os.path.isdir(cwd):
+        cwd = '/'
+    try:
+        pid, fd = pty.fork()
+    except OSError as exc:
+        app.logger.warning('Terminal PTY allocation failed: %s', exc)
+        return False
     if pid == 0:
-        os.chdir(ATS_HOME)
-        env = os.environ.copy()
-        env['TERM'] = 'xterm-256color'
-        env['COLORTERM'] = 'truecolor'
-        env['FORCE_COLOR'] = '1'
-        os.execvpe('/bin/bash', ['/bin/bash', '--login'], env)
-    else:
-        _term_sessions[sid] = {'fd': fd, 'pid': pid}
-        threading.Thread(target=_read_pty, args=(sid, fd), daemon=True).start()
+        try:
+            os.chdir(cwd)
+            env = os.environ.copy()
+            env.update(TERM='xterm-256color', COLORTERM='truecolor', FORCE_COLOR='1')
+            os.execvpe('/bin/bash', ['/bin/bash', '--login'], env)
+        except OSError:
+            os.write(2, b'Unable to start terminal shell.\r\n')
+            os._exit(1)
+    _term_sessions[sid] = {'fd': fd, 'pid': pid}
+    socketio.start_background_task(_read_pty, sid, fd)
+
 
 @socketio.on('terminal_input', namespace='/terminal')
-def on_term_input(data):
+def on_term_input(data=None):
     sess = _term_sessions.get(request.sid)
-    if sess:
-        try: os.write(sess['fd'], data['input'].encode())
-        except: pass
+    value = data.get('input') if isinstance(data, dict) else None
+    if sess and isinstance(value, str):
+        try:
+            os.write(sess['fd'], value.encode())
+        except OSError:
+            pass
+
 
 @socketio.on('terminal_resize', namespace='/terminal')
-def on_term_resize(data):
+def on_term_resize(data=None):
     sess = _term_sessions.get(request.sid)
-    if sess:
-        try: fcntl.ioctl(sess['fd'], termios.TIOCSWINSZ, struct.pack('HHHH', int(data.get('rows', 24)), int(data.get('cols', 80)), 0, 0))
-        except: pass
+    if sess and isinstance(data, dict):
+        try:
+            rows = max(1, min(1000, int(data.get('rows', 24))))
+            cols = max(1, min(1000, int(data.get('cols', 80))))
+            fcntl.ioctl(sess['fd'], termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
+        except (OSError, ValueError, TypeError, OverflowError):
+            pass
+
 
 @socketio.on('disconnect', namespace='/terminal')
-def on_term_disconnect():
-    sess = _term_sessions.pop(request.sid, None)
-    if sess:
-        try:
-            os.kill(sess['pid'], signal.SIGKILL)
-            os.close(sess['fd'])
-        except: pass
+def on_term_disconnect(reason=None):
+    _close_terminal(request.sid)
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=9998, allow_unsafe_werkzeug=True)

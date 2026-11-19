@@ -646,6 +646,21 @@ function initTerminal() {
         if (activeTab === 'terminal') term.focus();
     });
 
+    socket.on('connect_error', () => {
+        const statusEl = document.getElementById('term-status');
+        statusEl.textContent = 'CONNECTION FAILED';
+        statusEl.className = 'term-status';
+        termShowOverlay('Unable to connect', 'Check your connection and sign in again if your session expired. Then start a new session.');
+    });
+
+    socket.on('terminal_exit', () => {
+        socket.disconnect();
+        const statusEl = document.getElementById('term-status');
+        statusEl.textContent = 'SESSION ENDED';
+        statusEl.className = 'term-status';
+        termShowOverlay('Session ended', 'Start a new session to open a fresh shell.');
+    });
+
     socket.on('terminal_output', (data) => {
         term.write(String(data));
     });
