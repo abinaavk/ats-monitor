@@ -535,3 +535,46 @@ body:has(dialog.mg-panel[open], dialog.mg-wide[open]) { overflow: hidden; }
 @media (max-width: 480px) {
     .mg-acts { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* Compact host status keeps services within reach on a phone. */
+.mg-tools-toggle { display: none; }
+.mg-host-tools { flex: 1; min-width: 0; }
+.mg-host-tools .mg-hints { margin: 0.75rem 0 0; }
+@media (max-width: 900px) {
+    .mg-head-actions { order: -2; }
+    .mg-tools-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; text-align: left; }
+    .mg-tools-toggle::after { content: '+'; font-size: 1.125rem; }
+    .mg-tools-toggle[aria-expanded="true"]::after { content: '−'; }
+    .mg-host-tools { display: none; flex-basis: 100%; }
+    .mg-host-tools.expanded { display: block; }
+    .mg-toolbar select { min-width: 0; width: 0; }
+    #mgChips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+    #mgChips .dk-chip { min-height: 44px; padding: 0 4px; font-size: 0.75rem; }
+    .mg-table tbody { display: grid; gap: 0.65rem; }
+    .mg-row { grid-template-areas: "name status" "dom dom" "rt port" "res res" "dep auto"; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.5rem; }
+    .mg-row .c-rt { justify-self: start; }
+    .mg-row .c-port { justify-self: end; border: 0; padding: 0; margin: 0; }
+    .mg-row .c-res { justify-self: stretch; justify-content: space-between; white-space: normal; flex-wrap: wrap; }
+    .mg-row .c-dep, .mg-row .c-auto { border: 0; padding-top: 0; flex-wrap: wrap; gap: 0.25rem; }
+    .mg-name { min-height: 44px; display: flex; align-items: center; white-space: normal; overflow-wrap: anywhere; }
+    .mg-dom { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; padding: 4px 0; }
+    .mg-row .c-dom { min-height: 32px; }
+    .mg-panel { overflow: hidden; }
+    .mg-ph { flex-shrink: 1; min-height: 0; max-height: 55%; overflow-y: auto; }
+    .mg-ph-top { position: sticky; top: 0; z-index: 4; background: var(--surface); }
+    .mg-back { margin-top: 0; }
+    .mg-ph-sub a, .mg-ph-sub .mg-mono { overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
+    .mg-ptabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); position: static; padding: 0 8px; gap: 0 2px; }
+    .mg-ptab { min-width: 0; min-height: 44px; padding: 0 4px; font-size: 0.6875rem; letter-spacing: 0; }
+    .mg-pbody { overflow: auto; overscroll-behavior: contain; flex-shrink: 1; }
+    .mg-reset { min-height: 44px; }
+    .mg-env .term-btn, .mg-env-bar, .mg-bkact .term-btn, .mg-srcs .dk-chip { min-height: 44px; }
+    .mg-confirm { top: var(--mg-vt, 0px); bottom: auto; margin-top: auto; margin-bottom: auto; max-height: var(--mg-vh, 100dvh); }
+    .mg-confirm .mg-cbody { min-height: 0; overflow: auto; }
+    .mg-confirm .dk-form-actions { flex-shrink: 0; padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
+    .mg-confirm .dk-form-actions button { min-height: 44px; }
+}
+@media (max-width: 900px) and (max-height: 500px) {
+    .mg-ph { max-height: 45%; }
+    .mg-acts { margin: 0.5rem 0; }
+}

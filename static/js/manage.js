@@ -229,10 +229,17 @@ const dockerState = () => {
 };
 const dockerUsable = () => { const d = dockerState(); return !!(d && d.usable); };
 
+$('mgToolsToggle').addEventListener('click', () => {
+    const button = $('mgToolsToggle');
+    const expanded = button.getAttribute('aria-expanded') !== 'true';
+    button.setAttribute('aria-expanded', String(expanded));
+    $('mgHostTools').classList.toggle('expanded', expanded);
+});
+
 function renderDeps() {
     const box = $('mgDeps'), hints = $('mgHints');
     if (!mg.deps) {
-        if (mg.err) { box.innerHTML = '<span class="mg-muted">Dependency status unavailable</span>'; hints.hidden = true; }
+        if (mg.err) { $('mgToolsToggle').textContent = 'Host tools · status unavailable'; box.innerHTML = '<span class="mg-muted">Dependency status unavailable</span>'; hints.hidden = true; }
         return;
     }
     const d = mg.deps, dk = dockerState();
@@ -241,6 +248,9 @@ function renderDeps() {
             label: dk.installed && !dk.access ? 'no access' : '' } : null, false],
         ['cloudflared', d.cloudflared, true], ['rclone', d.rclone, false]
     ];
+    const missing = items.filter(([, x]) => x && !x.ok);
+    $('mgToolsToggle').textContent = missing.length ? `Host tools · ${missing.length} unavailable` : 'Host tools · all available';
+    $('mgToolsToggle').classList.toggle('mg-warn', missing.some(([, , required]) => required));
     const hl = [];
     box.innerHTML = items.map(([name, x, required]) => {
         if (!x) return '';
@@ -1628,6 +1638,8 @@ function deployGo(i, first) {
     const f = qs('[autofocus], input:not([type=radio]):not([disabled]), select', body) || qs('input[type=radio]:checked', body);
     if (f) f.focus();
     body.scrollTop = 0;
+    const currentStep = qs('[aria-current="step"]', $('mgStepper'));
+    if (currentStep) $('mgStepper').scrollLeft = Math.max(0, currentStep.offsetLeft - $('mgStepper').offsetLeft - 12);
 }
 
 // read the visible step's inputs back into D.v

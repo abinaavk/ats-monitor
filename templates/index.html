@@ -122,13 +122,14 @@
 <!-- TAB: MANAGE -->
 <section class="tabcontent" id="tab-manage">
   <div class="mg-head">
-    <div class="mg-deps" id="mgDeps" role="list" aria-label="Dependencies"><span class="mg-skel mg-skel-chip"></span><span class="mg-skel mg-skel-chip"></span><span class="mg-skel mg-skel-chip"></span><span class="mg-skel mg-skel-chip"></span></div>
+    <button class="mg-tools-toggle term-btn" id="mgToolsToggle" aria-expanded="false" aria-controls="mgHostTools">Host tools</button>
+    <div class="mg-host-tools" id="mgHostTools"><div class="mg-deps" id="mgDeps" role="list" aria-label="Dependencies"><span class="mg-skel mg-skel-chip"></span><span class="mg-skel mg-skel-chip"></span><span class="mg-skel mg-skel-chip"></span><span class="mg-skel mg-skel-chip"></span></div>
+    <div class="mg-hints" id="mgHints" hidden></div></div>
     <div class="mg-head-actions">
       <button class="term-btn mg-lg" id="mgSettingsBtn" disabled>Settings</button>
       <button class="dk-primary mg-lg" id="mgDeployBtn" disabled>Deploy service</button>
     </div>
   </div>
-  <div class="mg-hints" id="mgHints" hidden></div>
   <div class="mg-jobs" id="mgJobs" hidden aria-label="Running operations"></div>
   <div id="mgBody">
     <div class="mg-toolbar">
