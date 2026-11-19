@@ -949,7 +949,7 @@ $('mgPanel').addEventListener('keydown', e => {
 async function requestClosePanel() {
     const dirty = Object.keys(P.dirty).filter(k => P.dirty[k]);
     if (dirty.length) {
-        const r = await confirmDlg({ title: 'Discard unsaved changes?', body: '<p>The ' + dirty.map(k => k === 'config' ? 'Configuration' : 'Resources').join(' and ') + ' form has changes that were not saved.</p>', confirm: 'Discard changes', danger: true, cancel: 'Keep editing' });
+        const r = await confirmDlg({ title: 'Discard unsaved changes?', body: '<p>The ' + dirty.map(k => ({config: 'Configuration', resources: 'Resources', operations: 'Operations'}[k] || k)).join(' and ') + ' form has changes that were not saved.</p>', confirm: 'Discard changes', danger: true, cancel: 'Keep editing' });
         if (!r) return;
         P.dirty = {};
     }
@@ -2108,7 +2108,7 @@ async function loadOperations() {
       <section class="mg-op-section"><h3>Alerts</h3>${alertsHtml(d.alerts)}</section>
       <section class="mg-op-section"><h3>Deployment history</h3><p class="mg-muted">Current commit <code>${esc(d.current_commit || 'Unavailable')}</code>. History begins with this ATS version. Rollback rebuilds and restarts code; database and environment values are preserved.</p>
       ${d.deployments.length ? d.deployments.map(x => `<article class="mg-op-row"><div><b>${esc(x.action)} · <code>${esc((x.commit_sha || x.before_sha || 'unknown').slice(0, 12))}</code></b><span class="mg-st ${x.status === 'success' ? 'ok' : x.status === 'failed' ? 'bad' : 'warn'}">${esc(x.status)}</span><p>${esc(opTime(x.started))} · ${esc(x.branch)}</p>${x.error ? `<p class="mg-bad">${esc(x.error)}</p>` : ''}</div>${x.rollback_available ? `<button class="term-btn" data-op-rollback="${x.id}">Roll back</button>` : ''}</article>`).join('') : opEmpty('No deployments recorded yet.')}</section>
-      <section class="mg-op-section"><h3>Health checks</h3><div class="mg-op-stats"><div><span>Latest HTTP check</span><b>${latest ? latest.health_ok ? 'Passed' : 'Failed' : 'Not sampled'}</b></div><div><span>Response time</span><b>${latest ? latest.latency_ms + ' ms' : '—'}</b></div><div><span>Observed availability</span><b>${d.health.observed_availability_pct == null ? '—' : d.health.observed_availability_pct + '%'}</b></div><div><span>Consecutive failures</span><b>${d.health.failure_streak}</b></div></div><p class="mg-muted">Availability covers ${d.health.observations} retained observations, rather than continuous uptime. Checks request this service's local port without following redirects.</p>${latest?.error ? `<p class="mg-bad">${esc(latest.error)}</p>` : ''}</section>
+      <section class="mg-op-section"><h3>Health checks</h3><div class="mg-op-stats"><div><span>Latest HTTP check</span><b>${latest ? latest.health_ok ? 'Passed' : 'Failed' : 'Not sampled'}</b></div><div><span>Response time</span><b>${Number.isFinite(latest?.latency_ms) ? latest.latency_ms + ' ms' : '—'}</b></div><div><span>Observed availability</span><b>${d.health.observed_availability_pct == null ? '—' : d.health.observed_availability_pct + '%'}</b></div><div><span>Consecutive failures</span><b>${d.health.failure_streak}</b></div></div><p class="mg-muted">Availability covers ${d.health.observations} retained observations, rather than continuous uptime. Checks request this service's local port without following redirects.</p>${latest?.error ? `<p class="mg-bad">${esc(latest.error)}</p>` : ''}</section>
       <form id="mgOperationsForm"><section class="mg-op-section"><h3>Health configuration</h3><label class="toggle-label"><input name="health_enabled" type="checkbox" ${c.health_enabled ? 'checked' : ''}> Enable HTTP checks</label><div class="mg-op-fields"><label>Local path<input class="filter-input" name="health_path" value="${esc(c.health_path)}" maxlength="512" required></label>${cfgNumber('expected_status','Expected HTTP status',100,599)}${cfgNumber('timeout_seconds','Timeout (seconds)',1,10)}${cfgNumber('failure_threshold','Failures before alert',1,20)}</div></section>
       <section class="mg-op-section"><h3>Scheduled backups</h3><p class="mg-muted">Local database backups. Retention applies only to backups made by this schedule after a new backup passes archive verification.</p>${d.schedule.legacy_midnight ? '<p class="mg-note">The legacy midnight backup is still active. Saving these settings replaces it for this service, including when the schedule is disabled.</p>' : ''}<div class="mg-op-stats"><div><span>Next run</span><b>${esc(opTime(d.schedule.next_backup))}</b></div><div><span>Last backup</span><b>${esc(opTime(d.schedule.last_backup))}</b></div><div><span>Last archive verification</span><b>${esc(opTime(d.schedule.verified_at))}</b></div></div>${d.schedule.last_error ? `<p class="mg-bad">${esc(d.schedule.last_error)}</p>` : ''}<p class="mg-muted">Archive verification checks checksum and ZIP integrity. An application restore test is still needed to prove recovery.</p><label class="toggle-label"><input name="backup_enabled" type="checkbox" ${c.backup_enabled ? 'checked' : ''}> Enable scheduled backups</label><div class="mg-op-fields">${cfgNumber('interval_hours','Interval (hours)',1,720)}${cfgNumber('retain_count','Scheduled backups to retain',1,100)}</div></section><div class="mg-op-save"><span id="mgOpSaveStatus" role="status"></span><button class="term-btn" type="submit">Save settings</button></div></form>
       <section class="mg-op-section"><h3>Resource history</h3><p class="mg-muted">CPU uses one core = 100%. Missing systemd measurements remain unavailable.</p>${resourceChart(d.samples,'cpu_percent','CPU','%')}${resourceChart(d.samples,'memory_mb','Memory','MB')}
@@ -2128,7 +2128,7 @@ async function loadOperations() {
         if (P.name !== serviceName || !panelOpen()) return;
         button.disabled = false;
         $('mgOpSaveStatus').textContent = result.ok ? 'Saved' : result.error;
-        if (result.ok) { P.dirty.operations = false; loadOperations(); }
+        if (result.ok) { P.dirty.operations = false; toast('Operations settings saved'); loadOperations(); }
     });
 }
 document.addEventListener('click', async e => {
@@ -2155,7 +2155,7 @@ document.addEventListener('click', async e => {
     }
 });
 const globalOps = document.createElement('dialog');
-globalOps.id = 'mgOperationsGlobal'; globalOps.className = 'mg-wide';
+globalOps.id = 'mgOperationsGlobal'; globalOps.className = 'dk-dialog mg-wide';
 globalOps.setAttribute('aria-labelledby','mgOpsTitle');
 globalOps.innerHTML = '<div class="dk-dhead"><h2 id="mgOpsTitle">Alerts &amp; activity</h2><button class="term-btn" data-close>Close</button></div><div class="mg-op-global" id="mgOpsGlobalBody"></div>';
 document.body.append(globalOps);
