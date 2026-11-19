@@ -423,6 +423,7 @@ function openShell(id, name) {
         toast('Terminal libraries failed to load (CDN blocked?)', true);
         return;
     }
+    if (!window.atsTarget?.local) { toast('Interactive Docker shell is unavailable for this Global server. Use its operator SSH connection.', true); return; }
     const sh = dk.shell;
     $('dkShellTitle').textContent = `Shell · ${name}`;
     shellStatus('CONNECTING', false);
@@ -437,7 +438,7 @@ function openShell(id, name) {
     setTimeout(fit, 60);
     sh.term.focus();
 
-    sh.sock = io('/docker-shell', { query: { container: id }, reconnection: false });
+    sh.sock = io('/docker-shell', { query: { container: id, server: window.atsTarget.id }, reconnection: false });
     sh.sock.on('connect', () => {
         shellStatus('CONNECTED', true);
         fit();

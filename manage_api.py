@@ -417,11 +417,19 @@ def _write_json(path, obj):
     os.replace(tmp, path)
 
 
+def _origin_server():
+    from cluster_support import configured_node
+    node = configured_node()
+    return node['id'] if node else None
+
+
 def _read_meta(job_id):
     try:
         with open(_job_path(job_id, 'meta.json')) as f:
             m = json.load(f)
-        return m if isinstance(m, dict) else None
+        if not isinstance(m, dict) or (m.get('server_id') and m['server_id'] != _origin_server()):
+            return None
+        return m
     except (OSError, ValueError):
         return None
 
@@ -593,7 +601,7 @@ def start_job(op, name, args):
         fd = os.open(args_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, 'w') as f:
             json.dump(args, f)
-        meta = {'id': jid, 'op': op, 'name': name, 'status': 'running', 'started': _now(),
+        meta = {'server_id': _origin_server(), 'id': jid, 'op': op, 'name': name, 'status': 'running', 'started': _now(),
                 'finished': None, 'pid': None, 'ticks': None, 'result': None}
         try:
             with open(args_path, 'rb') as stdin, \
@@ -622,7 +630,7 @@ def _job_response(meta, since):
     events = _read_log(meta['id'])
     window = events[since:since + MAX_POLL_LINES]
     failed = meta.get('status') == 'failed'
-    return {'id': meta['id'], 'op': meta['op'], 'name': meta['name'], 'status': meta['status'],
+    return {'server_id':meta.get('server_id'), 'id': meta['id'], 'op': meta['op'], 'name': meta['name'], 'status': meta['status'],
             'started': meta['started'], 'finished': meta.get('finished'),
             'lines': window, 'next': since + len(window), 'steps': _steps(events, failed),
             'result': meta.get('result')}
@@ -874,7 +882,7 @@ def jobs_list():
             m = _read_meta(entry)
             if m:
                 m = _refresh(m)
-                rows.append({k: m.get(k) for k in ('id', 'op', 'name', 'status', 'started', 'finished')})
+                rows.append({k: m.get(k) for k in ('id', 'server_id', 'op', 'name', 'status', 'started', 'finished')})
     rows.sort(key=lambda r: r.get('started') or '', reverse=True)
     return _ok({'jobs': rows[:JOB_LIST_LIMIT]})
 

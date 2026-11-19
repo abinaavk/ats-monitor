@@ -39,6 +39,8 @@ docker_api.register_shell(socketio, app=app)
 # Manage tab: bridge to the ats headless CLI (see docs/manage.md)
 import manage_api
 app.register_blueprint(manage_api.bp)
+import servers_api
+servers_api.initialize(app)
 
 # sid → {fd, pid}
 _term_sessions = {}
@@ -405,6 +407,10 @@ def _read_pty(sid, fd):
 
 @socketio.on('connect', namespace='/terminal')
 def on_term_connect(auth=None):
+    from cluster_support import configured_node
+    node = configured_node()
+    if node and (request.args.get('server') != node['id'] or node['role'] != 'local'):
+        return False
     if not security.socket_authorized(session.get('auth_id')):
         return False
     sid = request.sid
