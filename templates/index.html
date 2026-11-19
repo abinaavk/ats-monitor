@@ -156,6 +156,11 @@
 
 <!-- TAB: METRICS -->
 <section class="tabcontent" id="tab-metrics">
+<aside class="pwa-install" id="pwaInstall" hidden aria-label="Install ATS Monitor">
+<button type="button" id="pwaInstallButton">Install app</button>
+<p id="pwaInstallHelp" hidden></p>
+<button type="button" id="pwaInstallDismiss" aria-label="Dismiss install suggestion">Dismiss</button>
+</aside>
   <div class="sec-label">Disk Space</div><div class="metrics-table" id="mt-disk"><div class="skel-row"></div><div class="skel-row"></div></div>
   <div class="sec-label">Network Checks</div><div class="metrics-table" id="mt-network"><div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>
   <div class="sec-label">Service Health</div><div class="metrics-table" id="mt-services"><div class="skel-row"></div><div class="skel-row"></div></div>
@@ -388,10 +393,6 @@
 <script src="/static/js/main.js"></script>
 <script src="/static/js/docker.js"></script>
 <script src="/static/js/manage.js"></script>
-<aside class="pwa-install" id="pwaInstall" hidden aria-label="Install ATS Monitor">
-<button type="button" id="pwaInstallButton">Install app</button>
-<p id="pwaInstallHelp" hidden></p>
-<button type="button" id="pwaInstallDismiss" aria-label="Dismiss install suggestion">Dismiss</button>
-</aside>
+
 </body>
 </html>

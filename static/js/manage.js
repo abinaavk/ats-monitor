@@ -919,9 +919,11 @@ function afterJob(j) {
 
 // tabs
 function showTab(tab, rerender) {
+    const changed = P.tab !== tab;
     P.tab = tab;
     qsa('.mg-ptab', $('mgPanel')).forEach(b => { const on = b.dataset.tab === tab; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
     qsa('.mg-pane', $('mgPanel')).forEach(p => { p.hidden = p.id !== 'mgp-' + tab; });
+    if (changed) $('mgPanel').querySelector('.mg-pbody').scrollTop = 0;
     stopLive(); stopFollow();
     if (!P.d) return;
     const pane = PANES[tab];
@@ -1605,7 +1607,7 @@ function renderHook() {
         </section>
         <section class="mg-hook-sec"><h3 class="mg-hook-title">Recent deliveries</h3>
         ${ev.length ? `<div class="mg-tablewrap"><table class="mg-mini mg-evtable"><thead><tr><th scope="col">When</th><th scope="col">Event</th><th scope="col">Ref</th><th scope="col">Commit</th><th scope="col">Result</th><th scope="col">Message</th></tr></thead><tbody>${ev.slice(0, 20).map(x =>
-            `<tr><td data-label="When" title="${esc(fmtDate(x.timestamp))}">${esc(fmtAgo(x.timestamp))}</td><td data-label="Event">${esc(x.event)}</td><td data-label="Ref"><code>${esc(String(x.ref || '').replace('refs/heads/', ''))}</code></td><td data-label="Commit"><code>${esc(String(x.commit || '').slice(0, 7))}</code></td>
+            `<tr><td data-label="When" title="${esc(fmtDate(x.timestamp))}">${esc(fmtAgo(x.timestamp))}</td><td data-label="Event">${esc(x.event)}</td><td data-label="Ref">${x.ref ? `<code>${esc(String(x.ref).replace('refs/heads/', ''))}</code>` : '—'}</td><td data-label="Commit">${x.commit ? `<code>${esc(String(x.commit).slice(0, 7))}</code>` : '—'}</td>
              <td data-label="Result">${flag(RESULT_CLS[x.result] != null ? RESULT_CLS[x.result] : '', esc(String(x.result).replace(/_/g, ' ')))}</td><td data-label="Message" class="mg-evmsg">${esc(x.message)}</td></tr>`).join('')}</tbody></table></div>`
             : emptyBlock('No deliveries yet', 'Once GitHub sends a push, or you press Test webhook, it shows up here.')}</section>
         <details class="mg-details mg-gh"><summary>GitHub setup</summary>
@@ -2075,7 +2077,7 @@ function alertsHtml(rows) {
     return rows.map(r => `<article class="mg-op-row"><div><b>${esc(r.name)} · ${esc(r.kind)}</b><span class="mg-st ${r.active ? 'bad' : 'ok'}">${r.active ? 'Active' : 'Resolved'}</span><p>${esc(r.message)}</p><small>${esc(opTime(r.last_seen))}</small></div>${r.acknowledged ? '<span class="mg-muted">Acknowledged</span>' : `<button class="term-btn" data-op-ack="${r.id}">Acknowledge</button>`}</article>`).join('');
 }
 function activityHtml(rows) {
-    return rows.length ? rows.map(r => `<article class="mg-op-row"><div><b>${esc(r.action.replaceAll('_', ' '))}</b><p>${esc(r.target)} · ${esc(r.user)}</p></div><time>${esc(r.timestamp.replace('T', ' ').slice(0, 19))}</time></article>`).join('') : opEmpty('No activity recorded.');
+    return rows.length ? `<div class="mg-activity-list" role="region" aria-label="Activity history" tabindex="0">${rows.map(r => `<article class="mg-op-row"><div><b>${esc(r.action.replaceAll('_', ' '))}</b><p>${esc(r.target)} · ${esc(r.user)}</p></div><time>${esc(r.timestamp.replace('T', ' ').slice(0, 19))}</time></article>`).join('')}</div>` : opEmpty('No activity recorded.');
 }
 function resourceChart(rows, key, label, unit) {
     const values = rows.filter(r => Number.isFinite(r[key]));
@@ -2169,7 +2171,8 @@ async function loadGlobalOperations(badgeOnly = false) {
     const active = r.data.alerts.filter(x => x.active && !x.acknowledged).length;
     globalButton.textContent = active ? `Alerts & activity · ${active}` : 'Alerts & activity';
     globalButton.classList.toggle('mg-bad', active > 0);
-    if (!badgeOnly || globalOps.open) $('mgOpsGlobalBody').innerHTML = collectorHtml(r.data.collector) + '<h3>Alerts</h3>' + alertsHtml(r.data.alerts) + '<h3>Activity history</h3>' + activityHtml(r.data.activity);
+    if (badgeOnly) return; // Keep the reader's position and keyboard focus during background badge refreshes.
+    $('mgOpsGlobalBody').innerHTML = collectorHtml(r.data.collector) + '<h3>Alerts</h3>' + alertsHtml(r.data.alerts) + '<h3>Activity history</h3>' + activityHtml(r.data.activity);
 }
 setInterval(() => { if (!document.hidden && $('tab-manage').classList.contains('active')) loadGlobalOperations(true); }, 30000);
 globalOps.addEventListener('keydown', e => { if (e.key === 'Escape') globalOps.close(); });
