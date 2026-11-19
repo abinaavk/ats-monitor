@@ -19,18 +19,8 @@ except ImportError:
     HAS_PSUTIL = False
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'ats_monitor_v1_secret_key_change_me')
-app.permanent_session_lifetime = datetime.timedelta(minutes=10)
-
-ACCESS_PASSWORD = 'abi@arv'
-
-@app.before_request
-def check_auth():
-    if request.endpoint in ('login', 'logout', 'static', 'pwa_worker'): return
-    if not session.get('authenticated'):
-        if request.path.startswith('/api/'):
-            return jsonify({'error': 'unauthorized'}), 401
-        return redirect('/login')
+import security
+security.init_app(app, 'abi@arv')
 
 @app.route('/sw.js')
 def pwa_worker():
@@ -38,38 +28,13 @@ def pwa_worker():
     response.headers['Cache-Control'] = 'no-cache'
     return response
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        pwd = request.form.get('password', '')
-        if pwd == ACCESS_PASSWORD:
-            session.permanent = True
-            session['authenticated'] = True
-            session['last_activity'] = datetime.datetime.now().isoformat()
-            return redirect('/')
-        return render_template('login.html', error='Invalid password')
-    if session.get('authenticated'): return redirect('/')
-    return render_template('login.html', error=None)
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect('/login')
-
-@app.route('/api/session-keepalive', methods=['POST'])
-def keepalive():
-    if session.get('authenticated'):
-        session['last_activity'] = datetime.datetime.now().isoformat()
-        return jsonify({'ok': True})
-    return jsonify({'error': 'unauthorized'}), 401
-
 # FORCE async_mode to gevent for stability
-socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins='*')
+socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins=None)
 
 # Docker management (REST blueprint + authenticated `docker exec` shell namespace)
 import docker_api
 app.register_blueprint(docker_api.bp)
-docker_api.register_shell(socketio)
+docker_api.register_shell(socketio, app=app)
 
 # Manage tab: bridge to the ats headless CLI (see docs/manage.md)
 import manage_api
@@ -398,6 +363,11 @@ def _close_terminal(sid):
         socketio.sleep(0.01)
 
 
+def _terminal_authorized(auth_id):
+    with app.app_context():
+        return security.socket_authorized(auth_id)
+
+
 def _read_pty(sid, fd):
     # The app also runs directly without monkey-patching. A native reader
     # thread cannot reliably wake gevent's Socket.IO transport queue.
@@ -406,6 +376,9 @@ def _read_pty(sid, fd):
     decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
     try:
         while sid in _term_sessions:
+            if not _terminal_authorized(_term_sessions[sid].get('auth_id')):
+                socketio.server.disconnect(sid, namespace='/terminal')
+                break
             ready, _, _ = cooperative_select([fd], [], [], 0.1)
             if sid not in _term_sessions:
                 break
@@ -432,7 +405,7 @@ def _read_pty(sid, fd):
 
 @socketio.on('connect', namespace='/terminal')
 def on_term_connect(auth=None):
-    if not session.get('authenticated'):
+    if not security.socket_authorized(session.get('auth_id')):
         return False
     sid = request.sid
     # An absent legacy default must not kill an otherwise usable shell.
@@ -453,13 +426,16 @@ def on_term_connect(auth=None):
         except OSError:
             os.write(2, b'Unable to start terminal shell.\r\n')
             os._exit(1)
-    _term_sessions[sid] = {'fd': fd, 'pid': pid}
+    _term_sessions[sid] = {'fd': fd, 'pid': pid, 'auth_id': session.get('auth_id')}
     socketio.start_background_task(_read_pty, sid, fd)
 
 
 @socketio.on('terminal_input', namespace='/terminal')
 def on_term_input(data=None):
     sess = _term_sessions.get(request.sid)
+    if sess and not security.socket_authorized(sess.get('auth_id')):
+        socketio.server.disconnect(request.sid, namespace='/terminal')
+        return
     value = data.get('input') if isinstance(data, dict) else None
     if sess and isinstance(value, str):
         try:
@@ -471,6 +447,9 @@ def on_term_input(data=None):
 @socketio.on('terminal_resize', namespace='/terminal')
 def on_term_resize(data=None):
     sess = _term_sessions.get(request.sid)
+    if sess and not security.socket_authorized(sess.get('auth_id')):
+        socketio.server.disconnect(request.sid, namespace='/terminal')
+        return
     if sess and isinstance(data, dict):
         try:
             rows = max(1, min(1000, int(data.get('rows', 24))))

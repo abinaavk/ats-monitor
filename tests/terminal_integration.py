@@ -2,6 +2,7 @@
 Run with Python dependencies from requirements.txt plus requests/websocket-client.
 """
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -14,7 +15,7 @@ import socketio
 repo = str(Path(sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]).resolve())
 sock = socket.socket(); sock.bind(('127.0.0.1', 0)); port = sock.getsockname()[1]; sock.close()
 log = tempfile.TemporaryFile(mode='w+')
-proc = subprocess.Popen([sys.executable, '-c', f'import app; app.socketio.run(app.app,host="127.0.0.1",port={port})'], cwd=repo, env=dict(os.environ, ATS_HOME='/nonexistent-terminal-check'), stdout=log, stderr=log)
+proc = subprocess.Popen([sys.executable, '-c', f'import app; app.socketio.run(app.app,host="127.0.0.1",port={port})'], cwd=repo, env=dict(os.environ, ATS_HOME='/nonexistent-terminal-check', ATS_COOKIE_SECURE='false', ATS_SECURITY_DB=tempfile.mktemp(prefix='terminal-security-', suffix='.sqlite3')), stdout=log, stderr=log)
 url = f'http://127.0.0.1:{port}'
 
 def wait_for(condition, seconds=5):
@@ -38,7 +39,10 @@ try:
         if anon.connected: anon.disconnect()
     print('PASS anonymous connection rejected')
     for transport in ['polling', 'websocket']:
-        http = requests.Session(); http.post(url+'/login', data={'password':'abi@arv'})
+        http = requests.Session()
+        form = http.get(url+'/login').text
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', form)[1]
+        http.post(url+'/login', data={'password':'abi@arv', 'csrf_token': csrf})
         client = socketio.Client(http_session=http); output = []; exits = []
         client.on('terminal_output', lambda data: output.append(data), namespace='/terminal')
         client.on('terminal_exit', lambda data: exits.append(data), namespace='/terminal')

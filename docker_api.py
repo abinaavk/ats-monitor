@@ -22,6 +22,7 @@ import termios
 import threading
 
 from flask import Blueprint, jsonify, request, session
+import security
 
 DOCKER_BIN = os.environ.get('DOCKER_BIN', 'docker')
 
@@ -341,12 +342,20 @@ def network_remove(nid):
 _shells = {}  # sid -> {fd, pid}
 
 
-def register_shell(socketio, ns='/docker-shell'):
+def register_shell(socketio, ns='/docker-shell', app=None):
     """Attach the container shell namespace. Unlike a bare namespace this one
     refuses unauthenticated connections."""
 
+    def app_context():
+        return app.app_context()
+
     def _pump(sid, fd):
         while sid in _shells:
+            with app_context():
+                authorized = security.socket_authorized(_shells[sid].get('auth_id'))
+            if not authorized:
+                socketio.server.disconnect(sid, namespace=ns)
+                break
             try:
                 r, _, _ = select.select([fd], [], [], 0.05)
                 if r:
@@ -375,7 +384,7 @@ def register_shell(socketio, ns='/docker-shell'):
 
     @socketio.on('connect', namespace=ns)
     def _connect():
-        if not session.get('authenticated'):
+        if not security.socket_authorized(session.get('auth_id')):
             return False
         cid = _ref(request.args.get('container'))
         if not cid:
@@ -387,13 +396,16 @@ def register_shell(socketio, ns='/docker-shell'):
             env['TERM'] = 'xterm-256color'
             os.execvpe(DOCKER_BIN, [DOCKER_BIN, 'exec', '-it', cid, 'sh', '-c',
                                     'command -v bash >/dev/null 2>&1 && exec bash || exec sh'], env)
-        _shells[sid] = {'fd': fd, 'pid': pid}
+        _shells[sid] = {'fd': fd, 'pid': pid, 'auth_id': session.get('auth_id')}
         print(f'[docker] shell open {cid}', flush=True)
         threading.Thread(target=_pump, args=(sid, fd), daemon=True).start()
 
     @socketio.on('shell_input', namespace=ns)
     def _input(data):
         s = _shells.get(request.sid)
+        if s and not security.socket_authorized(s.get('auth_id')):
+            socketio.server.disconnect(request.sid, namespace=ns)
+            return
         if s and isinstance(data, dict):
             try:
                 os.write(s['fd'], str(data.get('input', '')).encode())
@@ -403,6 +415,9 @@ def register_shell(socketio, ns='/docker-shell'):
     @socketio.on('shell_resize', namespace=ns)
     def _resize(data):
         s = _shells.get(request.sid)
+        if s and not security.socket_authorized(s.get('auth_id')):
+            socketio.server.disconnect(request.sid, namespace=ns)
+            return
         if s and isinstance(data, dict):
             try:
                 fcntl.ioctl(s['fd'], termios.TIOCSWINSZ,
