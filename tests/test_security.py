@@ -56,6 +56,40 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(self.a.post('/login',data={'password':'test-password','csrf_token':csrf},headers={'Origin':'https://attacker.example'}).status_code,403)
         self.login(self.a)
 
+    def form_token(self, response):
+        import re
+        return re.search(r'name="csrf_token" value="([^"]+)"', response.get_data(as_text=True))[1]
+
+    def test_open_login_tabs_keep_first_form_valid(self):
+        first = self.form_token(self.a.get('/login'))
+        second = self.form_token(self.a.get('/login'))
+        self.assertEqual(first, second)
+        response = self.a.post('/login', data={'password': 'test-password', 'csrf_token': first})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.a.get('/api/auth/status').status_code, 200)
+
+    def test_lost_cookie_error_form_can_retry_without_reload(self):
+        old = self.form_token(self.a.get('/login'))
+        self.a.delete_cookie('session')
+        response = self.a.post('/login', data={'password': 'test-password', 'csrf_token': old})
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.a.get('/api/auth/status').status_code, 401)
+        fresh = self.form_token(response)
+        self.assertNotEqual(old, fresh)
+        response = self.a.post('/login', data={'password': 'test-password', 'csrf_token': fresh})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.a.get('/api/auth/status').status_code, 200)
+
+    def test_rejected_origin_and_token_never_authenticate(self):
+        old = self.form_token(self.a.get('/login'))
+        for headers, token in [({'Origin': 'https://attacker.example'}, old), ({}, 'forged')]:
+            response = self.a.post('/login', data={'password': 'test-password', 'csrf_token': token}, headers=headers)
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(self.a.get('/api/auth/status').status_code, 401)
+            self.assertNotEqual(self.form_token(response), token)
+        fresh = self.form_token(response)
+        self.assertEqual(self.a.post('/login', data={'password': 'test-password', 'csrf_token': fresh}).status_code, 302)
+
     def test_metadata_and_unavailable_fields(self):
         self.login(self.a)
         d=self.a.get('/api/settings/devices').json['devices'][0]
