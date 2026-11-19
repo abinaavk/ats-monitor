@@ -8,7 +8,7 @@ except ImportError:
     pass
 
 import json, sqlite3, subprocess, datetime, socket, threading, select, signal, pty, fcntl, termios, struct
-from flask import Flask, render_template, session, redirect, request, jsonify, url_for
+from flask import Flask, render_template, session, redirect, request, jsonify, url_for, send_from_directory
 from flask_socketio import SocketIO, emit
 from functools import wraps
 
@@ -26,11 +26,17 @@ ACCESS_PASSWORD = 'abi@arv'
 
 @app.before_request
 def check_auth():
-    if request.endpoint in ('login', 'logout', 'static'): return
+    if request.endpoint in ('login', 'logout', 'static', 'pwa_worker'): return
     if not session.get('authenticated'):
         if request.path.startswith('/api/'):
             return jsonify({'error': 'unauthorized'}), 401
         return redirect('/login')
+
+@app.route('/sw.js')
+def pwa_worker():
+    response = send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

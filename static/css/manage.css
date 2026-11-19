@@ -681,3 +681,47 @@ body:has(dialog.mg-panel[open], dialog.mg-wide[open]) { overflow: hidden; }
     #mgHook .mg-gh ol { padding-left: 1.4rem; }
     #mgHook .mg-gh li + li { margin-top: 0.65rem; }
 }
+/* Operations keeps the service typography and bounded phone sheets. */
+.mg-op-section { margin: 1.5rem 0; border-top: 1px solid var(--line); padding-top: 1rem; min-width: 0; }
+.mg-op-section h3, .mg-op-toolbar h3, .mg-op-global h3 { font-family: var(--sans); font-size: 1rem; margin: 0 0 .8rem; }
+.mg-op-toolbar, .mg-op-row, .mg-op-save { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.mg-op-row { padding: .8rem 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+.mg-op-row > div { min-width: 0; flex: 1; }
+.mg-op-row p { margin: .4rem 0; }
+.mg-op-row, .mg-op-section p, .mg-op-section code, .mg-op-global { overflow-wrap: anywhere; }
+.mg-op-row .mg-st { margin-left: .5rem; }
+.mg-op-row button { flex-shrink: 0; }
+.mg-op-row small, .mg-op-row time, .mg-op-chart small { font-size: .75rem; color: var(--text2); }
+.mg-op-fields, .mg-op-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin: 1rem 0; }
+.mg-op-fields label { display: flex; flex-direction: column; gap: .5rem; font-family: var(--sans); font-size: .875rem; }
+.mg-op-fields input { width: 100%; min-width: 0; font-family: inherit; }
+.mg-op-stats span, .mg-op-stats b { display: block; }
+.mg-op-stats span { font-size: .8rem; color: var(--text2); margin-bottom: .5rem; }
+.mg-op-stats b { font-size: .95rem; }
+.mg-op-chart { margin: 1rem 0; color: var(--accent); }
+.mg-op-chart figcaption { color: var(--text-1); font-size: .875rem; }
+.mg-op-chart svg { width: 100%; max-height: 150px; }
+.mg-op-grid { stroke: var(--line); fill: none; }
+.mg-op-table { overflow-x: auto; }
+.mg-op-table table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+.mg-op-table td, .mg-op-table th { padding: .5rem; text-align: left; border-bottom: 1px solid var(--line); }
+.mg-op-save { position: sticky; bottom: 0; background: var(--surface); padding: .75rem 0; border-top: 1px solid var(--line); }
+.mg-op-global { padding: 1.25rem; overflow-y: auto; min-height: 0; }
+#mgOperationsGlobal { max-height: min(90vh,900px); }
+@media (max-width: 700px) {
+    .mg-op-fields { grid-template-columns: minmax(0,1fr); }
+    .mg-op-row { flex-wrap: wrap; }
+    .mg-op-row button, .mg-op-save button, .mg-op-toolbar button, #mgOperationsBtn { min-height: 44px; }
+    .mg-op-fields input { min-height: 44px; font-size: 16px; }
+    .mg-op-section { font-family: var(--sans); font-size: .875rem; }
+    .mg-op-global { padding: 1rem; }
+    #mgOperationsGlobal { max-width: 100%; width: 100%; max-height: var(--mg-vh,100dvh); }
+}
+
+@media (max-width:900px) {
+ .mg-panel:has(#mgp-operations:not([hidden])) .mg-acts,
+ .mg-panel:has(#mgp-operations:not([hidden])) .mg-ph-sub { display:none; }
+ .mg-panel:has(#mgp-operations:not([hidden])) .mg-ph { flex-shrink:0;max-height:none;overflow:visible; }
+ .mg-panel:has(#mgp-operations:not([hidden])) .mg-ph-top { position:static;margin-bottom:.5rem; }
+ .mg-ptab[data-tab=operations] { grid-column:1 / -1; }
+}

@@ -451,7 +451,7 @@ const OP_LABELS = {
     'services.deploy': 'Deploying', 'services.redeploy': 'Redeploying', 'services.delete': 'Deleting', 'services.action': 'Updating',
     'backups.create': 'Backing up', 'backups.restore': 'Restoring', 'webhook.test': 'Testing webhook'
 };
-const JOB_NOUN = { 'services.deploy': 'Deploy', 'services.redeploy': 'Redeploy', 'services.delete': 'Delete', 'services.action': 'Update', 'backups.create': 'Backup', 'backups.restore': 'Restore', 'webhook.test': 'Webhook test' };
+const JOB_NOUN = { 'services.deploy': 'Deploy', 'services.redeploy': 'Redeploy', 'services.delete': 'Delete', 'services.action': 'Update', 'backups.create': 'Backup', 'backups.restore': 'Restore', 'webhook.test': 'Webhook test', 'deployments.rollback': 'Rollback', 'backups.verify': 'Backup verification' };
 const jobLabel = j => j.label || OP_LABELS[j.op] || j.op;
 
 function trackJob(id, op, name, label) {
@@ -830,7 +830,7 @@ function bindRes(root, ns, defs, lims, onChange) {
 // ═══════════════════════════════════════════════════════════
 //   SERVICE PANEL (drawer on desktop, full-screen sheet on phone)
 // ═══════════════════════════════════════════════════════════
-const TABS = [['overview', 'Overview'], ['config', 'Configuration'], ['resources', 'Resources'], ['logs', 'Logs'], ['backups', 'Backups'], ['hook', 'Git &amp; Webhook']];
+const TABS = [['overview', 'Overview'], ['config', 'Configuration'], ['resources', 'Resources'], ['logs', 'Logs'], ['backups', 'Backups'], ['hook', 'Git &amp; Webhook'], ['operations', 'Operations']];
 const P = { name: null, gen: 0, tab: 'overview', d: null, busy: null, inited: new Set(), dirty: {}, timers: {}, logs: null, bk: null, hook: null, dp: null };
 let panelReturn = null;
 const panelOpen = () => !!P.name && $('mgPanel').open;
@@ -912,6 +912,7 @@ function afterJob(j) {
         if (['backups.create', 'backups.restore'].includes(j.op)) loadBackups();
         if (j.op === 'webhook.test') loadHook();
         if (P.tab === 'logs') loadLogs();
+        if (P.tab === 'operations' && !P.dirty.operations) loadOperations();
         renderPanelHead();
     }
 }
@@ -2063,4 +2064,113 @@ $('mgSettings').addEventListener('click', async e => {
     }
 });
 
+// Operations uses the existing service dialog, job transport and confirmation UI.
+const opTime = n => n ? new Date(n * 1000).toLocaleString() : '—';
+const opEmpty = text => `<p class="mg-muted">${esc(text)}</p>`;
+function collectorHtml(c) {
+    return `<div class="mg-note ${c.stale ? 'bad' : ''}" role="status"><b>${c.stale ? 'Collector needs attention' : 'Collector is running'}</b><p>Last cycle: ${esc(opTime(c.at))}. ${c.stale ? 'Restart the updated ATS daemon to collect health and resource samples and run configured backup schedules.' : 'Health and resource observations are sampled every minute.'}</p>${(c.errors || []).map(x => `<p>${esc(x.name)}: ${esc(x.error)}</p>`).join('')}</div>`;
+}
+function alertsHtml(rows) {
+    if (!rows.length) return opEmpty('No alerts recorded.');
+    return rows.map(r => `<article class="mg-op-row"><div><b>${esc(r.name)} · ${esc(r.kind)}</b><span class="mg-st ${r.active ? 'bad' : 'ok'}">${r.active ? 'Active' : 'Resolved'}</span><p>${esc(r.message)}</p><small>${esc(opTime(r.last_seen))}</small></div>${r.acknowledged ? '<span class="mg-muted">Acknowledged</span>' : `<button class="term-btn" data-op-ack="${r.id}">Acknowledge</button>`}</article>`).join('');
+}
+function activityHtml(rows) {
+    return rows.length ? rows.map(r => `<article class="mg-op-row"><div><b>${esc(r.action.replaceAll('_', ' '))}</b><p>${esc(r.target)} · ${esc(r.user)}</p></div><time>${esc(r.timestamp.replace('T', ' ').slice(0, 19))}</time></article>`).join('') : opEmpty('No activity recorded.');
+}
+function resourceChart(rows, key, label, unit) {
+    const values = rows.filter(r => Number.isFinite(r[key]));
+    if (!values.length) return opEmpty(`${label}: no measurements available yet.`);
+    const max = Math.max(...values.map(r => r[key]), 1), first = rows[0].at, span = Math.max(1, rows[rows.length - 1].at - first);
+    const points = values.map(r => `${10 + (r.at - first) / span * 480},${100 - r[key] / max * 80}`).join(' ');
+    return `<figure class="mg-op-chart"><figcaption>${esc(label)} · latest <b>${values[values.length - 1][key].toFixed(1)} ${unit}</b></figcaption><svg viewBox="0 0 500 115" role="img" aria-label="${esc(label)} history, maximum ${max.toFixed(1)} ${unit}"><path d="M10 20H490M10 60H490M10 100H490" class="mg-op-grid"/><polyline points="${points}" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="${points.split(' ').at(-1).split(',')[0]}" cy="${points.split(' ').at(-1).split(',')[1]}" r="3"/></svg><small>${esc(opTime(first))} → ${esc(opTime(rows.at(-1).at))} · ${values.length} samples</small></figure>`;
+}
+let operationsData = null, operationsGeneration = 0;
+PANES.operations = {
+    init() {
+        $('mgp-operations').innerHTML = '<div id="mgOperationsService" aria-live="polite"></div>';
+        loadOperations();
+    }
+};
+async function loadOperations() {
+    const gen = ++operationsGeneration, name = P.name;
+    const box = $('mgOperationsService');
+    if (!box) return;
+    box.innerHTML = opEmpty('Loading operations…');
+    const r = await GET(svcPath(name) + '/operations');
+    if (gen !== operationsGeneration || P.name !== name || !panelOpen()) return;
+    if (!r.ok) { box.innerHTML = `<div class="mg-note bad" role="alert">${esc(r.error)}</div><button class="term-btn" data-op-refresh>Retry</button>`; return; }
+    const d = operationsData = r.data, c = d.config;
+    const checked = d.samples.filter(x => x.health_ok != null);
+    const latest = checked.at(-1);
+    const cfgNumber = (key, label, lo, hi) => `<label>${label}<input class="filter-input" type="number" inputmode="numeric" min="${lo}" max="${hi}" name="${key}" value="${c[key]}" required></label>`;
+    box.innerHTML = `<div class="mg-op-toolbar"><h3>Operations</h3><button class="term-btn" data-op-refresh>Refresh</button></div>
+      ${collectorHtml(d.collector)}
+      <section class="mg-op-section"><h3>Alerts</h3>${alertsHtml(d.alerts)}</section>
+      <section class="mg-op-section"><h3>Deployment history</h3><p class="mg-muted">Current commit <code>${esc(d.current_commit || 'Unavailable')}</code>. History begins with this ATS version. Rollback rebuilds and restarts code; database and environment values are preserved.</p>
+      ${d.deployments.length ? d.deployments.map(x => `<article class="mg-op-row"><div><b>${esc(x.action)} · <code>${esc((x.commit_sha || x.before_sha || 'unknown').slice(0, 12))}</code></b><span class="mg-st ${x.status === 'success' ? 'ok' : x.status === 'failed' ? 'bad' : 'warn'}">${esc(x.status)}</span><p>${esc(opTime(x.started))} · ${esc(x.branch)}</p>${x.error ? `<p class="mg-bad">${esc(x.error)}</p>` : ''}</div>${x.rollback_available ? `<button class="term-btn" data-op-rollback="${x.id}">Roll back</button>` : ''}</article>`).join('') : opEmpty('No deployments recorded yet.')}</section>
+      <section class="mg-op-section"><h3>Health checks</h3><div class="mg-op-stats"><div><span>Latest HTTP check</span><b>${latest ? latest.health_ok ? 'Passed' : 'Failed' : 'Not sampled'}</b></div><div><span>Response time</span><b>${latest ? latest.latency_ms + ' ms' : '—'}</b></div><div><span>Observed availability</span><b>${d.health.observed_availability_pct == null ? '—' : d.health.observed_availability_pct + '%'}</b></div><div><span>Consecutive failures</span><b>${d.health.failure_streak}</b></div></div><p class="mg-muted">Availability covers ${d.health.observations} retained observations, rather than continuous uptime. Checks request this service's local port without following redirects.</p>${latest?.error ? `<p class="mg-bad">${esc(latest.error)}</p>` : ''}</section>
+      <form id="mgOperationsForm"><section class="mg-op-section"><h3>Health configuration</h3><label class="toggle-label"><input name="health_enabled" type="checkbox" ${c.health_enabled ? 'checked' : ''}> Enable HTTP checks</label><div class="mg-op-fields"><label>Local path<input class="filter-input" name="health_path" value="${esc(c.health_path)}" maxlength="512" required></label>${cfgNumber('expected_status','Expected HTTP status',100,599)}${cfgNumber('timeout_seconds','Timeout (seconds)',1,10)}${cfgNumber('failure_threshold','Failures before alert',1,20)}</div></section>
+      <section class="mg-op-section"><h3>Scheduled backups</h3><p class="mg-muted">Local database backups. Retention applies only to backups made by this schedule after a new backup passes archive verification.</p>${d.schedule.legacy_midnight ? '<p class="mg-note">The legacy midnight backup is still active. Saving these settings replaces it for this service, including when the schedule is disabled.</p>' : ''}<div class="mg-op-stats"><div><span>Next run</span><b>${esc(opTime(d.schedule.next_backup))}</b></div><div><span>Last backup</span><b>${esc(opTime(d.schedule.last_backup))}</b></div><div><span>Last archive verification</span><b>${esc(opTime(d.schedule.verified_at))}</b></div></div>${d.schedule.last_error ? `<p class="mg-bad">${esc(d.schedule.last_error)}</p>` : ''}<p class="mg-muted">Archive verification checks checksum and ZIP integrity. An application restore test is still needed to prove recovery.</p><label class="toggle-label"><input name="backup_enabled" type="checkbox" ${c.backup_enabled ? 'checked' : ''}> Enable scheduled backups</label><div class="mg-op-fields">${cfgNumber('interval_hours','Interval (hours)',1,720)}${cfgNumber('retain_count','Scheduled backups to retain',1,100)}</div></section><div class="mg-op-save"><span id="mgOpSaveStatus" role="status"></span><button class="term-btn" type="submit">Save settings</button></div></form>
+      <section class="mg-op-section"><h3>Resource history</h3><p class="mg-muted">CPU uses one core = 100%. Missing systemd measurements remain unavailable.</p>${resourceChart(d.samples,'cpu_percent','CPU','%')}${resourceChart(d.samples,'memory_mb','Memory','MB')}
+      <details><summary>Recent samples</summary><div class="mg-op-table"><table><thead><tr><th>Time</th><th>CPU</th><th>Memory</th><th>State</th></tr></thead><tbody>${d.samples.slice(-20).reverse().map(x => `<tr><td>${esc(opTime(x.at))}</td><td>${x.cpu_percent == null ? '—' : x.cpu_percent.toFixed(1) + '%'}</td><td>${x.memory_mb == null ? '—' : x.memory_mb.toFixed(1) + ' MB'}</td><td>${esc(x.status)}</td></tr>`).join('')}</tbody></table></div></details></section>
+      <section class="mg-op-section"><h3>Webhook activity</h3><p class="mg-muted">Signed deliveries, branch decisions and deployment outcomes. Manual tests do not check a GitHub signature.</p>${d.webhook_events.length ? d.webhook_events.map(x => `<article class="mg-op-row"><div><b>${esc(x.event || 'unknown')} · ${esc(x.result)}</b><p>Signature: ${esc(x.signature || 'unknown')} · ${esc(x.ref || '—')}</p><p>${esc(x.message)}</p><small>${esc(x.timestamp)}${x.delivery ? ' · ' + esc(x.delivery) : ''}</small></div></article>`).join('') : opEmpty('No deliveries recorded.')}</section>
+      <section class="mg-op-section"><h3>Activity history</h3>${activityHtml(d.activity)}</section>`;
+    P.dirty.operations = false;
+    const form = $('mgOperationsForm');
+    form.addEventListener('input', () => { P.dirty.operations = true; });
+    form.addEventListener('submit', async e => {
+        e.preventDefault(); const serviceName = P.name;
+        const data = Object.fromEntries(new FormData(form));
+        for (const k of ['health_enabled','backup_enabled']) data[k] = form.elements[k].checked;
+        for (const k of ['expected_status','timeout_seconds','failure_threshold','interval_hours','retain_count']) data[k] = Number(data[k]);
+        const button = form.querySelector('button[type=submit]'); button.disabled = true;
+        const result = await PUT(svcPath(serviceName) + '/operations', data);
+        if (P.name !== serviceName || !panelOpen()) return;
+        button.disabled = false;
+        $('mgOpSaveStatus').textContent = result.ok ? 'Saved' : result.error;
+        if (result.ok) { P.dirty.operations = false; loadOperations(); }
+    });
+}
+document.addEventListener('click', async e => {
+    const refresh = e.target.closest('[data-op-refresh]');
+    if (refresh) {
+        if (P.dirty.operations && !await confirmDlg({title:'Discard unsaved settings?',confirm:'Discard',body:'<p>Refreshing replaces the unsaved health and backup settings.</p>'})) return;
+        loadOperations(); return;
+    }
+    const ack = e.target.closest('[data-op-ack]');
+    if (ack) {
+        ack.disabled = true; const r = await POST('/alerts/' + ack.dataset.opAck + '/ack', {});
+        if (!r.ok) { ack.disabled = false; toast(r.error, true); return; }
+        if ($('mgOperationsGlobal').open) loadGlobalOperations();
+        else if (P.tab === 'operations' && !P.dirty.operations) loadOperations();
+        else { ack.textContent = 'Acknowledged'; }
+        return;
+    }
+    const rollback = e.target.closest('[data-op-rollback]');
+    if (rollback) {
+        const name = P.name, id = Number(rollback.dataset.opRollback);
+        const row = operationsData?.deployments.find(x => x.id === id);
+        if (!row || !await confirmDlg({title:'Roll back ' + name + '?',danger:true,confirm:'Roll back',type:name,body:`<p>Restore code to <code>${esc(row.commit_sha)}</code>, rebuild dependencies and restart this service. Database and environment values remain unchanged. Type <b>${esc(name)}</b> to confirm.</p>`})) return;
+        adoptJob(await POST(svcPath(name) + '/rollback', {deployment_id:id,confirm:name}), 'Rolling back', true);
+    }
+});
+const globalOps = document.createElement('dialog');
+globalOps.id = 'mgOperationsGlobal'; globalOps.className = 'mg-wide';
+globalOps.setAttribute('aria-labelledby','mgOpsTitle');
+globalOps.innerHTML = '<div class="dk-dhead"><h2 id="mgOpsTitle">Alerts &amp; activity</h2><button class="term-btn" data-close>Close</button></div><div class="mg-op-global" id="mgOpsGlobalBody"></div>';
+document.body.append(globalOps);
+const globalButton = document.createElement('button'); globalButton.id = 'mgOperationsBtn';
+globalButton.className = 'term-btn'; globalButton.textContent = 'Alerts & activity';
+$('mgSettingsBtn').before(globalButton);
+globalButton.addEventListener('click', () => { openDlg(globalOps); loadGlobalOperations(); });
+async function loadGlobalOperations(badgeOnly = false) {
+    const r = await GET('/operations');
+    if (!r.ok) { if (!badgeOnly) $('mgOpsGlobalBody').innerHTML = `<div class="mg-note bad" role="alert">${esc(r.error)}</div>`; return; }
+    const active = r.data.alerts.filter(x => x.active && !x.acknowledged).length;
+    globalButton.textContent = active ? `Alerts & activity · ${active}` : 'Alerts & activity';
+    globalButton.classList.toggle('mg-bad', active > 0);
+    if (!badgeOnly || globalOps.open) $('mgOpsGlobalBody').innerHTML = collectorHtml(r.data.collector) + '<h3>Alerts</h3>' + alertsHtml(r.data.alerts) + '<h3>Activity history</h3>' + activityHtml(r.data.activity);
+}
+setInterval(() => { if (!document.hidden && $('tab-manage').classList.contains('active')) loadGlobalOperations(true); }, 30000);
+globalOps.addEventListener('keydown', e => { if (e.key === 'Escape') globalOps.close(); });
 })();

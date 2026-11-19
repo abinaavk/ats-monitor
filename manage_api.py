@@ -877,3 +877,51 @@ def jobs_list():
                 rows.append({k: m.get(k) for k in ('id', 'op', 'name', 'status', 'started', 'finished')})
     rows.sort(key=lambda r: r.get('started') or '', reverse=True)
     return _ok({'jobs': rows[:JOB_LIST_LIMIT]})
+
+
+@bp.route('/operations')
+def operations_overview():
+    return _sync('operations.get')
+
+
+@bp.route('/services/<name>/operations', methods=['GET', 'PUT'])
+def service_operations(name):
+    name = _name(name)
+    if request.method == 'GET':
+        return _sync('operations.get', {'name': name})
+    src = _body()
+    _reject_unknown(src, {'health_enabled', 'health_path', 'expected_status', 'timeout_seconds',
+                          'failure_threshold', 'backup_enabled', 'interval_hours', 'retain_count'}, 'operations')
+    for key in ('health_enabled', 'backup_enabled'):
+        if key in src: _bool(src[key], key)
+    for key, lo, hi in (('expected_status', 100, 599), ('timeout_seconds', 1, 10),
+                        ('failure_threshold', 1, 20), ('interval_hours', 1, 720), ('retain_count', 1, 100)):
+        if key in src: src[key] = _int(src[key], key, lo, hi)
+    if 'health_path' in src and (not isinstance(src['health_path'], str) or len(src['health_path']) > 512):
+        raise ApiError('Invalid health path')
+    return _sync('operations.set', dict(src, name=name))
+
+
+@bp.route('/services/<name>/rollback', methods=['POST'])
+def service_rollback(name):
+    name = _name(name)
+    src = _body()
+    _reject_unknown(src, {'deployment_id', 'confirm'}, 'rollback')
+    if src.get('confirm') != name: raise ApiError('type the service name to confirm rollback')
+    args = {'name': name, 'confirm': name, 'deployment_id': _int(src.get('deployment_id'), 'deployment_id', 1, 2147483647)}
+    return _job_accepted(start_job('deployments.rollback', name, args), 'deployments.rollback', name)
+
+
+@bp.route('/alerts/<int:ident>/ack', methods=['POST'])
+def acknowledge_alert(ident):
+    _reject_unknown(_body(), set(), 'acknowledgement')
+    return _sync('alerts.ack', {'id': _int(ident, 'id', 1, 2147483647)})
+
+
+@bp.route('/backups/verify', methods=['POST'])
+def verify_backup():
+    src = _body()
+    _reject_unknown(src, {'name', 'id'}, 'verification')
+    name = _name(src.get('name'))
+    args = {'name': name, 'id': _int(src.get('id'), 'id', 1, 2147483647)}
+    return _job_accepted(start_job('backups.verify', name, args), 'backups.verify', name)
