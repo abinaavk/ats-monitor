@@ -1183,6 +1183,7 @@ PANES.config = {
         const d = P.d, el = $('mgp-config'), dock = d.runtime === 'docker';
         const redacted = /\*\*\*/.test(d.repo_url || '');
         el.innerHTML = `<form class="mg-form" id="mgCfg" novalidate autocomplete="off">
+            <div class="mg-config-fields">
             <div id="mgCfgErr"></div>
             ${domainFieldHtml('cf', d.domain)}
             <div class="mg-f"><label for="cf-port">Port</label>
@@ -1198,6 +1199,7 @@ PANES.config = {
                 <p class="mg-hint">The port the app listens on inside the container. Published on 127.0.0.1:${num(d.port)}.</p></div>` : ''}
             <div class="mg-f"><span class="mg-lbl" id="cf-env-l">Environment variables</span>${envEditorHtml('cf', d.env)}
                 <p class="mg-hint">Stored in the service's <code>.ats.env</code> (mode 0600). Values are masked until you choose to show them.</p></div>
+            </div>
             <div class="mg-formbar"><span class="mg-fstate" id="cf-state" aria-live="polite">No changes</span>
                 <button type="button" class="term-btn mg-lg" id="cf-discard" disabled>Discard</button><button type="submit" class="dk-primary mg-lg" id="cf-save" disabled>Review and save</button></div>
         </form>`;
