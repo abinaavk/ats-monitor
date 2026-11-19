@@ -1,0 +1,261 @@
+.st-layout {
+    display:grid;
+    grid-template-columns:180px minmax(0,1fr);
+    gap:28px;
+    max-width:1120px
+}
+.st-nav {
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-self:start
+}
+.st-nav .term-btn {
+    text-align:left;
+    min-height:44px;
+    font-family:var(--sans);
+    font-size:.9rem
+}
+.st-nav .active {
+    border-color:var(--accent);
+    color:var(--text-1);
+    background:var(--accent-soft)
+}
+.st-content {
+    min-width:0
+}
+.st-panel {
+    padding:24px;
+    background:var(--surface);
+    border:1px solid var(--line)
+}
+.st-panel[hidden] {
+    display:none
+}
+.st-panel h2,.st-dialog h2 {
+    font-family:var(--sans);
+    font-size:1.25rem;
+    margin:0 0 12px
+}
+.st-panel h3 {
+    font-family:var(--sans);
+    font-size:1rem;
+    margin:0 0 12px
+}
+.st-panel p,.st-dialog p {
+    font-family:var(--sans);
+    font-size:.9375rem;
+    line-height:1.6;
+    color:var(--text-2);
+    margin:0 0 20px
+}
+.st-panel .st-note {
+    font-size:.85rem;
+    color:var(--text-3);
+    margin-top:18px
+}
+.st-panel .term-btn,.st-dialog .term-btn {
+    min-height:44px;
+    font-family:var(--sans);
+    white-space:normal
+}
+.st-panel label,.st-dialog label {
+    display:block;
+    font-size:.9rem;
+    margin-bottom:8px
+}
+.st-panel input,.st-dialog input {
+    display:block;
+    width:100%;
+    max-width:420px;
+    min-height:44px;
+    margin-bottom:16px;
+    font:inherit;
+    font-size:16px
+}
+.st-policy {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin-bottom:24px
+}
+.st-policy article {
+    padding:18px;
+    border:1px solid var(--line);
+    background:var(--bg-2)
+}
+.st-badge {
+    display:inline-flex;
+    padding:4px 8px;
+    border:1px solid var(--line);
+    font:500 .75rem var(--sans);
+    color:var(--text-2)
+}
+.st-badge.trusted {
+    color:var(--ok);
+    border-color:var(--ok)
+}
+.st-badge.current {
+    color:var(--accent);
+    border-color:var(--accent)
+}
+.st-heading {
+    display:flex;
+    gap:18px;
+    align-items:start;
+    justify-content:space-between;
+    flex-wrap:wrap
+}
+.st-actions {
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap
+}
+.st-device {
+    padding:20px 0;
+    border-top:1px solid var(--line)
+}
+.st-device h3 {
+    overflow-wrap:anywhere;
+    margin:0 0 10px
+}
+.st-device p {
+    margin:12px 0;
+    color:var(--text-2);
+    overflow-wrap:anywhere
+}
+.st-device .st-badges {
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap
+}
+.st-audit {
+    list-style:none;
+    padding:0;
+    max-height:260px;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    margin:16px 0 0
+}
+.st-audit li {
+    padding:10px 0;
+    border-top:1px solid var(--line);
+    font:.85rem/1.5 var(--sans);
+    overflow-wrap:anywhere
+}
+.st-audit time {
+    display:block;
+    color:var(--text-3)
+}
+.st-message:empty {
+    display:none
+}
+.st-message {
+    padding:12px;
+    border:1px solid var(--line);
+    line-height:1.5;
+    color:var(--text-1)
+}
+.st-message.error,#stConfirmError {
+    color:var(--bad)
+}
+.st-dialog {
+    background:var(--surface);
+    color:var(--text-1);
+    border:1px solid var(--line);
+    padding:24px;
+    max-width:560px;
+    width:calc(100% - 32px);
+    max-height:calc(100dvh - 40px);
+    overflow:auto;
+    overscroll-behavior:contain
+}
+.st-dialog::backdrop {
+    background:rgba(0,0,0,.65)
+}
+.st-dialog dl {
+    display:grid;
+    grid-template-columns:140px minmax(0,1fr);
+    gap:12px;
+    font:.9rem/1.5 var(--sans)
+}
+.st-dialog dt {
+    color:var(--text-3)
+}
+.st-dialog dd {
+    margin:0;
+    overflow-wrap:anywhere
+}
+.st-panel .theme-picker {
+    display:block;
+    max-width:360px
+}
+.st-panel .theme-btn {
+    display:none
+}
+.st-panel .theme-dots {
+    position:static;
+    display:grid!important;
+    grid-template-columns:1fr 1fr;
+    opacity:1;
+    visibility:visible;
+    transform:none;
+    width:auto;
+    box-shadow:none;
+    padding:0;
+    border:0;
+    gap:12px
+}
+.st-panel .theme-opt {
+    min-height:64px;
+    border:1px solid var(--line);
+    font:500 1rem var(--sans);
+    padding:12px
+}
+.st-panel .theme-opt.active {
+    border-color:var(--accent);
+    background:var(--accent-soft)
+}
+@media(max-width:800px) {
+    .st-layout {
+        grid-template-columns:1fr;
+        gap:16px
+    }
+    .st-nav {
+        flex-direction:row;
+        flex-wrap:wrap;
+        gap:6px
+    }
+    .st-nav .term-btn {
+        flex:1 1 100px;
+        text-align:center
+    }
+    .st-panel {
+        padding:18px
+    }
+    .st-policy {
+        grid-template-columns:1fr
+    }
+    .st-heading {
+        gap:12px
+    }
+    .st-heading .st-actions {
+        width:100%
+    }
+    .st-heading .term-btn {
+        flex:1
+    }
+    .st-dialog {
+        padding:20px
+    }
+    .st-dialog dl {
+        grid-template-columns:1fr;
+        gap:4px
+    }
+    .st-dialog dd {
+        margin-bottom:10px
+    }
+    .st-device .st-actions .term-btn {
+        flex:1 1 100px
+    }
+}
