@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/static/css/style.css">
 <link rel="stylesheet" href="/static/css/manage.css">
 <link rel="stylesheet" href="/static/css/settings.css">
+<link rel="stylesheet" href="/static/css/servers.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
@@ -55,6 +56,7 @@
     </div>
   </div>
 </header>
+<div class="server-control" aria-label="Active server"><label for="activeServer">Target server</label><select id="activeServer" disabled aria-describedby="activeServerStatus"></select><span id="activeServerStatus" role="status">Connecting</span></div>
 
 <nav class="tabbar" id="tabbar" aria-label="Primary">
   <button class="tb-btn active" data-tab="overview" aria-current="page"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="6" height="6"/><rect x="11" y="3" width="6" height="6"/><rect x="3" y="11" width="6" height="6"/><rect x="11" y="11" width="6" height="6"/></svg><span>Overview</span></button>
@@ -384,6 +386,7 @@
       <button class="term-btn" id="st-nav-security" aria-controls="st-security" data-settings="security"><span>Security</span><small>Authentication policies</small></button>
       <button class="term-btn" id="st-nav-appearance" aria-controls="st-appearance" data-settings="appearance"><span>Appearance</span><small>Themes for this browser</small></button>
       <button class="term-btn" id="st-nav-devices" aria-controls="st-devices" data-settings="devices"><span>Devices</span><small>Sessions & trusted access</small></button>
+      <button class="term-btn" id="st-nav-servers" aria-controls="st-servers" data-settings="servers"><span>Servers</span><small>Local &amp; Global control</small></button>
     </nav>
     <div class="st-content">
       <p id="stMessage" class="st-message" role="status" aria-live="polite"></p>
@@ -404,6 +407,7 @@
           </div>
         </div>
 </section>
+      <section class="st-panel" id="st-servers" aria-labelledby="st-nav-servers" hidden><h2>Servers</h2><p>The primary Local hosts Monitor and the only GitHub webhook receiver. Pair Global servers using their private setup file. Credentials are sent to Local and never saved in this browser.</p><p id="serversMessage" role="status"></p><button class="term-btn" id="refreshServers">Refresh servers</button><div id="serverList"></div><h3>Pair a Global server</h3><form id="pairServer" autocomplete="off"><label>Server name<input name="serverName" required maxlength="64"></label><label>HTTPS API origin<input name="serverDomain" type="url" placeholder="https://api.example.com" required></label><label>Stable server ID<input name="serverId" required pattern="[0-9a-f]{32}"></label><label>Private pairing secret<input id="serverSecret" type="password" required pattern="[0-9a-f]{64}" autocomplete="off"></label><button type="submit" class="term-btn">Pair and validate</button></form><p class="st-note">Disconnect preserves credentials. Reconnect validates connectivity. Revoke removes Global API credentials and requires fresh operator pairing.</p></section>
       <section class="st-panel" id="st-devices" aria-labelledby="st-nav-devices" hidden><div class="st-heading"><div><h2>Devices</h2><p>Browsers registered by successful password sign-ins.</p></div><div class="st-actions"><button class="term-btn" id="stRefreshDevices">Refresh</button><button class="term-btn st-sensitive" id="stLogoutOthers">Log out all other devices</button></div></div><p class="st-note">Records begin after this update. Browser profiles and private windows register separately. Device descriptions are inferred, not verified identities.</p><div id="stDevices" aria-live="polite"></div><h3>Security activity</h3><ol id="stAudit" class="st-audit" tabindex="0" aria-label="Recent security activity"></ol></section>
     </div>
   </div>
@@ -416,6 +420,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/static/js/servers.js"></script>
 <script src="/static/js/main.js"></script>
 <script src="/static/js/docker.js"></script>
 <script src="/static/js/manage.js"></script>

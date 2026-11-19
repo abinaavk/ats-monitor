@@ -1,0 +1,6 @@
+.server-control{display:flex;align-items:center;gap:10px;padding:8px clamp(12px,3vw,40px);border-bottom:1px solid var(--line);background:var(--surface);flex-wrap:wrap;font-size:12px}
+.server-control label{font-weight:600}.server-control select{max-width:min(60vw,360px);min-height:36px;background:var(--bg);color:var(--text-1);border:1px solid var(--line);border-radius:5px;padding:6px}
+#activeServerStatus{margin-left:auto}#pairServer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:720px}#pairServer label{display:flex;flex-direction:column;gap:6px;min-width:0}#pairServer input{width:100%;box-sizing:border-box;min-height:42px;padding:10px;color:var(--text-1);background:var(--bg);border:1px solid var(--line);border-radius:5px}#serversMessage{min-height:1.5em;overflow-wrap:anywhere}#serverList{margin-top:20px}#serverList button{margin:4px 8px 4px 0}.error{color:var(--bad)}
+@media(max-width:600px){#pairServer{grid-template-columns:1fr}.server-control{gap:6px}.server-control select{flex:1;min-width:0}#activeServerStatus{font-size:11px}}
+
+@media(min-width:901px){.server-control{margin-left:var(--side-w);position:sticky;top:0;z-index:20}}

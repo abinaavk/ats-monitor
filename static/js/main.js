@@ -574,6 +574,7 @@ function termShowOverlay(title, sub) {
 function termHideOverlay() { document.getElementById('term-overlay').hidden = true; }
 
 function termReconnect() {
+    if (!term || !socket) { initTerminal(); return; }
     termHideOverlay();
     term.reset();
     if (socket.connected) socket.disconnect();
@@ -600,6 +601,8 @@ function termSyncViewport() {
 }
 
 function initTerminal() {
+    if (!window.atsTarget) { termShowOverlay('Target unavailable', 'Wait for server connectivity or select an available server.'); return; }
+    if (!window.atsTarget.local) { termShowOverlay('Remote terminal unavailable', 'This Global API does not provide an interactive terminal transport. Use the operator SSH connection for this server.'); return; }
     if (term) {
         if (socket && !socket.connected) termReconnect();
         return;
@@ -632,7 +635,7 @@ function initTerminal() {
     setTimeout(termFit, 150);
     setTimeout(termFit, 500);
 
-    socket = io('/terminal', { autoConnect: false, forceNew: true, reconnectionAttempts: 3 });
+    socket = io('/terminal', { autoConnect: false, forceNew: true, query: {server: window.atsTarget.id}, reconnectionAttempts: 3 });
 
     socket.on('connect', () => {
         const statusEl = document.getElementById('term-status');

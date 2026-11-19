@@ -384,6 +384,10 @@ def register_shell(socketio, ns='/docker-shell', app=None):
 
     @socketio.on('connect', namespace=ns)
     def _connect():
+        from cluster_support import configured_node
+        node = configured_node()
+        if node and (request.args.get('server') != node['id'] or node['role'] != 'local'):
+            return False
         if not security.socket_authorized(session.get('auth_id')):
             return False
         cid = _ref(request.args.get('container'))
