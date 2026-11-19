@@ -97,6 +97,7 @@ function stInfo(s) {
 }
 const stHtml = s => { const [c, l] = stInfo(s); return `<span class="mg-st ${c}">${l}</span>`; };
 const groupOf = s => (s.status === 'active' || s.status === 'activating') ? 'running' : s.status === 'failed' ? 'failed' : 'stopped';
+const needsAttention = s => s.status === 'failed' || (s.status === 'active' && s.healthy === false);
 const isRunning = s => s && (s.status === 'active' || s.status === 'activating');
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -292,7 +293,7 @@ function sortVal(s, k) {
 function visibleServices() {
     const q = mg.query.toLowerCase();
     const rows = mg.services.filter(s =>
-        (mg.filter === 'all' || groupOf(s) === mg.filter) &&
+        (mg.filter === 'all' || (mg.filter === 'attention' ? needsAttention(s) : groupOf(s) === mg.filter)) &&
         (mg.runtime === 'all' || s.runtime === mg.runtime) &&
         (!q || [s.name, s.domain, s.repo_url, s.port, s.runtime, s.branch].join(' ').toLowerCase().includes(q)));
     const { key, dir } = mg.sort;
@@ -320,9 +321,9 @@ function lastDeployCell(s) {
 
 function rowHtml(s) {
     const link = s.domain ? `<a href="https://${esc(s.domain)}" target="_blank" rel="noopener noreferrer" class="mg-dom" title="Open ${esc(s.domain)}">${esc(s.domain)}</a>` : '<span class="mg-muted">none</span>';
-    return `<tr class="mg-row" data-name="${esc(s.name)}">
+    return `<tr class="mg-row${needsAttention(s) ? ' mg-attention' : ''}" data-name="${esc(s.name)}">
         <td class="c-status" data-label="Status">${stHtml(s)}</td>
-        <td class="c-name" data-label="Service"><button class="mg-name" data-open="${esc(s.name)}" aria-label="Open ${esc(s.name)}">${esc(s.name)}</button><span class="mg-sub">${esc(repoShort(s.repo_url))} · ${esc(s.branch)}</span></td>
+        <td class="c-name" data-label="Service"><button class="mg-name" data-open="${esc(s.name)}" aria-label="Open ${esc(s.name)}">${esc(s.name)}</button><span class="mg-sub">${esc(repoShort(s.repo_url))} · ${esc(s.branch)}</span><div class="mg-shortcuts"><button class="term-btn" data-service-tab="logs" aria-label="View logs for ${esc(s.name)}">Logs</button><button class="term-btn" data-service-tab="resources" aria-label="Edit resources for ${esc(s.name)}">Resources</button></div></td>
         <td class="c-rt" data-label="Runtime">${rtBadge(s.runtime)}</td>
         <td class="c-dom" data-label="Domain">${link}</td>
         <td class="c-port" data-label="Port">${num(s.port)}</td>
@@ -341,6 +342,13 @@ function renderList() {
     if (mg.err && !mg.loaded) { $('mgChips').innerHTML = ''; el.innerHTML = errBlock(mg.err, 'retry'); return; }
     renderChips();
     const rows = visibleServices();
+    const filtered = mg.filter !== 'all' || mg.runtime !== 'all' || !!mg.query;
+    const attention = mg.services.filter(needsAttention).length;
+    $('mgResultCount').textContent = `${rows.length} of ${mg.services.length} services`;
+    $('mgClearFilters').hidden = !filtered;
+    $('mgAttention').textContent = `Needs attention · ${attention}`;
+    $('mgAttention').hidden = !attention && mg.filter !== 'attention';
+    $('mgAttention').setAttribute('aria-pressed', String(mg.filter === 'attention'));
     const banner = mg.err ? `<div class="mg-note bad" role="alert">Last refresh failed: ${esc(mg.err.error)}. Showing the previous data. <button class="mg-link" data-act="retry">Retry</button></div>` : '';
     if (!mg.services.length) {
         el.innerHTML = banner + emptyBlock('No services yet', 'Deploy a service from a Git repository. The monitor will pick it up here once ats has created it.',
@@ -364,7 +372,7 @@ $('mgRuntime').addEventListener('change', e => { mg.runtime = e.target.value; re
 $('tab-manage').addEventListener('click', e => {
     const t = e.target;
     let b;
-    if ((b = t.closest('[data-filter]'))) { mg.filter = b.dataset.filter; renderList(); return; }
+    if ((b = t.closest('[data-filter]'))) { mg.filter = b.dataset.filter; renderList(); qs(`[data-filter="${mg.filter}"]`, $('tab-manage'))?.focus({ preventScroll: true }); return; }
     if ((b = t.closest('[data-sort]'))) {
         const k = b.dataset.sort;
         mg.sort = { key: k, dir: mg.sort.key === k ? -mg.sort.dir : 1 };
@@ -376,12 +384,12 @@ $('tab-manage').addEventListener('click', e => {
         const a = b.dataset.act;
         if (a === 'retry') { fetchManage(true); return; }
         if (a === 'deploy') { openDeploy(); return; }
-        if (a === 'clear-filters') { mg.filter = 'all'; mg.runtime = 'all'; mg.query = ''; $('mgSearch').value = ''; $('mgRuntime').value = 'all'; renderList(); return; }
+        if (a === 'clear-filters') { mg.filter = 'all'; mg.runtime = 'all'; mg.query = ''; $('mgSearch').value = ''; $('mgRuntime').value = 'all'; renderList(); $('mgSearch').focus({ preventScroll: true }); return; }
         if (a === 'job-view') { const j = mg.jobs.get(b.dataset.job); if (j) openJob(j); return; }
     }
     if (t.closest('a')) return;
     const row = t.closest('.mg-row');
-    if (row) openPanel(row.dataset.name);
+    if (row) openPanel(row.dataset.name, t.closest('[data-service-tab]')?.dataset.serviceTab || 'overview');
 });
 $('mgSettingsBtn').addEventListener('click', () => openSettings());
 $('mgDeployBtn').addEventListener('click', () => openDeploy());
@@ -824,6 +832,7 @@ function bindRes(root, ns, defs, lims, onChange) {
 // ═══════════════════════════════════════════════════════════
 const TABS = [['overview', 'Overview'], ['config', 'Configuration'], ['resources', 'Resources'], ['logs', 'Logs'], ['backups', 'Backups'], ['hook', 'Git &amp; Webhook']];
 const P = { name: null, gen: 0, tab: 'overview', d: null, busy: null, inited: new Set(), dirty: {}, timers: {}, logs: null, bk: null, hook: null, dp: null };
+let panelReturn = null;
 const panelOpen = () => !!P.name && $('mgPanel').open;
 const curSvc = () => {
     const s = mg.services.find(x => x.name === P.name) || {};
@@ -832,6 +841,7 @@ const curSvc = () => {
 const svcJob = () => [...mg.jobs.values()].find(j => j.name === P.name && j.status === 'running');
 
 async function openPanel(name, tab = 'overview') {
+    panelReturn = { name, tab, fromList: !!document.activeElement?.closest('.mg-row') };
     clearPanelTimers();
     P.gen++; P.name = name; P.tab = tab; P.d = null; P.busy = null; P.inited = new Set(); P.dirty = {};
     P.logs = { source: 'stdout', lines: 300, grep: '', follow: false, data: null, busy: false, first: true };
@@ -945,7 +955,13 @@ async function requestClosePanel() {
     closeDlg($('mgPanel'));
 }
 $('mgPanel').addEventListener('cancel', e => { if (Object.values(P.dirty).some(Boolean)) { e.preventDefault(); requestClosePanel(); } });
-$('mgPanel').addEventListener('close', () => { clearPanelTimers(); P.gen++; P.name = null; });
+$('mgPanel').addEventListener('close', () => { clearPanelTimers(); P.gen++; P.name = null;
+    if (panelReturn?.fromList) {
+        const row = qsa('.mg-row').find(r => r.dataset.name === panelReturn.name);
+        const target = panelReturn.tab === 'overview' ? row?.querySelector('[data-open]') : row?.querySelector(`[data-service-tab="${panelReturn.tab}"]`);
+        (target || $('mgSearch')).focus({ preventScroll: true });
+    }
+});
 // the back/close button should honour unsaved changes too
 $('mgPanel').addEventListener('click', e => {
     if (e.target.closest('.mg-back')) { e.stopImmediatePropagation(); requestClosePanel(); }

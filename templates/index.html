@@ -133,11 +133,16 @@
   <div class="mg-jobs" id="mgJobs" hidden aria-label="Running operations"></div>
   <div id="mgBody">
     <div class="mg-toolbar">
-      <input class="filter-input dk-search" type="search" id="mgSearch" placeholder="Search name, domain, repo, port..." aria-label="Search services" autocomplete="off">
+      <input class="filter-input dk-search" type="search" id="mgSearch" placeholder="Search name, domain, repo, port..." aria-label="Search services" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
       <select class="filter-input" id="mgRuntime" aria-label="Filter by runtime"><option value="all">All runtimes</option><option value="python">Python</option><option value="node">Node</option><option value="docker">Docker</option></select>
       <select class="filter-input mg-sortsel" id="mgSortSel" aria-label="Sort services"><option value="name">Sort: name</option><option value="status">Sort: status</option><option value="dep">Sort: last deploy</option><option value="runtime">Sort: runtime</option><option value="domain">Sort: domain</option><option value="port">Sort: port</option></select>
     </div>
     <div class="dk-chips" id="mgChips" role="group" aria-label="Filter by status"></div>
+    <div class="mg-results">
+      <span id="mgResultCount" role="status" aria-live="polite"></span>
+      <button class="term-btn" id="mgAttention" data-filter="attention" aria-pressed="false" hidden></button>
+      <button class="mg-link" id="mgClearFilters" data-act="clear-filters" hidden>Clear filters</button>
+    </div>
     <div id="mgList" aria-live="polite"></div>
   </div>
 </section>

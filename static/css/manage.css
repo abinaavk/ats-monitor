@@ -578,3 +578,25 @@ body:has(dialog.mg-panel[open], dialog.mg-wide[open]) { overflow: hidden; }
     .mg-ph { max-height: 45%; }
     .mg-acts { margin: 0.5rem 0; }
 }
+
+/* Service discovery and direct access to frequent phone tasks. */
+.mg-results { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.75rem; color: var(--text-2); }
+.mg-results [hidden] { display: none; }
+#mgAttention { color: var(--warn); min-height: 36px; }
+#mgAttention[aria-pressed="true"] { border-color: var(--warn); background: var(--surface-2); }
+.mg-shortcuts { display: none; }
+@media (max-width: 900px) {
+    .mg-results { gap: 0.25rem 0.5rem; }
+    #mgResultCount { flex: 1 0 100%; }
+    #mgAttention, #mgClearFilters { min-height: 44px; padding: 0 10px; }
+    .mg-row.mg-attention { border-left: 3px solid var(--warn); }
+    .mg-shortcuts { display: flex; gap: 0.5rem; padding-top: 0.5rem; }
+    .mg-shortcuts .term-btn { min-height: 44px; flex: 1; }
+    .mg-row { grid-template-areas: "name status" "dom dom" "rt port" "res res" "dep auto" "quick quick"; }
+    .mg-row .c-name { display: contents; }
+    .mg-name { grid-area: name; }
+    .mg-sub { display: none; }
+    .mg-shortcuts { grid-area: quick; border-top: 1px solid var(--line); }
+    .mg-ph-title h2 { white-space: normal; overflow-wrap: anywhere; }
+    .mg-row:focus-within { outline: 2px solid var(--text-2); outline-offset: 2px; }
+}
