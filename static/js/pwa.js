@@ -4,6 +4,7 @@
         navigator.serviceWorker.register('/sw.js', {updateViaCache: 'none'}).catch(() => {});
     }
     const box = document.getElementById('pwaInstall');
+    if (!box) return;
     const button = document.getElementById('pwaInstallButton');
     const help = document.getElementById('pwaInstallHelp');
     const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;

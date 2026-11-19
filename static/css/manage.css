@@ -725,3 +725,19 @@ body:has(dialog.mg-panel[open], dialog.mg-wide[open]) { overflow: hidden; }
  .mg-panel:has(#mgp-operations:not([hidden])) .mg-ph-top { position:static;margin-bottom:.5rem; }
  .mg-ptab[data-tab=operations] { grid-column:1 / -1; }
 }
+
+/* Long audit histories scroll inside a labelled, keyboard-accessible region. */
+.mg-activity-list { max-height: min(24rem, 50dvh); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-inline: .75rem; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-2); }
+.mg-activity-list:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mg-activity-list .mg-op-row:last-child { border-bottom: 0; }
+.mg-activity-list time { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+#mgOperationsService, .mg-op-global { font-family: var(--sans); font-size: .875rem; line-height: 1.55; }
+.mg-op-row small, .mg-op-row time, .mg-op-chart small, .mg-op-stats span { color: var(--text-2); }
+/* The header and body keep separate scroll areas, including short desktop windows. */
+@media (min-width: 901px) {
+    .mg-panel { overflow: hidden; }
+    .mg-ph { max-height: 55%; overflow-y: auto; }
+}
+@media (max-width: 700px) {
+    .mg-activity-list .mg-op-row { flex-direction: column; gap: .25rem; }
+}
