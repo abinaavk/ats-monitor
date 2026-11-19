@@ -1535,7 +1535,7 @@ PANES.hook = {
         const b = e.target.closest('[data-hk]'); if (!b) return;
         const h = P.hook, s = h && h.service, name = P.name;
         switch (b.dataset.hk) {
-            case 'reveal': P.hookReveal = !P.hookReveal; renderHook(); break;
+            case 'reveal': P.hookReveal = !P.hookReveal; renderHook(); $('mgHook').querySelector('[data-hk=reveal]')?.focus({ preventScroll: true }); break;
             case 'copy-url': copyText(s.url, 'Webhook URL'); break;
             case 'copy-secret': copyText(s.secret, 'Secret'); break;
             case 'rotate': {
@@ -1585,28 +1585,28 @@ function renderHook() {
     const ev = s.last_events || [];
     el.innerHTML = `
         <section class="mg-hook-sec">
-            <div class="sec-label">Webhook</div>
+            <h3 class="mg-hook-title">Webhook connection</h3>
             <dl class="mg-dl mg-dl-wide">
                 <dt>Payload URL</dt><dd class="mg-copyrow"><code>${esc(s.url)}</code><button class="term-btn" data-hk="copy-url" aria-label="Copy webhook URL">Copy</button></dd>
-                <dt>Secret</dt><dd class="mg-copyrow"><code>${P.hookReveal ? esc(s.secret) : mask}</code>
-                    <button class="term-btn" data-hk="reveal" aria-pressed="${!!P.hookReveal}">${P.hookReveal ? 'Hide' : 'Reveal'}</button><button class="term-btn" data-hk="copy-secret" aria-label="Copy webhook secret">Copy</button><button class="term-btn mg-del" data-hk="rotate">Rotate</button></dd>
+                <dt>Secret</dt><dd class="mg-copyrow"><code id="hkSecret">${P.hookReveal ? esc(s.secret) : mask}</code>
+                    <span class="mg-secret-actions"><button class="term-btn" data-hk="reveal" aria-controls="hkSecret" aria-label="${P.hookReveal ? 'Hide' : 'Reveal'} webhook secret" aria-pressed="${!!P.hookReveal}">${P.hookReveal ? 'Hide' : 'Reveal'}</button><button class="term-btn" data-hk="copy-secret" aria-label="Copy webhook secret">Copy</button><button class="term-btn mg-del" data-hk="rotate">Rotate secret</button></span></dd>
                 <dt>Listener</dt><dd>${flag(l.active ? 'ok' : 'bad', l.active ? 'active' : 'not running')} <span class="mg-muted">${esc(l.bind || '')}:${esc(l.port || '')}</span>${l.route_present === false ? ' ' + flag('warn', 'no Cloudflare route') : ''}</dd>
             </dl>
-            <label class="mg-switch"><input type="checkbox" id="hkAuto" role="switch"${s.auto_update ? ' checked' : ''}><span class="mg-track" aria-hidden="true"></span><span>Update automatically when GitHub sends a push to <code>${esc(s.branch)}</code></span></label>
-            <p class="mg-hint">With this off, deliveries are still verified and recorded but nothing is updated.</p>
+            <label class="mg-switch"><input type="checkbox" id="hkAuto" role="switch"${s.auto_update ? ' checked' : ''}><span class="mg-track" aria-hidden="true"></span><span>Automatic updates</span></label>
+            <p class="mg-hint">Pushes to <code>${esc(s.branch)}</code> ${s.auto_update ? 'rebuild and restart this service.' : 'are verified and recorded without updating this service.'}</p>
         </section>
         <section class="mg-hook-sec">
-            <div class="sec-label">Update</div>
-            <dl class="mg-dl mg-dl-wide">${[['Branch', `<code>${esc(g.branch || s.branch)}</code>`], ['Commit', g.commit ? `<code>${esc(g.commit)}</code> ${esc(g.subject || '')}` : '—'],
+            <h3 class="mg-hook-title">Git source</h3>
+            <dl class="mg-dl mg-dl-wide">${[['Repository', `<span class="mg-hook-repo">${esc(d.repo_url || '—')}</span>`], ['Branch', `<code>${esc(g.branch || s.branch)}</code>`], ['Commit', g.commit ? `<code>${esc(g.commit)}</code> ${esc(g.subject || '')}` : '—'],
                 ['State', [g.dirty ? flag('warn', 'uncommitted changes') : '', g.behind ? flag('warn', g.behind + ' behind origin') : flag('ok', 'up to date')].join(' ')]].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
             <div class="mg-btnrow"><button class="term-btn mg-lg" data-hk="test">Test webhook</button><button class="term-btn mg-lg" data-hk="pull">Pull now</button></div>
             <div id="hkJob"></div>
         </section>
-        <div class="sec-label">Recent deliveries</div>
+        <section class="mg-hook-sec"><h3 class="mg-hook-title">Recent deliveries</h3>
         ${ev.length ? `<div class="mg-tablewrap"><table class="mg-mini mg-evtable"><thead><tr><th scope="col">When</th><th scope="col">Event</th><th scope="col">Ref</th><th scope="col">Commit</th><th scope="col">Result</th><th scope="col">Message</th></tr></thead><tbody>${ev.slice(0, 20).map(x =>
             `<tr><td data-label="When" title="${esc(fmtDate(x.timestamp))}">${esc(fmtAgo(x.timestamp))}</td><td data-label="Event">${esc(x.event)}</td><td data-label="Ref"><code>${esc(String(x.ref || '').replace('refs/heads/', ''))}</code></td><td data-label="Commit"><code>${esc(String(x.commit || '').slice(0, 7))}</code></td>
              <td data-label="Result">${flag(RESULT_CLS[x.result] != null ? RESULT_CLS[x.result] : '', esc(String(x.result).replace(/_/g, ' ')))}</td><td data-label="Message" class="mg-evmsg">${esc(x.message)}</td></tr>`).join('')}</tbody></table></div>`
-            : emptyBlock('No deliveries yet', 'Once GitHub sends a push, or you press Test webhook, it shows up here.')}
+            : emptyBlock('No deliveries yet', 'Once GitHub sends a push, or you press Test webhook, it shows up here.')}</section>
         <details class="mg-details mg-gh"><summary>GitHub setup</summary>
             <ol>
                 <li>In the repository, open <b>Settings</b>, then <b>Webhooks</b>, then <b>Add webhook</b>.</li>
