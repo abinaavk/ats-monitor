@@ -20,6 +20,7 @@ function section(name) {
         $('st-'+button.dataset.settings).hidden=!on;
     });
     message('');
+    document.querySelector('[data-settings="'+name+'"]')?.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
     if(name==='devices') loadDevices();
 }
 window.fetchSettings = async function(force=false) {
@@ -30,13 +31,21 @@ window.fetchSettings = async function(force=false) {
     } catch(error) { message(error.message,true); }
 };
 async function loadDevices() {
+    $('stDevices').setAttribute('aria-busy','true');
+    $('stRefreshDevices').disabled=true;
+    if(!devices.length) $('stDevices').textContent='Loading registered devices…';
     try {
         const result=await api('/api/settings/devices'); devices=result.devices;
-        $('stDevices').innerHTML=devices.length ? devices.map(device=>`<article class="st-device"><h3>${esc(device.name)}</h3><div class="st-badges">${device.current?'<span class="st-badge current">This device</span>':''}<span class="st-badge ${trusted(device)?'trusted':''}">${device.revoked_at?'Revoked':trusted(device)?'Trusted':'Standard security'}</span><span class="st-badge">${device.active_sessions?'Authenticated · Active session':'Signed out'}</span></div><p>${esc(device.device_type)} · ${esc(device.browser)}<br>IP ${esc(device.ip)} · Last active ${esc(when(device.last_active))}</p><div class="st-actions"><button class="term-btn" data-device="${esc(device.id)}" data-device-action="details">Details</button>${device.revoked_at?'':`<button class="term-btn" data-device="${esc(device.id)}" data-device-action="${trusted(device)?'untrust':'trust'}">${trusted(device)?'Remove trust':'Trust device'}</button><button class="term-btn" data-device="${esc(device.id)}" data-device-action="logout">Log out device</button><button class="term-btn" data-device="${esc(device.id)}" data-device-action="revoke">Revoke access</button>`}</div></article>`).join('') : '<p>No registered devices.</p>';
+        $('stDevices').innerHTML=devices.length ? devices.map(device=>`<article class="st-device"><h3>${esc(device.name)}</h3><div class="st-badges">${device.current?'<span class="st-badge current">This device</span>':''}<span class="st-badge ${trusted(device)?'trusted':''}">${device.revoked_at?'Revoked':trusted(device)?'Trusted':'Standard security'}</span><span class="st-badge">${device.active_sessions?'Authenticated · Active session':'Signed out'}</span></div><p>${esc(device.device_type)} · ${esc(device.browser)}<br>IP ${esc(device.ip)} · Last active ${esc(when(device.last_active))}</p><div class="st-actions"><button class="term-btn" data-device="${esc(device.id)}" data-device-action="details">Details</button>${device.revoked_at?'':`<button class="term-btn" data-device="${esc(device.id)}" data-device-action="${trusted(device)?'untrust':'trust'}">${trusted(device)?'Remove trust':'Trust device'}</button><button class="term-btn" data-device="${esc(device.id)}" data-device-action="logout">Log out device</button><button class="term-btn st-sensitive" data-device="${esc(device.id)}" data-device-action="revoke">Revoke access</button>`}</div></article>`).join('') : '<p>No registered devices.</p>';
         $('stAudit').innerHTML=result.audit.map(entry=>`<li>${esc(entry.action.replaceAll('_',' '))}<time>${esc(when(entry.at))} · ${esc(entry.ip)}</time></li>`).join('') || '<li>No security activity yet.</li>';
-    } catch(error) { message(error.message,true); }
+    } catch(error) {
+        if(!devices.length) $('stDevices').textContent='Devices could not be loaded. Use Refresh to try again.';
+        message(error.message,true);
+    } finally { $('stDevices').setAttribute('aria-busy','false'); $('stRefreshDevices').disabled=false; }
 }
 function details(device) {
+    const opener=document.activeElement;
+    $('stDetails').addEventListener('close',()=>opener?.focus(),{once:true});
     const values={ 'Device name':device.name,'Hostname':'Unavailable from remote browser','Operating system':device.os,'Browser':device.browser,'Type':device.device_type,'Observed IP':device.ip,'MAC address':'Unavailable from remote browser','Location':device.location||'Unavailable','First login':when(device.first_login),'Last active':when(device.last_active),'Authentication':device.active_sessions?'Authenticated':'Signed out','Active sessions':device.active_sessions,'Security mode':device.revoked_at?'Revoked':trusted(device)?'Trusted':'Standard','Trust expires':device.trusted_until?when(device.trusted_until):'Not trusted','Current device':device.current?'Yes':'No'};
     $('stDetailsBody').innerHTML=Object.entries(values).map(([key,value])=>`<dt>${esc(key)}</dt><dd>${esc(value)}</dd>`).join('');
     $('stDetails').showModal();
