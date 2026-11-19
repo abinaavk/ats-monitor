@@ -32,10 +32,9 @@ Global terminal/Docker exec sessions are currently unavailable capabilities.
 The UI says so, and Local socket handlers reject a remote target ID. Browser
 sessions and device trust retain the existing authentication and expiry behavior.
 
-This branch is stacked on `improve/settings-responsive` (Monitor PR #15). Its
-Settings polish is reused, not reimplemented. Approval for #15 remains separate.
-Merge #15 through its own approval before retargeting this PR to main; recheck
-its diff and exact head before merging this change.
+Settings polish from Monitor PR #15 is reused from main. Review this change
+against main; the existing Settings, Themes, Devices and session behavior is
+preserved. Recheck the exact head and base before merging this change.
 
 ## Validation
 
