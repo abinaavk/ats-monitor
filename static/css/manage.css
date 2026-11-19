@@ -600,3 +600,50 @@ body:has(dialog.mg-panel[open], dialog.mg-wide[open]) { overflow: hidden; }
     .mg-ph-title h2 { white-space: normal; overflow-wrap: anywhere; }
     .mg-row:focus-within { outline: 2px solid var(--text-2); outline-offset: 2px; }
 }
+
+/* Configuration keeps its actions in reach while the fields scroll on phones. */
+.mg-config-fields { display: flex; flex-direction: column; gap: 1.1rem; min-width: 0; }
+@media (max-width: 900px) {
+    .mg-panel:has(#mgp-config:not([hidden])) .mg-acts,
+    .mg-panel:has(#mgp-config:not([hidden])) .mg-ph-sub { display: none; }
+    .mg-panel:has(#mgp-config:not([hidden])) .mg-ph { flex-shrink: 0; max-height: none; overflow: visible; }
+    .mg-panel:has(#mgp-config:not([hidden])) .mg-ph-top { position: static; margin-bottom: 0.5rem; }
+    .mg-pbody:has(#mgp-config:not([hidden])) { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+    #mgp-config:not([hidden]) { display: flex; flex: 1; min-height: 0; }
+    #mgCfg { flex: 1; min-height: 0; max-width: none; gap: 0; }
+    #mgCfg .mg-config-fields { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1rem var(--pad); scroll-padding-block: 1rem; }
+    #mgCfg .mg-formbar { position: static; flex-shrink: 0; margin: 0; }
+    #mgCfg .mg-fstate { overflow-wrap: anywhere; }
+    #mgCfg .filter-input { min-width: 0; max-width: 100%; }
+    #mgCfg .mg-seg { display: flex; align-self: stretch; }
+    #mgCfg .mg-seg label { flex: 1; }
+    #mgCfg .mg-seg span { min-height: 44px; justify-content: center; padding-inline: 6px; }
+    #mgCfg .mg-dom-saved { display: grid; grid-template-columns: minmax(0, 1fr); }
+    #mgCfg .mg-dom-saved[hidden] { display: none; }
+    #mgCfg .mg-dom-saved .filter-input, #mgCfg .mg-dom-manual .filter-input { width: 100%; }
+    #mgCfg .mg-env-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "k" "v" "rm"; padding: 0.75rem 0; border-top: 1px solid var(--line); }
+    #mgCfg .mg-env-rm { justify-self: end; align-self: auto; }
+    #mgCfg .mg-env-bar { flex-wrap: wrap; gap: 0.5rem; }
+    #mgCfg .toggle-label { min-height: 44px; }
+}
+
+/* Configuration uses a readable form hierarchy rather than console typography. */
+#mgCfgErr:empty { display: none; }
+#mgCfg .mg-config-fields { gap: 1.75rem; }
+.mg-config-section { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.mg-config-section + .mg-config-section { border-top: 1px solid var(--line); padding-top: 1.5rem; }
+.mg-config-section h3 { font-family: var(--sans); font-size: 1.125rem; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; color: var(--text-1); margin: 0; }
+#mgCfg .mg-f { gap: 8px; }
+#mgCfg .mg-f > label, #mgCfg .mg-lbl, #mgCfg .mg-fs > legend { font-size: 0.9375rem; font-weight: 500; }
+#mgCfg .filter-input { font-family: var(--sans); font-size: 1rem; line-height: 1.5; padding: 10px 12px; border-color: var(--line-2); }
+#mgCfg .mg-env-k, #mgCfg .mg-env-v { font-family: var(--mono); }
+#mgCfg .mg-hint, #mgCfg .mg-dom-prev, #mgCfg .mg-ferr { font-family: var(--sans); font-size: 0.875rem; line-height: 1.55; }
+#mgCfg .mg-hint, #mgCfg .mg-dom-prev { color: var(--text-2); }
+#mgCfg .mg-dom-prev code { font-family: var(--sans); font-size: inherit; border: 0; padding: 0; background: transparent; }
+#mgCfg .term-btn, #mgCfg .dk-primary, #mgCfg .mg-seg span, #mgCfg .toggle-label, #mgCfg .mg-env-bar { font-family: var(--sans); font-size: 0.9375rem; letter-spacing: 0; }
+#mgCfg .mg-fstate { font-family: var(--sans); font-size: 0.875rem; }
+@media (max-width: 900px) {
+    .mg-panel .mg-ptab { font-family: var(--sans); font-size: 0.875rem; font-weight: 500; letter-spacing: 0; }
+    #mgCfg .mg-config-fields { padding-block: 1.25rem 1.75rem; }
+    #mgCfg .mg-formbar { gap: 0.6rem; }
+}
