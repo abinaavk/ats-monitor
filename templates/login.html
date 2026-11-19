@@ -82,6 +82,7 @@
             <h1>Sign in</h1>
             <p class="login-sub">Enter the monitor password to continue.</p>
             <form method="POST" action="/login">
+<input type="hidden" name="csrf_token" value="{{ session.get('login_csrf', '') }}">
                 <label class="login-label" for="pw">Password</label>
                 <input id="pw" type="password" name="password" class="login-input" autocomplete="current-password" autofocus required>
                 <button type="submit" class="login-btn">Continue</button>

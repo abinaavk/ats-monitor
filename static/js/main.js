@@ -142,6 +142,7 @@ const TAB_META = {
     database: ['Database',  'Read-only view of the monitor tables.'],
     stats:    ['Stats',     'Per-service performance, deployments and backups.'],
     docker:   ['Docker',    'Containers, images, volumes and networks on this host.'],
+    settings: ['Settings', 'Application preferences, account and device security.'],
     terminal: ['Terminal',  'Interactive shell on the server. Sessions end after 10 minutes idle.']
 };
 
@@ -186,7 +187,7 @@ document.querySelectorAll('.nav-link').forEach(btn => {
 
 // ── PHONE TAB BAR ──────────────────────────────────────────
 // Bottom bar mirrors the sidebar buttons; it just clicks the real .nav-link.
-const MORE_TABS = ['logs', 'metrics', 'audit', 'database', 'stats'];
+const MORE_TABS = ['logs', 'metrics', 'audit', 'database', 'stats', 'settings'];
 function setMoreSheet(open) {
     const sheet = document.getElementById('moreSheet'), back = document.getElementById('moreBackdrop'), btn = document.getElementById('tbMore');
     if (!sheet) return;
@@ -979,6 +980,7 @@ function refreshActive() {
     if (activeTab === 'stats') fetchStats();
     if (activeTab === 'docker' && typeof fetchDocker === 'function') fetchDocker();
     if (activeTab === 'manage' && typeof fetchManage === 'function') fetchManage();
+    if (activeTab === 'settings' && typeof fetchSettings === 'function') fetchSettings();
 }
 
 setInterval(refreshActive, 5000);
@@ -989,16 +991,5 @@ function esc(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ── IDLE TIMEOUT (10 min) ────────────────────────────────
-let idleTimer = null;
-const IDLE_LIMIT = 10 * 60 * 1000;
-
-function resetIdle() {
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => { window.location.href = '/logout'; }, IDLE_LIMIT);
-}
-
-['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
-    document.addEventListener(evt, resetIdle, {passive: true});
-});
-resetIdle();
+// Authentication expiry is enforced by the server for HTTP and socket sessions.
+// Settings checks the current server policy; trusted devices have no browser idle logout.

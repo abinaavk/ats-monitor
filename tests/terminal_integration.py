@@ -2,6 +2,7 @@
 Run with Python dependencies from requirements.txt plus requests/websocket-client.
 """
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -18,7 +19,7 @@ log = tempfile.TemporaryFile(mode='w+')
 command = ([sys.executable, '-m', 'gunicorn', '--config', 'gunicorn.conf.py', '--graceful-timeout', '2', 'app:app']
            if '--gunicorn' in sys.argv else
            [sys.executable, '-c', f'import app; app.socketio.run(app.app,host="127.0.0.1",port={port})'])
-proc = subprocess.Popen(command, cwd=repo, env=dict(os.environ, ATS_HOME='/nonexistent-terminal-check', MONITOR_BIND=f'127.0.0.1:{port}'), stdout=log, stderr=log)
+proc = subprocess.Popen(command, cwd=repo, env=dict(os.environ, ATS_HOME='/nonexistent-terminal-check', MONITOR_BIND=f'127.0.0.1:{port}', ATS_COOKIE_SECURE='false', ATS_SECURITY_DB=tempfile.mktemp(prefix='terminal-security-', suffix='.sqlite3')), stdout=log, stderr=log)
 url = f'http://127.0.0.1:{port}'
 
 def wait_for(condition, seconds=5):
@@ -46,7 +47,10 @@ try:
         if anon.connected: anon.disconnect()
     print('PASS anonymous connection rejected')
     for transport in ['polling', 'websocket']:
-        http = requests.Session(); http.post(url+'/login', data={'password':'abi@arv'})
+        http = requests.Session()
+        form = http.get(url+'/login').text
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', form)[1]
+        http.post(url+'/login', data={'password':'abi@arv', 'csrf_token': csrf})
         client = socketio.Client(http_session=http); output = []; exits = []
         client.on('terminal_output', lambda data: output.append(data), namespace='/terminal')
         client.on('terminal_exit', lambda data: exits.append(data), namespace='/terminal')

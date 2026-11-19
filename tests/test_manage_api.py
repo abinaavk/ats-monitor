@@ -210,7 +210,8 @@ class TestRouting(Base):
             sys.modules['flask_socketio'] = fake
             added.append('flask_socketio')
         try:
-            import app as monitor_app
+            with mock.patch.dict(os.environ, {'ATS_SECURITY_DB': os.path.join(self.tmp, 'security.sqlite3'), 'ATS_COOKIE_SECURE': 'false'}):
+                import app as monitor_app
         finally:
             for m in added:
                 sys.modules.pop(m, None)
@@ -223,6 +224,11 @@ class TestRouting(Base):
         self.assertEqual(self.calls(), [])
         with c.session_transaction() as sess:
             sess['authenticated'] = True
+        self.assertEqual(c.get('/api/manage/services').status_code, 401)
+        c.get('/login')
+        with c.session_transaction() as sess:
+            csrf = sess['login_csrf']
+        self.assertEqual(c.post('/login', data={'password': 'abi@arv', 'csrf_token': csrf}).status_code, 302)
         self.assertEqual(c.get('/api/manage/services').status_code, 200)
 
 

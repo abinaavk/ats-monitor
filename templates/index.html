@@ -8,6 +8,7 @@
 <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'jetblack');</script>
 <link rel="stylesheet" href="/static/css/style.css">
 <link rel="stylesheet" href="/static/css/manage.css">
+<link rel="stylesheet" href="/static/css/settings.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
@@ -41,6 +42,7 @@
       <button class="nav-link" data-tab="stats">Stats</button>
       <button class="nav-link" data-tab="docker">Docker</button>
       <button class="nav-link" data-tab="terminal">Terminal</button>
+      <button class="nav-link" data-tab="settings">Settings</button>
     </nav>
     <div class="nav-controls">
       <div class="side-status">
@@ -48,19 +50,6 @@
         <span class="topbar-time" id="clock">--:--:--</span>
       </div>
       <div class="side-actions">
-        <div class="theme-picker">
-          <button id="theme-btn" class="theme-btn" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="themeDropdown">
-            <span class="theme-swatch" aria-hidden="true"></span>
-            <span class="theme-name" id="theme-name">Graphite</span>
-            <svg aria-hidden="true" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 7.5 6 4l3.5 3.5"/></svg>
-          </button>
-          <div class="theme-dots" id="themeDropdown">
-            <button class="theme-opt" data-theme="jetblack"><span class="theme-dot t-jetblack"></span>Graphite</button>
-            <button class="theme-opt" data-theme="light"><span class="theme-dot t-light"></span>Paper</button>
-            <button class="theme-opt" data-theme="midnight"><span class="theme-dot t-midnight"></span>Ink</button>
-            <button class="theme-opt" data-theme="rose"><span class="theme-dot t-rose"></span>Clay</button>
-          </div>
-        </div>
         <a class="logout-btn" href="/logout" title="Sign out">Sign out</a>
       </div>
     </div>
@@ -81,6 +70,7 @@
   <button class="ms-btn" role="menuitem" data-tab="audit">Audit</button>
   <button class="ms-btn" role="menuitem" data-tab="database">Database</button>
   <button class="ms-btn" role="menuitem" data-tab="stats">Stats</button>
+  <button class="ms-btn" role="menuitem" data-tab="settings">Settings</button>
 </div>
 
 <main class="main" id="main" tabindex="-1">
@@ -385,6 +375,42 @@
   </div>
 </section>
 
+
+<section class="tabcontent" id="tab-settings">
+  <div class="st-layout">
+    <nav class="st-nav" aria-label="Settings sections">
+      <button class="term-btn active" data-settings="general" aria-current="page">General</button>
+      <button class="term-btn" data-settings="account">Account</button>
+      <button class="term-btn" data-settings="security">Security</button>
+      <button class="term-btn" data-settings="appearance">Appearance</button>
+      <button class="term-btn" data-settings="devices">Devices</button>
+    </nav>
+    <div class="st-content">
+      <p id="stMessage" class="st-message" role="status" aria-live="polite"></p>
+      <section class="st-panel" id="st-general"><h2>Application settings</h2><p>Manage storage, saved domains, deployment defaults and Cloudflare using the existing host settings.</p><button class="term-btn" id="stHostSettings">Open host settings</button><p class="st-note">Host settings apply to this server. Appearance preferences are saved in this browser.</p></section>
+      <section class="st-panel" id="st-account" hidden><h2>Administrator profile</h2><p>This installation uses one shared administrator account. All authenticated devices have administrator access.</p><form id="stProfile"><label for="stDisplayName">Display name</label><input class="filter-input" id="stDisplayName" maxlength="80" required autocomplete="nickname"><p class="st-note">A shared profile label; it does not change the login password.</p><button class="term-btn" type="submit">Save profile</button></form></section>
+      <section class="st-panel" id="st-security" hidden><h2>Authentication and security</h2><div class="st-policy"><article><h3>Standard security</h3><p>Password required. Sessions expire after 10 minutes, including while you are active.</p><span class="st-badge">Default for new devices</span></article><article><h3>Trusted device</h3><p>Secure persistent authentication for 30 days. No repeated password entry during that period. Trust can be revoked at any time.</p><span class="st-badge">Enabled per device</span></article></div><p>Trust only devices you own and control. Changing a device’s mode requires your password and leaves other devices unchanged.</p><button class="term-btn" id="stOpenDevices">Manage device security</button></section>
+      <section class="st-panel" id="st-appearance" hidden><h2>Appearance</h2><p>Choose the theme for this browser. Your existing preference is preserved.</p>        <div class="theme-picker">
+          <button id="theme-btn" class="theme-btn" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="themeDropdown">
+            <span class="theme-swatch" aria-hidden="true"></span>
+            <span class="theme-name" id="theme-name">Graphite</span>
+            <svg aria-hidden="true" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 7.5 6 4l3.5 3.5"/></svg>
+          </button>
+          <div class="theme-dots" id="themeDropdown">
+            <button class="theme-opt" data-theme="jetblack"><span class="theme-dot t-jetblack"></span>Graphite</button>
+            <button class="theme-opt" data-theme="light"><span class="theme-dot t-light"></span>Paper</button>
+            <button class="theme-opt" data-theme="midnight"><span class="theme-dot t-midnight"></span>Ink</button>
+            <button class="theme-opt" data-theme="rose"><span class="theme-dot t-rose"></span>Clay</button>
+          </div>
+        </div>
+</section>
+      <section class="st-panel" id="st-devices" hidden><div class="st-heading"><div><h2>Devices</h2><p>Browsers registered by successful password sign-ins.</p></div><div class="st-actions"><button class="term-btn" id="stRefreshDevices">Refresh</button><button class="term-btn" id="stLogoutOthers">Log out all other devices</button></div></div><p class="st-note">Records begin after this update. Browser profiles and private windows register separately. Device descriptions are inferred, not verified identities.</p><div id="stDevices" aria-live="polite"></div><h3>Security activity</h3><ol id="stAudit" class="st-audit" tabindex="0" aria-label="Recent security activity"></ol></section>
+    </div>
+  </div>
+</section>
+<dialog id="stConfirm" class="st-dialog" aria-labelledby="stConfirmTitle"><form id="stConfirmForm"><h2 id="stConfirmTitle">Confirm security change</h2><p id="stConfirmText"></p><label for="stPassword">Current administrator password</label><input id="stPassword" class="filter-input" type="password" autocomplete="current-password" required maxlength="1024"><p id="stConfirmError" role="alert"></p><div class="st-actions"><button type="button" class="term-btn" id="stCancel">Cancel</button><button type="submit" class="term-btn" id="stConfirmSubmit">Confirm</button></div></form></dialog>
+<dialog id="stDetails" class="st-dialog" aria-labelledby="stDetailsTitle"><div class="st-heading"><h2 id="stDetailsTitle">Device details</h2><button class="term-btn" id="stDetailsClose">Close</button></div><dl id="stDetailsBody"></dl></dialog>
+
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
@@ -393,6 +419,7 @@
 <script src="/static/js/main.js"></script>
 <script src="/static/js/docker.js"></script>
 <script src="/static/js/manage.js"></script>
+<script src="/static/js/settings.js"></script>
 
 </body>
 </html>
