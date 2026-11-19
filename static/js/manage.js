@@ -1185,10 +1185,15 @@ PANES.config = {
         el.innerHTML = `<form class="mg-form" id="mgCfg" novalidate autocomplete="off">
             <div class="mg-config-fields">
             <div id="mgCfgErr"></div>
+            <section class="mg-config-section" aria-labelledby="cf-connection-title">
+            <h3 id="cf-connection-title">Connection</h3>
             ${domainFieldHtml('cf', d.domain)}
             <div class="mg-f"><label for="cf-port">Port</label>
                 <div class="mg-inline"><input class="filter-input" id="cf-port" type="number" inputmode="numeric" min="1" max="65535" value="${num(d.port)}"><button type="button" class="term-btn" id="cf-suggest">Suggest a free port</button></div>
-                <p class="mg-hint">The local port the service listens on (127.0.0.1). The Cloudflare route points here.</p></div>
+                <p class="mg-hint">Cloudflare forwards traffic to this local port.</p></div>
+            </section>
+            <section class="mg-config-section" aria-labelledby="cf-source-title">
+            <h3 id="cf-source-title">Source</h3>
             <div class="mg-f"><label for="cf-repo">Repository URL</label><input class="filter-input" id="cf-repo" value="${esc(d.repo_url)}" spellcheck="false" autocapitalize="off" inputmode="url">
                 <p class="mg-hint">${redacted ? 'The stored URL contains a token, so it is shown redacted. Leave it as it is to keep it, or paste a full URL to replace it.' : 'https:// or git@ URL.'}</p></div>
             <div class="mg-f"><label for="cf-branch">Branch</label><input class="filter-input" id="cf-branch" value="${esc(d.branch)}" spellcheck="false" autocapitalize="off">
@@ -1197,8 +1202,12 @@ PANES.config = {
                 <p class="mg-hint">Fixed after deploy. To change runtime, use Redeploy and create the service again.</p></div>
             ${dock ? `<div class="mg-f"><label for="cf-cport">Container port</label><input class="filter-input" id="cf-cport" type="number" inputmode="numeric" min="1" max="65535" value="${num(d.container_port != null ? d.container_port : d.docker && d.docker.container_port)}">
                 <p class="mg-hint">The port the app listens on inside the container. Published on 127.0.0.1:${num(d.port)}.</p></div>` : ''}
+            </section>
+            <section class="mg-config-section" aria-labelledby="cf-environment-title">
+            <h3 id="cf-environment-title">Environment</h3>
             <div class="mg-f"><span class="mg-lbl" id="cf-env-l">Environment variables</span>${envEditorHtml('cf', d.env)}
-                <p class="mg-hint">Stored in the service's <code>.ats.env</code> (mode 0600). Values are masked until you choose to show them.</p></div>
+                <p class="mg-hint">Values stay hidden until you choose to show them.</p></div>
+            </section>
             </div>
             <div class="mg-formbar"><span class="mg-fstate" id="cf-state" aria-live="polite">No changes</span>
                 <button type="button" class="term-btn mg-lg" id="cf-discard" disabled>Discard</button><button type="submit" class="dk-primary mg-lg" id="cf-save" disabled>Review and save</button></div>
