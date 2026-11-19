@@ -647,3 +647,37 @@ body:has(dialog.mg-panel[open], dialog.mg-wide[open]) { overflow: hidden; }
     #mgCfg .mg-config-fields { padding-block: 1.25rem 1.75rem; }
     #mgCfg .mg-formbar { gap: 0.6rem; }
 }
+
+/* Git and webhook: readable connection details and separate secret controls. */
+#mgHook { min-width: 0; font-family: var(--sans); }
+.mg-hook-sec + .mg-hook-sec { border-top: 1px solid var(--line); margin-top: 1.5rem; padding-top: 1.5rem; }
+.mg-hook-title { margin: 0 0 1rem; font: 600 1.125rem/1.3 var(--sans); color: var(--text-1); letter-spacing: -0.01em; }
+#mgHook .mg-dl dt { font: 500 0.875rem/1.5 var(--sans); color: var(--text-2); }
+#mgHook .mg-dl dd, #mgHook .mg-hint, #mgHook .mg-switch, #mgHook .mg-gh { font-size: 0.9375rem; line-height: 1.55; }
+#mgHook dd, #mgHook code, #mgHook .mg-gh li, #mgHook .mg-evtable td { overflow-wrap: anywhere; min-width: 0; }
+#mgHook .mg-hint { color: var(--text-2); }
+#mgHook .term-btn { font-family: var(--sans); font-size: 0.875rem; letter-spacing: 0; }
+.mg-secret-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#mgHook .mg-track { flex-shrink: 0; }
+#mgHook .mg-evtable { table-layout: fixed; width: 100%; }
+#mgHook .mg-evtable .mg-flag { white-space: normal; }
+#mgHook .mg-gh summary { padding-block: 0.75rem; }
+@media (max-width: 900px) {
+    .mg-panel:has(#mgp-hook:not([hidden])) .mg-acts,
+    .mg-panel:has(#mgp-hook:not([hidden])) .mg-ph-sub { display: none; }
+    .mg-panel:has(#mgp-hook:not([hidden])) .mg-ph { flex-shrink: 0; max-height: none; overflow: visible; }
+    .mg-panel:has(#mgp-hook:not([hidden])) .mg-ph-top { position: static; margin-bottom: 0.5rem; }
+    #mgHook .mg-copyrow { display: flex; flex-direction: column; align-items: stretch; gap: 0.5rem; }
+    #mgHook .mg-copyrow code { flex: none; width: 100%; padding: 0.75rem; font-size: 0.875rem; line-height: 1.6; background: var(--surface-2); border: 1px solid var(--line); }
+    #mgHook .mg-secret-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    #mgHook .term-btn, #mgHook .mg-gh summary { min-height: 44px; }
+    #mgHook .mg-secret-actions .term-btn { padding-inline: 4px; white-space: normal; }
+    #mgHook .mg-btnrow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #mgHook .mg-dl { gap: 0.35rem; }
+    #mgHook .mg-evtable tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.65rem 0.75rem; padding: 1rem; }
+    #mgHook .mg-evtable td::before { font: 500 0.75rem/1.5 var(--sans); letter-spacing: 0; text-transform: none; color: var(--text-2); margin-bottom: 0.2rem; }
+    #mgHook .mg-evtable td { font-size: 0.875rem; line-height: 1.5; }
+    #mgHook .mg-evtable td[data-label="Result"], #mgHook .mg-evtable td[data-label="Message"] { grid-column: 1 / -1; }
+    #mgHook .mg-gh ol { padding-left: 1.4rem; }
+    #mgHook .mg-gh li + li { margin-top: 0.65rem; }
+}
