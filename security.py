@@ -202,12 +202,18 @@ def init_app(app, legacy_password):
                 response.delete_cookie(name,secure=secure,httponly=True,samesite='Lax')
         return response
 
+    def login_form(error=None, status=200, *, renew=False):
+        # Keep open tabs valid and give rejected submissions a usable retry form.
+        if renew or not session.get('login_csrf'):
+            session['login_csrf'] = secrets.token_urlsafe(32)
+        return render_template('login.html', error=error), status
+
     @app.route('/login',methods=['GET','POST'])
     def login():
         if request.method == 'POST':
             expected = session.get('login_csrf','')
             if not same_origin() or not expected or not hmac.compare_digest(request.form.get('csrf_token',''),expected):
-                return render_template('login.html',error='Login form expired. Reload and try again.'),403
+                return login_form('Sign-in form refreshed. Enter your password and try again.', 403, renew=True)
             if password_ok(request.form.get('password','')):
                 with database() as db:
                     raw = request.cookies.get(DEVICE_COOKIE,'')
@@ -226,11 +232,10 @@ def init_app(app, legacy_password):
                     audit(db,'password_login',device['id'])
                     g.new_device=raw
                 return redirect('/')
-            return render_template('login.html',error='Invalid password or too many attempts'),401
+            return login_form('Invalid password or too many attempts', 401)
         if g.auth:
             return redirect('/')
-        session['login_csrf']=secrets.token_urlsafe(32)
-        return render_template('login.html',error=None)
+        return login_form()
 
     @app.route('/logout',methods=['GET','POST'])
     def logout():
