@@ -75,6 +75,21 @@ def guard():
         return jsonify(error='Request too large'),413
 
 
+@bp.patch('/api/servers/<sid>')
+def update_server(sid):
+    error = guard()
+    if error:
+        return error
+    value = request.get_json(silent=True)
+    if not isinstance(value, dict):
+        return jsonify(error='Expected server name and HTTPS API origin'),400
+    try:
+        Store().update_server(sid, value.get('name'), value.get('domain'))
+        return jsonify(ok=True)
+    except (ValueError, OSError, sqlite3.Error):
+        return jsonify(error='Server update failed. Check the name, HTTPS origin and Global connectivity; existing settings were preserved.'),400
+
+
 @bp.post('/api/servers/<sid>/<action>')
 def connection(sid, action):
     error = guard()
@@ -84,15 +99,19 @@ def connection(sid, action):
         Store().connection(sid,action)
         return jsonify(ok=True)
     except (ValueError,OSError,sqlite3.Error):
-        return jsonify(error='Connection change failed. Revoke requires the Global to be reachable; rotate credentials on Global if it is offline.'),400
+        messages = {'disconnect': 'Disconnect failed. Check the Local registry permissions and server identity.',
+                    'reconnect': 'Reconnect failed. Check that the Global daemon, HTTPS tunnel and pairing credentials are valid.',
+                    'revoke': 'Revocation could not be confirmed. Keep this server disconnected and rotate credentials on Global before pairing again.'}
+        return jsonify(error=messages.get(action, 'Invalid connection action')),400
 
 
 @bp.get('/api/servers/<sid>/health')
 def health(sid):
     try:
         server=Store().server(sid)
+        result = {'management_ready': True}
         if not server['local']:
-            remote(server,{'kind':'health'})
-        return jsonify(status='online',server_id=sid)
+            result = remote(server,{'kind':'health'})
+        return jsonify(status='online',server_id=sid,management_ready=result.get('management_ready'))
     except (ValueError,OSError,sqlite3.Error):
         return jsonify(status='offline',server_id=sid),503

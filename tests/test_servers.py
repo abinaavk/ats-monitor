@@ -121,6 +121,28 @@ class ServersTests(unittest.TestCase):
         self.assertEqual(r.status_code,200)
         self.assertEqual(self.local_calls,[])
 
+    def test_health_distinguishes_api_listener_from_management_adapter(self):
+        path='/api/servers/'+self.node['id']+'/health'
+        self.assertTrue(self.client.get(path).json['management_ready'])
+        with patch.dict(os.environ, {'ATS_MONITOR_ADAPTER':'/missing/remote_host.py'}):
+            response=self.client.get(path)
+            self.assertEqual(response.status_code,200)
+            self.assertFalse(response.json['management_ready'])
+
+    def test_server_edit_is_authenticated_verified_and_preserves_disconnect(self):
+        token=self.client.get('/api/settings').json['csrf_token']
+        path='/api/servers/'+self.node['id']
+        body={'name':'Renamed','domain':self.origin}
+        self.assertEqual(self.client.patch(path,json=body).status_code,403)
+        self.primary.connection(self.node['id'],'disconnect')
+        response=self.client.patch(path,json=body,headers={'X-CSRF-Token':token})
+        self.assertEqual(response.status_code,200,response.json)
+        server=self.primary.server(self.node['id'])
+        self.assertEqual(server['name'],'Renamed');self.assertFalse(server['connected'])
+        response=self.client.patch(path,json={**body,'domain':'http://localhost'},headers={'X-CSRF-Token':token})
+        self.assertEqual(response.status_code,400)
+        self.assertEqual(self.primary.server(self.node['id']),server)
+
     def test_remote_adapter_rejects_arbitrary_and_auth_routes(self):
         server=self.primary.server(self.node['id'])
         for path in ['/api/settings','/api/servers','https://attacker.example/api/logs','//attacker.example/api/logs','/api/auth/status']:
