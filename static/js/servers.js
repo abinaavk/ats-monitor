@@ -24,14 +24,35 @@
         for(const server of data.servers) {
             const article=document.createElement('article'); article.className='st-device';
             const title=document.createElement('h3');title.textContent=server.name;
-            const detail=document.createElement('p');detail.textContent=`${server.local?'Local · Primary':'Global'} · ${server.domain||'Central control point'} · ${server.connected?'Connected':'Disconnected'}`;
+            const detail=document.createElement('p');detail.textContent=`${server.local?'Local · Primary':'Global'} · ${server.domain||'Central control point'} · ${server.local?'Available':!server.paired?'Revoked':server.connected?'Enabled':'Disconnected'}`;
             article.append(title,detail);
+            const health=document.createElement('p');health.setAttribute('role','status');
+            health.textContent=server.local?'Local control':server.connected?'Checking reachability…':'Remote requests disabled';
+            article.append(health);
+            if(!server.local && server.connected) json(`/api/servers/${server.id}/health`).then(result=>{
+                health.textContent=result.management_ready===false?'Reachable · Management adapter missing on Global':'Reachable';
+            }).catch(()=>{health.textContent='Unreachable · Check the Global daemon and HTTPS tunnel';});
+            if(!server.local && server.paired) {
+                const form=document.createElement('form');form.className='server-edit';
+                const label=document.createElement('label');label.textContent='Server name';
+                const name=document.createElement('input');name.value=server.name;name.required=true;name.maxLength=64;label.append(name);
+                const endpoint=document.createElement('label');endpoint.textContent='HTTPS API origin';
+                const domain=document.createElement('input');domain.value=server.domain;domain.required=true;domain.type='url';endpoint.append(domain);
+                const save=document.createElement('button');save.className='term-btn';save.type='submit';save.textContent='Save and verify';
+                form.append(label,endpoint,save);article.append(form);
+                form.addEventListener('submit',async event=>{
+                    event.preventDefault();save.disabled=true;show('Checking the endpoint before saving…');
+                    try {await change(`/api/servers/${server.id}`,{name:name.value,domain:domain.value},'PATCH');await load();show('Server settings saved and verified.');if(window.atsTarget?.id===server.id)location.reload();}
+                    catch(error){show(error.message,true);}finally{save.disabled=false;}
+                });
+            }
             if(!server.local) for(const action of ['disconnect','reconnect','revoke']) {
                 const button=document.createElement('button');button.className='term-btn';button.textContent=action[0].toUpperCase()+action.slice(1);
+                button.disabled=!server.paired || (action==='disconnect'&&!server.connected) || (action==='reconnect'&&!!server.connected);
                 button.addEventListener('click',async()=>{
                     if(action==='revoke'&&!confirm(`Revoke ${server.name}? New credentials must be generated on that Global server to pair again.`))return;
-                    button.disabled=true;
-                    try {await change(`/api/servers/${server.id}/${action}`,{});await load();show('Connection updated.');}
+                    button.disabled=true;show(action==='disconnect'?'Disconnecting…':action==='revoke'?'Revoking access on Global…':'Verifying Global connectivity…');
+                    try {await change(`/api/servers/${server.id}/${action}`,{});await load();show('Connection updated.');if(window.atsTarget?.id===server.id)location.reload();}
                     catch(error){show(error.message,true);}finally{button.disabled=false;}
                 });article.append(button);
             }
@@ -39,9 +60,9 @@
         }
     };
     async function load() {const data=await json('/api/servers');render(data);return data;}
-    async function change(path,body) {
+    async function change(path,body,method='POST') {
         const settings=await json('/api/settings');
-        return json(path,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':settings.csrf_token},body:JSON.stringify(body)});
+        return json(path,{method,headers:{'Content-Type':'application/json','X-CSRF-Token':settings.csrf_token},body:JSON.stringify(body)});
     }
     window.atsServerReady=(async()=>{
         try {
@@ -54,8 +75,8 @@
             let selected=data.servers.find(s=>s.id===id);
             if(!selected){selector.add(new Option('Selected server unavailable',id));selected={id,local:0,connected:0};}
             selector.value=id;selector.disabled=false;window.atsTarget=Object.freeze(selected);
-            status.textContent='Connecting';
-            json(`/api/servers/${id}/health`).then(()=>{status.textContent='Online';}).catch(()=>{status.textContent='Offline';});
+            status.textContent=selected.connected?'Checking':'Disconnected';
+            json(`/api/servers/${id}/health`).then(result=>{status.textContent=result.management_ready===false?'API online · Adapter missing':'Online';}).catch(()=>{status.textContent='Offline';});
             // Preserve navigation across target changes, never service panels or job dialogs.
             const tab=sessionStorage.getItem('ats.activeTab');
             if(tab)document.querySelector(`.nav-link[data-tab="${CSS.escape(tab)}"]`)?.click();
