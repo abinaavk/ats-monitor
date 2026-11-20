@@ -1,7 +1,7 @@
 # Multi-server Monitor
 
 Install the matching ATS multi-server change first and follow its
-[`docs/multi-server.md`](https://github.com/abinaavk/ats/blob/feat/multi-server-control/docs/multi-server.md)
+[`docs/multi-server.md`](https://github.com/abinaavk/ats/blob/main/docs/multi-server.md)
 for private registry ownership, operator TLS routing, pairing and explicit GitHub
 repository mappings. No production deployment or restart is performed by this PR.
 
@@ -11,6 +11,38 @@ requires `X-ATS-Target` for every host read or operation; unknown or offline
 servers never fall back to Local. Existing unconfigured legacy clients retain
 their old Local routes until the operator enables the registry. The browser UI
 requires primary Local setup to enable its target selector.
+
+## Startup dependency and non-sibling installations
+
+`ats_cluster.py` is supplied by the ATS repository, not by Monitor's pip
+requirements. For example, if Monitor is `/opt/api/monitor/app.py` and ATS is
+`/ats/app.py`, the required module is `/ats/ats_cluster.py`. Set this in the
+**Monitor service environment**, not only in an interactive shell:
+
+```ini
+Environment="ATS_MODULE_DIR=/ats"
+```
+
+Use the actual installed ATS path. Confirm it contains `ats_cluster.py` from the
+multi-server ATS release. With the service's Python interpreter and user, verify
+before an operator-approved restart:
+
+```sh
+cd /opt/api/monitor
+ATS_MODULE_DIR=/ats /path/to/monitor/venv/bin/python -c 'import cluster_support; print(cluster_support.Store.__module__)'
+```
+
+If the file is absent, update the ATS checkout to the matching multi-server
+release first. Do not install an unrelated similarly named pip package or copy
+one module out of an older checkout. Merge approval does not authorize a service
+restart or production update.
+
+An explicit `ATS_MODULE_DIR` takes priority. Otherwise Monitor uses the directory
+of an absolute Python script in `ATS_CLI` (without executing the command), then,
+when `ATS_CLI` is unset, the sibling `ats` checkout or the existing default CLI
+location `/home/gaia/ats`. An explicit invalid path fails with setup guidance;
+it never falls back to another ATS installation. For wrapper/module commands,
+set `ATS_MODULE_DIR` explicitly. Relative script paths also require it.
 
 Settings → Servers pairs named Global IDs with verified HTTPS API origins and
 private credentials, and supports disconnect, reconnect and revocation. The
