@@ -48,7 +48,7 @@ class ServersTests(unittest.TestCase):
         with sqlite3.connect(home/'ats.db') as db:
             db.execute('CREATE TABLE services(name TEXT,port INTEGER,domain TEXT,runtime TEXT,storage_path TEXT,created_at TEXT)')
             db.execute("INSERT INTO services VALUES('global-service',9000,'global.example','node','/tmp','2026-01-01')")
-        self.env=patch.dict(os.environ,{'ATS_CLUSTER_DB':self.global_store.path,'ATS_HOME':str(home),'ATS_MODULE_DIR':str(Path(__file__).resolve().parents[2]/'ats'),
+        self.env=patch.dict(os.environ,{'ATS_CLUSTER_DB':self.global_store.path,'ATS_HOME':str(home),'ATS_MODULE_DIR':str(Path(ats_remote.__file__).resolve().parent),
             'ATS_MONITOR_ADAPTER':str(Path(__file__).resolve().parents[1]/'remote_host.py'),'ATS_CLI':shlex.join([sys.executable,str(stub)]),
             'ATS_MONITOR_JOBS_DIR':str(self.root/'jobs'),'ATS_SECURITY_DB':str(self.root/'remote-security.db'),
             'ATS_COOKIE_SECURE':'false','REMOTE_RECORD':str(self.root/'operations.jsonl'),'DOCKER_BIN':str(docker),
@@ -156,3 +156,51 @@ class ServersTests(unittest.TestCase):
         self.assertEqual((self.root/'operations.jsonl').read_text().count('"op": "services.action"'),1)
         bad={**value,'delivery':'bad-delivery','repository':'other/repo'}
         with self.assertRaises(ValueError):remote(server,bad)
+
+    def test_replacement_credentials_are_csrf_protected_and_verified(self):
+        path='/api/servers/'+self.node['id']+'/credentials'
+        body={'id':self.node['id'],'name':'Remote updated','domain':self.origin,'secret':secrets.token_hex(32)}
+        before=self.primary.server(self.node['id'])
+        self.assertEqual(self.client.post(path,json=body).status_code,403)
+        token=self.client.get('/api/settings').json['csrf_token']
+        headers={'X-CSRF-Token':token}
+        self.assertEqual(self.client.post(path,json=body,headers=headers).status_code,400)
+        self.assertEqual(self.primary.server(self.node['id']),before)
+        with self.global_store.db() as db:db.execute('UPDATE node SET secret=?',(body['secret'],))
+        self.primary.connection(self.node['id'],'disconnect')
+        response=self.client.post(path,json=body,headers=headers)
+        self.assertEqual(response.status_code,200,response.json)
+        self.assertFalse(self.primary.server(self.node['id'])['connected'])
+        self.assertNotIn(body['secret'],response.get_data(as_text=True))
+        self.assertNotIn(body['secret'],self.client.get('/api/servers').get_data(as_text=True))
+        self.primary.connection(self.node['id'],'reconnect')
+        self.assertEqual(self.client.get('/api/manage/services',headers=self.remote_headers).status_code,200)
+        self.assertEqual(self.local_calls,[])
+
+    def test_changed_identity_stale_target_fails_closed(self):
+        sid=secrets.token_hex(16);key=secrets.token_hex(32)
+        with self.global_store.db() as db:db.execute('UPDATE node SET id=?,secret=?',(sid,key))
+        token=self.client.get('/api/settings').json['csrf_token']
+        response=self.client.post('/api/servers/'+self.node['id']+'/credentials',json={
+            'id':sid,'name':'Replacement','domain':self.origin,'secret':key},headers={'X-CSRF-Token':token})
+        self.assertEqual(response.status_code,200,response.json)
+        self.assertEqual(self.client.get('/api/manage/services',headers=self.remote_headers).status_code,503)
+        self.assertEqual(self.client.get('/api/manage/services',headers={**self.remote_headers,'X-ATS-Target':sid}).status_code,200)
+        self.assertEqual(self.local_calls,[])
+
+    def test_pairing_rejects_non_object_json_without_500(self):
+        token=self.client.get('/api/settings').json['csrf_token']
+        for value in [[],['x'],'x',None]:
+            response=self.client.post('/api/servers',json=value,headers={'X-CSRF-Token':token})
+            self.assertEqual(response.status_code,400)
+
+    def test_automatic_setup_checks_real_signed_loopback_and_public_adapter_reads(self):
+        import ats_global_setup
+        plain=ats_remote.Server(('127.0.0.1',0),self.global_store)
+        threading.Thread(target=plain.serve_forever,daemon=True).start()
+        self.addCleanup(plain.server_close);self.addCleanup(plain.shutdown)
+        plan={'node':dict(self.node,domain=self.origin),'port':plain.server_port}
+        for public in (False,True):
+            ats_global_setup.verify_health(plan,public=public)
+            ats_global_setup.verify_health(plan,public=public,management=True)
+        self.assertEqual(self.local_calls,[])
