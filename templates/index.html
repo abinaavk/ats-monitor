@@ -437,11 +437,32 @@
         <p id="serversSummary" class="srv-summary" aria-live="polite"></p>
         <p id="serversMessage" role="status" aria-live="polite"></p>
         <div id="serverList" class="srv-list"></div>
+        <section class="srv-setup" aria-labelledby="srvSetupTitle">
+          <h3 id="srvSetupTitle">Automatic setup on a Global server</h3>
+          <p>Run one command on the Global server. It installs the API service and adds the tunnel route for you, then proves both work. Monitor never runs commands on a Global itself.</p>
+          <div class="srv-cols">
+            <div><h4>Done for you</h4><ul class="srv-ticks">
+              <li>Writes and enables the systemd service for the Global API, then starts it.</li>
+              <li>Adds <code>your-api-host /v1/request &rarr; 127.0.0.1:9997</code> to your Cloudflare config, keeps every other route and restarts cloudflared once.</li>
+              <li>Validates the config and service file first, checks the Monitor adapter, and restores the previous files if anything fails.</li>
+              <li>Verifies signed health on the server itself and over the public HTTPS address.</li></ul></div>
+            <div><h4>You provide first</h4><ul class="srv-needs">
+              <li>A running Cloudflare tunnel managed with a config file (dashboard/token tunnels need the route added in Cloudflare).</li>
+              <li>The tunnel&rsquo;s DNS record for the API hostname.</li>
+              <li>An HTTPS API address on the standard port, set when you run <code>server configure</code>.</li>
+              <li>Python with Flask for the adapter. Setup names the exact package if it is missing.</li></ul></div>
+          </div>
+          <div class="srv-cmds">
+            <div><small>First time only: name this Global and set its API address</small><div class="srv-cmd"><code>sudo python3 app.py server configure --role global --name 'My Global' --api-domain https://api.example.com</code><button class="term-btn srv-mini" type="button" data-copy="sudo python3 app.py server configure --role global --name 'My Global' --api-domain https://api.example.com">Copy</button></div></div>
+            <div><small>Install the service and tunnel route (add <b>--install-monitor</b> if Monitor is not on that server yet)</small><div class="srv-cmd"><code>sudo python3 app.py server setup --apply --install-monitor</code><button class="term-btn srv-mini" type="button" data-copy="sudo python3 app.py server setup --apply --install-monitor">Copy</button></div></div>
+            <div><small>Check everything at any time</small><div class="srv-cmd"><code>sudo python3 app.py server doctor</code><button class="term-btn srv-mini" type="button" data-copy="sudo python3 app.py server doctor">Copy</button></div></div>
+          </div>
+        </section>
         <section id="addServer" class="srv-add" aria-labelledby="addServerTitle">
           <h3 id="addServerTitle">Add a Global server</h3>
           <ol class="srv-steps">
-            <li><span>On the Global server, as root, from its ATS folder:</span><code>sudo python3 app.py server setup --apply</code><small>Installs the API service and tunnel route. Add <code>--install-monitor</code> if Monitor is not installed there.</small></li>
-            <li><span>Copy its private pairing file:</span><code>sudo cat files/pairing.json</code><small>It holds that server&rsquo;s ID and passkey. Treat it like a password.</small></li>
+            <li><span>Set the Global up with the command above (<b>Automatic setup</b>), from its ATS folder as root.</span><small>Already done? Skip to the next step.</small></li>
+            <li><span>Copy its private pairing file:</span><div class="srv-cmd"><code>sudo cat files/pairing.json</code><button class="term-btn srv-mini" type="button" data-copy="sudo cat files/pairing.json">Copy</button></div><small>It holds that server&rsquo;s ID and passkey. Treat it like a password.</small></li>
             <li><span>Paste the file below. The fields fill in; review them and press <b>Pair and validate</b>.</span></li>
           </ol>
           <form id="pairServer" autocomplete="off"><label class="paste">Pairing file contents<textarea id="pairPaste" rows="3" spellcheck="false" autocomplete="off" placeholder='{"id": "…", "name": "…", "domain": "https://…", "secret": "…"}'></textarea></label><label>Server name<input name="serverName" required maxlength="64"></label><label>HTTPS API origin<input name="serverDomain" type="url" placeholder="https://api.example.com" required></label><label>Stable server ID<input name="serverId" required pattern="[0-9a-f]{32}"></label><label>Private pairing secret<input id="serverSecret" type="password" required pattern="[0-9a-f]{64}" autocomplete="off"></label><button type="submit" class="term-btn srv-primary">Pair and validate</button></form>

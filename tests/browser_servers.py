@@ -66,6 +66,8 @@ try:
                     assert page.locator(f'#st-{section}').is_visible(),(width,theme,section)
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,section,'horizontal overflow')
                     assert page.evaluate("[...document.querySelectorAll('#st-%s button, #st-%s input')].filter(e=>e.offsetParent).every(e=>e.getBoundingClientRect().right<=innerWidth+1)"%(section,section)),(width,theme,section,'control clipped')
+                assert page.locator('#st-servers .srv-setup').is_visible() and page.locator('#st-servers [data-copy]').count()==4,(width,theme,'setup guide')
+                assert 'server setup --apply' in page.locator('#st-servers .srv-setup').inner_text(),(width,theme,'setup command')
                 report['layouts'].append({'width':width,'theme':theme,'pass':True})
         page.set_viewport_size({'width':1440,'height':1000})
         requests=[]

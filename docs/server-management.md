@@ -35,3 +35,8 @@ the reason it failed), **Disconnect**, **Reconnect**, **Pair again** for a revok
 **Edit name and address**, **Update ID and passkey** and a **Danger zone** for revocation. **Add a Global server**
 walks through the two commands to run on the Global and accepts the pasted pairing file. A troubleshooting table
 explains every message. `GET /api/servers/<id>/test` backs the connection test (read-only, login required).
+
+The Servers page also carries an **Automatic setup on a Global server** guide: what `server setup --apply` does for you (service file,
+Cloudflare route, restart, verification, rollback) and what you provide first (a config-file-managed tunnel, its DNS record, an HTTPS API
+address, Flask), with copy buttons for the `configure`, `setup --apply --install-monitor` and `doctor` commands. Monitor itself never runs
+commands on a Global.
