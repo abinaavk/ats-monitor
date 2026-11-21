@@ -151,6 +151,31 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(self.b.get('/api/settings').status_code,401)
         self.assertEqual(self.a.get('/api/settings').status_code,200)
 
+    def test_password_change_needs_current_password_and_signs_other_devices_out(self):
+        self.login(self.a);did=self.login(self.b);self.trust(self.b,did)
+        new='a-much-better-passphrase'
+        csrf=self.a.get('/api/settings').json['csrf_token']
+        headers={'X-CSRF-Token':csrf}
+        # CSRF, same origin and the current password are all required.
+        self.assertEqual(self.a.post('/api/settings/password',json={'password':'test-password','new_password':new}).status_code,403)
+        self.assertEqual(self.a.post('/api/settings/password',json={'password':'wrong','new_password':new},headers=headers).status_code,403)
+        self.assertEqual(self.a.post('/api/settings/password',json={'password':'test-password','new_password':new},headers={**headers,'Origin':'http://evil.test'}).status_code,403)
+        # Weak, unchanged or malformed passwords are refused.
+        for bad in ('short',123,None,'test-password','x'*1025):
+            self.assertEqual(self.a.post('/api/settings/password',json={'password':'test-password','new_password':bad},headers=headers).status_code,400,bad)
+        self.assertEqual(self.a.post('/api/settings/password',json={'password':'test-password','new_password':new},headers=headers).status_code,200)
+        self.assertEqual(self.a.get('/api/settings').status_code,200)       # this device stays signed in
+        self.assertEqual(self.b.get('/api/settings').status_code,401)       # others, even trusted, must sign in again
+        # The old password no longer works; the new one does. Nothing sensitive is stored in the audit log.
+        fresh=self.app.test_client();fresh.get('/login')
+        with fresh.session_transaction() as s:token=s['login_csrf']
+        self.assertEqual(fresh.post('/login',data={'password':'test-password','csrf_token':token}).status_code,401)
+        with fresh.session_transaction() as s:token=s['login_csrf']
+        self.assertEqual(fresh.post('/login',data={'password':new,'csrf_token':token}).status_code,302)
+        actions=[e['action'] for e in self.a.get('/api/settings/devices').json['audit']]
+        self.assertIn('password_changed',actions)
+        self.assertNotIn(new,str(self.a.get('/api/settings/devices').json))
+
     def test_logout_cannot_silently_reauthenticate(self):
         did=self.login(self.a);self.trust(self.a,did)
         self.a.delete_cookie(security.SESSION_COOKIE)

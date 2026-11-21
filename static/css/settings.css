@@ -324,3 +324,78 @@
 @media(prefers-reduced-motion:reduce) {
     #tab-settings.active { animation:none; }
 }
+
+/* ── Full Settings redesign: cards, overview, session, devices, themes, mobile ── */
+.st-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:14px; margin-top:18px; align-items:start; }
+.st-card { padding:18px 20px; border:1px solid var(--line); background:var(--surface-2); border-radius:var(--r-lg); min-width:0; }
+.st-card h3 { margin:0 0 12px; font-size:1rem; }
+.st-card>p:last-child { margin-bottom:0; }
+.st-card form>button { margin-top:4px; }
+.st-error { border-color:transparent; background:var(--bad-soft); }
+.st-muted { color:var(--text-3)!important; font-size:.875rem!important; margin:0 0 14px!important; }
+.st-panel .st-target { margin:18px 0 0; font-size:.875rem; color:var(--text-2); }
+.st-panel .st-target:empty { display:none; }
+.st-summary { margin:6px 0 0!important; font-size:.875rem!important; color:var(--text-3)!important; }
+.st-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px 18px; margin:0; }
+.st-facts>div { min-width:0; }
+.st-facts dt { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3); margin-bottom:3px; }
+.st-facts dd { margin:0; font-size:.9rem; overflow-wrap:anywhere; display:flex; flex-wrap:wrap; gap:4px 6px; }
+.st-facts code, .st-card code { font-family:var(--mono); font-size:.8rem; background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r); padding:2px 6px; overflow-wrap:anywhere; }
+.st-profile { display:flex; gap:14px; align-items:center; margin-bottom:6px; }
+.st-profile h3 { margin-bottom:4px; }
+.st-profile p { margin:0!important; }
+.st-avatar { flex:none; width:48px; height:48px; border-radius:50%; display:grid; place-items:center; font:700 1.2rem var(--sans); color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent); }
+.st-pw { display:flex; gap:8px; align-items:flex-start; }
+.st-pw input { flex:1; min-width:0; }
+.st-mini { min-height:44px; padding:0 14px!important; }
+.st-meter { height:6px; border-radius:99px; background:var(--line); overflow:hidden; margin:-6px 0 8px; }
+.st-meter span { display:block; height:100%; width:0; background:var(--bad); transition:width .25s var(--ease),background .25s; }
+.st-meter span[data-level=fair] { background:var(--warn); }
+.st-meter span[data-level=strong] { background:var(--ok); }
+.st-status { margin-top:18px; }
+.st-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.st-stat { padding:12px; border:1px solid var(--line); border-radius:var(--r); background:var(--bg-2); display:flex; flex-direction:column; gap:2px; }
+.st-stat b { font-size:1.4rem; line-height:1.1; }
+.st-stat span { font-size:.78rem; color:var(--text-3); }
+.st-policy article { position:relative; }
+.st-policy article.is-current { border-color:var(--accent); background:var(--accent-soft); }
+.st-policy article.is-current::after { content:'Active on this device'; position:absolute; top:14px; right:14px; font:600 .72rem var(--sans); color:var(--accent); }
+.st-dhead { display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:12px; }
+.st-dhead h3 { margin:0; }
+.st-device.is-current { border-left:4px solid var(--accent); }
+.st-device .st-facts { margin-bottom:14px; }
+/* Theme previews */
+.st-panel .theme-picker { max-width:560px; }
+.st-panel .theme-dots { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.st-panel .theme-opt { display:flex; align-items:center; gap:14px; text-align:left; position:relative; background:var(--surface-2); border-radius:var(--r-lg); min-height:84px; }
+.st-panel .theme-opt .theme-dot { width:56px; height:44px; border-radius:var(--r); flex:none; border:1px solid var(--line-2); overflow:hidden; }
+.st-panel .theme-opt .theme-dot::after { width:22px; height:100%; left:auto; right:0; top:0; bottom:auto; }
+.st-panel .theme-opt.active::before { content:'✓'; position:absolute; top:10px; right:12px; color:var(--accent); font-weight:700; }
+.st-panel .theme-opt.active { box-shadow:0 0 0 1px var(--accent) inset; }
+.st-panel .theme-opt .theme-dot::before { content:''; position:absolute; left:8px; top:8px; width:20px; height:5px; border-radius:3px; background:currentColor; opacity:.55; }
+.st-panel .theme-opt .t-jetblack { color:#ecebe5; } .st-panel .theme-opt .t-light { color:#1c1b18; }
+.st-panel .theme-opt .t-midnight { color:#e7eaf1; } .st-panel .theme-opt .t-rose { color:#2b1d16; }
+
+@media(max-width:800px) {
+  .st-nav { display:flex; flex-wrap:nowrap; flex-direction:row; overflow-x:auto; gap:6px; padding:6px; scroll-snap-type:x proximity; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+            mask-image:linear-gradient(90deg,transparent 0,#000 12px,#000 calc(100% - 20px),transparent 100%); }
+  .st-nav::-webkit-scrollbar { display:none; }
+  .st-nav .term-btn { flex:0 0 auto; min-width:92px; scroll-snap-align:center; }
+  .st-panel { padding:16px; border-radius:var(--r); }
+  .st-grid { grid-template-columns:1fr; gap:12px; }
+  .st-card { padding:16px; }
+  .st-panel input { max-width:none; }
+  .st-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .st-heading .st-actions { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+  .st-heading .st-actions .term-btn { width:100%; }
+  .st-heading .st-actions .term-btn:last-child:nth-child(odd) { grid-column:1/-1; }
+  .st-policy article.is-current::after { position:static; display:block; margin-top:8px; }
+  .st-panel .theme-dots { grid-template-columns:1fr; }
+  .st-panel .theme-opt { min-height:72px; }
+  .st-profile { align-items:flex-start; }
+  .st-dialog { margin:auto 0 0; width:100%; max-width:none; border-radius:16px 16px 0 0; padding:20px 16px calc(20px + env(safe-area-inset-bottom)); max-height:88dvh; }
+  .st-dialog .st-actions { grid-template-columns:1fr 1fr; }
+}
+@media(max-width:520px) { .st-device .st-facts { grid-template-columns:1fr; } }
+.st-panel .theme-opt.active::after { display:none; }
+@media(max-width:380px) { .st-facts { grid-template-columns:1fr; } .st-nav .term-btn { min-width:84px; } }

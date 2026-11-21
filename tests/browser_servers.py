@@ -60,6 +60,12 @@ try:
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,'horizontal overflow')
                 form=page.locator('#pairServer').bounding_box();assert form['x']>=0 and form['x']+form['width']<=width+1
                 update=page.locator('#serverList details .cred-form').bounding_box();assert update['x']>=0 and update['x']+update['width']<=width+1
+                # Every Settings section must fit the viewport and render its content.
+                for section in ('general','account','security','appearance','devices','servers'):
+                    page.locator(f'[data-settings={section}]').click()
+                    assert page.locator(f'#st-{section}').is_visible(),(width,theme,section)
+                    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,section,'horizontal overflow')
+                    assert page.evaluate("[...document.querySelectorAll('#st-%s button, #st-%s input')].filter(e=>e.offsetParent).every(e=>e.getBoundingClientRect().right<=innerWidth+1)"%(section,section)),(width,theme,section,'control clipped')
                 report['layouts'].append({'width':width,'theme':theme,'pass':True})
         page.set_viewport_size({'width':1440,'height':1000})
         requests=[]

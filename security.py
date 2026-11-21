@@ -315,6 +315,23 @@ def init_app(app, legacy_password):
             else:g.clear_session=True
         return jsonify(ok=True,reauthenticate=device_id==g.auth['device_id'] and action!='trust')
 
+    @app.post('/api/settings/password')
+    def change_password():
+        data,error=require_change()  # verifies the CSRF token, same origin and the CURRENT password
+        if error: return error
+        new=data.get('new_password')
+        if not isinstance(new,str) or not 10 <= len(new) <= 1024:
+            return jsonify(error='The new password must be 10–1024 characters long'),400
+        if new == data.get('password'):
+            return jsonify(error='Choose a password different from the current one'),400
+        with database() as db:
+            db.execute("UPDATE security_meta SET value=? WHERE key='password_hash'",(generate_password_hash(new),))
+            # Everything signed in with the old password, except this device, must sign in again.
+            db.execute('UPDATE auth_sessions SET revoked=1 WHERE device_id!=?',(g.auth['device_id'],))
+            db.execute('UPDATE devices SET trusted_until=NULL WHERE id!=?',(g.auth['device_id'],))
+            audit(db,'password_changed',g.auth['device_id'])
+        return jsonify(ok=True)
+
     @app.post('/api/settings/logout-others')
     def logout_others():
         data,error=require_change()

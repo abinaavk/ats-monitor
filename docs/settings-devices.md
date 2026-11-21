@@ -33,3 +33,18 @@ Audit history records registration, password and trusted login, failed authentic
 ## Design references
 
 Cookie flags follow [Flask security guidance](https://flask.palletsprojects.com/en/stable/web-security/). Server-side absolute expiry, login rotation and revocation follow the [OWASP session management guidance](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html).
+
+## Settings page overview
+
+- **General** shows the selected server's host settings (domains, storage root, service user, Cloudflare file and tunnel service,
+  webhook receiver, defaults for new services, Google Drive backups) as read-only cards, loaded when the section opens.
+  *Edit host settings* and *Cloudflare…* open the existing editors in Manage.
+- **Account** has the shared display name, **Change password** and the current session. Changing the password needs the
+  current password (rate limited), requires at least 10 characters, signs out every other device (including trusted ones) and
+  keeps this device signed in. It is recorded in the security activity as `password_changed`; passwords are never logged.
+  New installations still start from the first-run default, so change it here.
+- **Security** summarises the current session (standard or trusted, with time left) and device counts, and highlights the policy in effect.
+- **Appearance** previews each theme; the choice is stored in this browser only.
+- **Devices** shows a summary line and a card per device. **Servers** is described in `server-management.md`.
+
+On phones the section list becomes a horizontally scrollable row, cards stack in one column and confirmation dialogs open as bottom sheets.
