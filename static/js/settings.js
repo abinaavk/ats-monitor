@@ -13,6 +13,7 @@ function sessionText() {
     return `Standard session: you will be signed out in ${plural(minutes, 'minute')}. Active use does not extend it.`;
 }
 function showSession() {
+    $('glanceSecurity').textContent = !session ? 'Unavailable' : session.trusted ? 'Trusted device' : `Standard · ${Math.max(0, Math.round((session.expires_at*1000 - Date.now())/60000))} min left`;
     $('stSessionInfo').textContent = sessionText();
     $('stSecSession').textContent = sessionText();
     $('stPolicyTrusted').classList.toggle('is-current', !!session?.trusted);
@@ -40,6 +41,7 @@ function section(name) {
     });
     message('');
     document.querySelector('[data-settings="'+name+'"]')?.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
+    try { history.replaceState(null,'','#settings/'+name); } catch(_) { /* a convenience only */ }
     if(name==='devices' || name==='security') loadDevices();
     if(name==='general') loadHost();
     if(name==='account' || name==='security') refreshSession();
@@ -49,6 +51,7 @@ window.fetchSettings = async function(force=false) {
     // Opening Settings shows General first: load its host overview then, not at page load.
     if(!$('st-general').hidden && (force || Date.now()-hostLoadedAt>60000)) loadHost();
     refreshSession();
+    if(!devices.length && !$('stDevices').getAttribute('aria-busy')) loadDevices();
     if(!force && settings && Date.now()-loadedAt<30000) return;
     try {
         settings=await api('/api/settings'); loadedAt=Date.now();
@@ -65,6 +68,7 @@ async function loadDevices() {
         const live = devices.filter(device=>!device.revoked_at);
         const trustedCount = live.filter(trusted).length, activeCount = live.filter(device=>device.active_sessions).length;
         $('stDeviceSummary').textContent = `${plural(live.length,'device')} · ${trustedCount} trusted · ${activeCount} signed in`;
+        $('glanceDevices').textContent = `${plural(live.length,'device')} · ${trustedCount} trusted`;
         $('stSecStats').innerHTML = [['Devices',live.length],['Trusted',trustedCount],['Signed in',activeCount],['Other devices',live.filter(device=>!device.current).length]]
             .map(([label,value])=>`<div class="st-stat"><b>${value}</b><span>${label}</span></div>`).join('');
         $('stDevices').innerHTML=devices.length ? devices.map(device=>`<article class="st-device ${device.current?'is-current':''}"><header class="st-dhead"><h3>${esc(device.name)}</h3><div class="st-badges">${device.current?'<span class="st-badge current">This device</span>':''}<span class="st-badge ${trusted(device)?'trusted':''}">${device.revoked_at?'Revoked':trusted(device)?'Trusted':'Standard security'}</span><span class="st-badge">${device.active_sessions?'Signed in':'Signed out'}</span></div></header><dl class="st-facts"><div><dt>Device</dt><dd>${esc(device.device_type)} · ${esc(device.browser)}</dd></div><div><dt>Network address</dt><dd>${esc(device.ip)}</dd></div><div><dt>Last active</dt><dd>${esc(when(device.last_active))}</dd></div></dl><div class="st-actions"><button class="term-btn" data-device="${esc(device.id)}" data-device-action="details">Details</button>${device.revoked_at?'':`<button class="term-btn" data-device="${esc(device.id)}" data-device-action="${trusted(device)?'untrust':'trust'}">${trusted(device)?'Remove trust':'Trust device'}</button><button class="term-btn" data-device="${esc(device.id)}" data-device-action="logout">Log out device</button><button class="term-btn st-sensitive" data-device="${esc(device.id)}" data-device-action="revoke">Revoke access</button>`}</div></article>`).join('') : '<p>No registered devices.</p>';
@@ -135,6 +139,7 @@ async function loadHost() {
     try {
         const reply = await api('/api/manage/settings'); const d = reply.data || reply;
         const defaults = d.defaults || {}, hook = d.webhook || {}, drive = d.gdrive || {};
+        $('glanceHost').textContent = d.main_domain || 'Not set';
         const card = (title, rows) => `<article class="st-card"><h3>${esc(title)}</h3><dl class="st-facts">${rows.join('')}</dl></article>`;
         box.innerHTML = [
             card('Deployment', [field('Main domain', code(d.main_domain)), field('Saved domains', (d.domains||[]).map(code).join(' ') || '—'),
@@ -177,6 +182,37 @@ $('stPwForm').addEventListener('submit',event=>{
     confirmChange('Change administrator password','Enter your current password to confirm. Every other device will be signed out; this one stays signed in.','/api/settings/password',{new_password:value});
     $('stNewPw').value=''; $('stNewPw2').value=''; $('stNewPw').dispatchEvent(new Event('input'));
 });
+// ── finding things: search, jump tiles, "/" shortcut and deep links ──
+function filterSections() {
+    const query = $('stSearch').value.trim().toLowerCase(), words = query.split(/\s+/).filter(Boolean);
+    let shown = 0;
+    document.querySelectorAll('#stNavList .st-group').forEach(group => {
+        let any = false;
+        group.querySelectorAll('[data-settings]').forEach(button => {
+            const haystack = (button.textContent + ' ' + (button.dataset.keywords || '')).toLowerCase();
+            const match = words.every(word => haystack.includes(word));
+            button.hidden = !match; any = any || match; shown += match ? 1 : 0;
+        });
+        group.hidden = !any;
+    });
+    $('stNoMatch').hidden = shown > 0;
+}
+$('stSearch').addEventListener('input', filterSections);
+$('stSearch').addEventListener('keydown', event => {
+    if (event.key === 'Enter') { const first = document.querySelector('#stNavList [data-settings]:not([hidden])'); if (first) { section(first.dataset.settings); first.focus(); } }
+    if (event.key === 'Escape') { $('stSearch').value = ''; filterSections(); $('stSearch').blur(); }
+});
+document.addEventListener('keydown', event => {
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || !$('tab-settings').classList.contains('active')) return;
+    const typing = event.target.closest && event.target.closest('input, textarea, select, [contenteditable]');
+    if (typing) return;
+    event.preventDefault(); $('stSearch').focus();
+});
+document.querySelectorAll('[data-jump]').forEach(tile => tile.addEventListener('click', () => { $('stSearch').value = ''; filterSections(); section(tile.dataset.jump); }));
+{   // #settings/<section> opens Settings on that section (shareable, survives reload)
+    const match = /^#settings\/(general|account|security|appearance|devices|servers)$/.exec(location.hash);
+    if (match) { document.querySelector('.nav-link[data-tab="settings"]')?.click(); section(match[1]); }
+}
 // Display expiry according to server policy. Never extend Standard sessions here.
 async function checkAuthentication() {
     try {const response=await fetch('/api/auth/status',{credentials:'same-origin'});if(response.status===401)window.location.assign('/login');}

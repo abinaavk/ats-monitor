@@ -47,7 +47,7 @@ try:
         page.wait_for_selector('#activeServer:not([disabled])')
         # No fixture credentials may appear in any web storage.
         assert fixture.node['secret'] not in page.evaluate('JSON.stringify({...localStorage,...sessionStorage})')
-        for width,height in [(360,800),(390,844),(768,1024),(1440,1000)]:
+        for width,height in [(360,800),(390,844),(768,1024),(1440,1000),(1920,1080)]:
             page.set_viewport_size({'width':width,'height':height})
             for theme in ['jetblack','light','midnight','rose']:
                 page.evaluate('(theme)=>setTheme(theme)',theme)
@@ -66,6 +66,15 @@ try:
                     assert page.locator(f'#st-{section}').is_visible(),(width,theme,section)
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,section,'horizontal overflow')
                     assert page.evaluate("[...document.querySelectorAll('#st-%s button, #st-%s input')].filter(e=>e.offsetParent).every(e=>e.getBoundingClientRect().right<=innerWidth+1)"%(section,section)),(width,theme,section,'control clipped')
+                assert page.locator('#stGlance .st-tile').count()==4 and page.locator('#stGlance').is_visible(),(width,theme,'glance strip')
+                if width>=1440:   # a PC uses the whole page, not a narrow column
+                    box=page.locator('#st-servers').bounding_box();assert box['x']+box['width']>=width-80,(width,theme,'content does not reach the right edge',box)
+                    if width>=1800:
+                        assert page.locator('#serverList .srv-card').first.bounding_box()['width']<box['width']*0.6,(width,theme,'server cards should sit in columns')
+                page.locator('#stSearch').fill('password')
+                assert page.locator('#stNavList [data-settings]:not([hidden])').count()==1 and page.locator('[data-settings=account]').is_visible(),(width,theme,'search')
+                page.locator('#stSearch').fill('zzzz');assert page.locator('#stNoMatch').is_visible(),(width,theme,'no-match message')
+                page.locator('#stSearch').fill('');assert page.locator('#stNavList [data-settings]:not([hidden])').count()==6,(width,theme,'search reset')
                 assert page.locator('#st-servers .srv-setup').is_visible() and page.locator('#st-servers [data-copy]').count()==4,(width,theme,'setup guide')
                 assert 'server setup --apply' in page.locator('#st-servers .srv-setup').inner_text(),(width,theme,'setup command')
                 report['layouts'].append({'width':width,'theme':theme,'pass':True})

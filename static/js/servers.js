@@ -62,6 +62,8 @@
         if (remote.length) parts.push(`${online} online`);
         if (trouble) parts.push(`${trouble} need${trouble === 1 ? 's' : ''} attention`);
         document.getElementById('serversSummary').textContent = parts.join(' · ');
+        const glance = document.getElementById('glanceServers');
+        if (glance) glance.textContent = remote.length ? `${online} of ${remote.length} Global online` : 'Local only';
     };
     const copy = async (text, label) => {
         try { await navigator.clipboard.writeText(text); show(`${label} copied.`); }

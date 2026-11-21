@@ -103,3 +103,16 @@
 .srv-cmd .srv-mini{flex:none;min-height:auto!important;align-self:stretch;padding:0 14px!important}
 .srv-steps .srv-cmd{margin-top:2px}
 @media(max-width:600px){.srv-setup{padding:16px}.srv-cmd{flex-direction:column}.srv-cmd .srv-mini{min-height:40px!important}}
+
+/* Wide desktop: server cards in columns; the setup guide and pairing form side by side */
+.srv-list { grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr)); align-items:start; }
+.srv-lower { display:grid; grid-template-columns:1fr; gap:24px; margin-top:26px; align-items:start; }
+.srv-lower>.srv-setup,.srv-lower>.srv-add { margin-top:0; }
+.srv-lower>.srv-add { padding-top:20px; border-top:1px solid var(--line); }
+#pairServer,.server-edit,.srv-steps { max-width:none; }
+@media(min-width:1280px) {
+  .srv-lower { grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); }
+  .srv-lower>.srv-add { border-top:0; padding-top:0; }
+  .srv-lower>.srv-add h3 { margin-top:0; }
+}
+@media(min-width:1700px) { .srv-list { grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr)); } }
