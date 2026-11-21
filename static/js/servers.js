@@ -113,7 +113,7 @@
                     const ul = el('ul', 'srv-maps');
                     for (const item of mapped) ul.append(el('li', 'srv-mono', `${item.repository} → ${item.service} @ ${item.branch}`));
                     mapValue.append(ul);
-                } else mapValue.append(el('span', 'srv-muted', 'None mapped (ATS CLI: server map)'));
+                } else mapValue.append(el('span', 'srv-muted', 'None mapped. On this server: server map --generate-secret'));
                 facts.append(mapRow);
             }
             const apply = (state, detail, ms) => {

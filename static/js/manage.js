@@ -1540,6 +1540,7 @@ PANES.hook = {
         switch (b.dataset.hk) {
             case 'reveal': P.hookReveal = !P.hookReveal; renderHook(); $('mgHook').querySelector('[data-hk=reveal]')?.focus({ preventScroll: true }); break;
             case 'copy-url': copyText(s.url, 'Webhook URL'); break;
+            case 'copy-map': copyText(`sudo python3 app.py server map --from-service ${P.name}`, 'Command'); break;
             case 'copy-secret': copyText(s.secret, 'Secret'); break;
             case 'rotate': {
                 const ok = await confirmDlg({ title: 'Rotate the webhook secret?', danger: true, confirm: 'Rotate secret',
@@ -1593,8 +1594,12 @@ function renderHook() {
                 <dt>Payload URL</dt><dd class="mg-copyrow"><code>${esc(s.url)}</code><button class="term-btn" data-hk="copy-url" aria-label="Copy webhook URL">Copy</button></dd>
                 <dt>Secret</dt><dd class="mg-copyrow"><code id="hkSecret">${P.hookReveal ? esc(s.secret) : mask}</code>
                     <span class="mg-secret-actions"><button class="term-btn" data-hk="reveal" aria-controls="hkSecret" aria-label="${P.hookReveal ? 'Hide' : 'Reveal'} webhook secret" aria-pressed="${!!P.hookReveal}">${P.hookReveal ? 'Hide' : 'Reveal'}</button><button class="term-btn" data-hk="copy-secret" aria-label="Copy webhook secret">Copy</button><button class="term-btn mg-del" data-hk="rotate">Rotate secret</button></span></dd>
+                ${s.mapped === undefined || s.mapped === null ? '' : `<dt>Central receiver</dt><dd>${s.mapped ? flag('ok', 'mapped') + ` <span class="mg-muted">${esc(s.mapped_repository || '')}</span>` : flag('bad', 'not mapped: deliveries are rejected')}</dd>`}
                 <dt>Listener</dt><dd>${flag(l.active ? 'ok' : 'bad', l.active ? 'active' : 'not running')} <span class="mg-muted">${esc(l.bind || '')}:${esc(l.port || '')}</span>${l.route_present === false ? ' ' + flag('warn', 'no Cloudflare route') : ''}</dd>
             </dl>
+            ${s.mapped === false ? `<div class="mg-hook-warn" role="note"><b>Not connected to the webhook receiver yet.</b> GitHub deliveries for this service are rejected until it is mapped. On this server run
+                <span class="mg-copyrow"><code>sudo python3 app.py server map --from-service ${esc(P.name)}</code><button class="term-btn" data-hk="copy-map" aria-label="Copy the map command">Copy</button></span>
+                It reuses the secret above, so a GitHub webhook that already uses this URL and secret needs no change.</div>` : ''}
             <label class="mg-switch"><input type="checkbox" id="hkAuto" role="switch"${s.auto_update ? ' checked' : ''}><span class="mg-track" aria-hidden="true"></span><span>Automatic updates</span></label>
             <p class="mg-hint">Pushes to <code>${esc(s.branch)}</code> ${s.auto_update ? 'rebuild and restart this service.' : 'are verified and recorded without updating this service.'}</p>
         </section>

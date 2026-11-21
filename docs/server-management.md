@@ -40,3 +40,11 @@ The Servers page also carries an **Automatic setup on a Global server** guide: w
 Cloudflare route, restart, verification, rollback) and what you provide first (a config-file-managed tunnel, its DNS record, an HTTPS API
 address, Flask), with copy buttons for the `configure`, `setup --apply --install-monitor` and `doctor` commands. Monitor itself never runs
 commands on a Global.
+
+## Webhooks and the central receiver
+
+GitHub deliveries go to the Local's receiver, which accepts a push only for an explicit mapping (repository → server, service, branch)
+and forwards it over signed HTTPS to the mapped Global (or updates a Local service directly). Mappings are listed per server on
+Settings → Servers (never with their secrets). In Manage → a service → Webhook, **Central receiver** shows whether that service is mapped;
+if not, the page shows the command to run on the Local (`server map --from-service NAME`), which reuses the service's existing secret so a GitHub
+webhook that already uses the payload URL and secret needs no change. For a Global service use `server map … --generate-secret`.
