@@ -2,6 +2,7 @@
 import hmac
 import json
 import sqlite3
+import time
 from flask import Blueprint, current_app, g, jsonify, request
 import security
 from cluster_support import Store, remote, MAX_BODY, registry, TransportError
@@ -77,7 +78,17 @@ def servers():
     if not node or node['role'] != 'local':
         return jsonify(error='Configure the primary Local with ATS server configure first'),503
     if request.method == 'GET':
-        return jsonify(servers=store.servers(), primary_id=node['id'])
+        try:
+            with store.db() as db:
+                rows = db.execute('SELECT repository,server_id,service,branch FROM routes ORDER BY repository').fetchall()
+        except sqlite3.Error:
+            rows = []
+        mapped = {}
+        for row in rows:  # repository, service and branch only: the webhook secret never leaves the registry
+            mapped.setdefault(row['server_id'], []).append(
+                {'repository': row['repository'], 'service': row['service'], 'branch': row['branch']})
+        listed = [dict(item, mappings=mapped.get(item['id'], [])) for item in store.servers()]
+        return jsonify(servers=listed, primary_id=node['id'], webhook=node.get('webhook'))
     error = guard()
     if error:
         return error
@@ -164,3 +175,44 @@ def health(sid):
     except (ValueError,OSError,sqlite3.Error) as exc:
         reason, code = explain(exc, 'Check the Global daemon and HTTPS tunnel.', 'health')
         return jsonify(status='offline',server_id=sid,error=reason,code=code),503
+
+
+@bp.get('/api/servers/<sid>/test')
+def test_server(sid):
+    """Step-by-step connection test: signed health, adapter readiness, then a real service read."""
+    try:
+        server = Store().server(sid)
+    except (ValueError, OSError, sqlite3.Error):
+        return jsonify(error='Unknown server'), 404
+    steps = []
+
+    def step(name, action):
+        started = time.monotonic()
+        try:
+            value, ok, detail = action(), True, ''
+        except (ValueError, OSError, sqlite3.Error) as exc:
+            value, ok = None, False
+            detail, _ = explain(exc, 'The check could not be completed.', 'test ' + name)
+        steps.append({'name': name, 'ok': ok, 'ms': int((time.monotonic() - started) * 1000), 'detail': detail})
+        return value
+
+    if server['local']:
+        steps.append({'name': 'Local control point', 'ok': True, 'ms': 0, 'detail': 'Monitor runs on this server; no network hop.'})
+    elif not server['secret']:
+        steps.append({'name': 'Saved credentials', 'ok': False, 'ms': 0, 'detail': 'Access was revoked. Pair this server again with a fresh pairing file.'})
+    elif not server['connected']:
+        steps.append({'name': 'Connection setting', 'ok': False, 'ms': 0, 'detail': 'Disconnected: no requests are sent. Use Reconnect when ready.'})
+    else:
+        health = step('Signed health over HTTPS', lambda: remote(server, {'kind': 'health'}))
+        if health is not None:
+            ready = health.get('management_ready') is True
+            steps.append({'name': 'Monitor adapter', 'ok': ready, 'ms': 0, 'detail': '' if ready else
+                          'Not configured on that Global. Run "sudo python3 app.py server setup --apply" there.'})
+            if ready:
+                def read():
+                    result = remote(server, {'kind': 'http', 'method': 'GET', 'path': '/api/manage/services'})
+                    if result.get('status') != 200:
+                        raise ValueError('The Global answered HTTP %s to a service list.' % result.get('status'))
+                    return result
+                step('Service read through the adapter', read)
+    return jsonify(ok=all(item['ok'] for item in steps), steps=steps, checked=int(time.time()))

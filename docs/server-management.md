@@ -20,3 +20,18 @@ on the page. Review the fields, then submit. Nothing is saved until the new cred
 To replace credentials from the Local CLI instead, run
 `server replace-credentials --pairing-file FILE`; the saved server is matched by the file's ID,
 then address, then name (or pass `--server-id`).
+
+## The Servers page
+
+Settings → Servers shows one card per server with a status badge (Online, Unreachable, Needs attention,
+Disconnected, Access revoked, Revocation unconfirmed), the address, a copyable server ID, whether the
+Monitor adapter is ready, the last live check and its latency, and the explicit GitHub webhook mappings
+for that server (repository → service @ branch; the webhook secret is never shown). The summary line counts
+how many Globals are online.
+
+Each card offers the actions that make sense for its state: **Manage this server** (switch the dashboard to it),
+**Test connection** (signed health, adapter readiness and a real service read, each step with its timing and
+the reason it failed), **Disconnect**, **Reconnect**, **Pair again** for a revoked server, and expandable
+**Edit name and address**, **Update ID and passkey** and a **Danger zone** for revocation. **Add a Global server**
+walks through the two commands to run on the Global and accepts the pasted pairing file. A troubleshooting table
+explains every message. `GET /api/servers/<id>/test` backs the connection test (read-only, login required).

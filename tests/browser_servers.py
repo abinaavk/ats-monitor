@@ -54,12 +54,12 @@ try:
                 page.evaluate("document.querySelector('.nav-link[data-tab=settings]').click()")
                 page.locator('[data-settings=servers]').click()
                 assert page.locator('#st-servers').is_visible()
-                page.locator('#serverList details').evaluate('(element)=>element.open=true')
+                page.locator('#serverList details').evaluate_all('(items)=>items.forEach(item=>item.open=true)')
                 assert page.locator('#serverList article').count()==2
                 assert page.locator('#activeServer').is_visible()
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,'horizontal overflow')
                 form=page.locator('#pairServer').bounding_box();assert form['x']>=0 and form['x']+form['width']<=width+1
-                update=page.locator('#serverList details .server-edit').bounding_box();assert update['x']>=0 and update['x']+update['width']<=width+1
+                update=page.locator('#serverList details .cred-form').bounding_box();assert update['x']>=0 and update['x']+update['width']<=width+1
                 report['layouts'].append({'width':width,'theme':theme,'pass':True})
         page.set_viewport_size({'width':1440,'height':1000})
         requests=[]
@@ -123,17 +123,17 @@ try:
         with fixture.global_store.db() as db:db.execute('UPDATE node SET secret=?',(fresh,))
         page.evaluate("document.querySelector('.nav-link[data-tab=settings]').click()")
         page.locator('[data-settings=servers]').click()
-        page.locator('#serverList details').evaluate('(element)=>element.open=true')
-        form=page.locator('#serverList details .server-edit')
+        page.locator('#serverList details').evaluate_all('(items)=>items.forEach(item=>item.open=true)')
+        form=page.locator('#serverList details .cred-form')
         form.locator('input[type=password]').fill(fresh)
         form.locator('button').click()
         page.wait_for_function("document.querySelector('#serversMessage').textContent.includes('Credentials verified')")
         assert fixture.primary.server(fixture.node['id'])['secret']==fresh
-        assert page.locator('#serverList details input[type=password]').input_value()==''
+        assert page.locator('#serverList details .cred-form input[type=password]').input_value()==''
         assert fresh not in page.evaluate('JSON.stringify({...localStorage,...sessionStorage})')
         assert fresh not in page.content()
         page.set_viewport_size({'width':390,'height':844})
-        page.locator('#serverList details').evaluate('(element)=>element.open=true')
+        page.locator('#serverList details').evaluate_all('(items)=>items.forEach(item=>item.open=true)')
         page.screenshot(path='/tmp/gai18-servers-mobile.png',full_page=True)
         report['switches'].append({'tab':'credential replacement','target':'global','pass':True})
         assert not report['errors'],report['errors']

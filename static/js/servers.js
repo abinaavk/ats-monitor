@@ -34,84 +34,226 @@
         area.value = '';
         show('Pairing details filled in. Review them, then submit.');
     });
-    const render = data => {
-        const list=document.getElementById('serverList');
-        list.replaceChildren();
-        for(const server of data.servers) {
-            const article=document.createElement('article'); article.className='st-device';
-            const title=document.createElement('h3');title.textContent=server.name;
-            const detail=document.createElement('p');detail.textContent=`${server.local?'Local · Primary':'Global'} · ${server.domain||'Central control point'} · ${server.local?'Available':server.revocation_pending?'Revocation unconfirmed':!server.paired?'Revoked':server.connected?'Enabled':'Disconnected'}`;
-            article.append(title,detail);
-            const health=document.createElement('p');health.setAttribute('role','status');
-            health.textContent=server.local?'Local control':server.connected?'Checking reachability…':'Remote requests disabled';
-            article.append(health);
-            if(!server.local && server.connected) json(`/api/servers/${server.id}/health`).then(result=>{
-                health.textContent=result.management_ready===false?'Reachable · Management adapter missing on Global':'Reachable';
-            }).catch(error=>{health.textContent='Unreachable · '+(error.message&&error.message!=='Server unavailable'?error.message:'Check the Global daemon and HTTPS tunnel');});
-            if(!server.local && server.paired) {
-                const form=document.createElement('form');form.className='server-edit';
-                const label=document.createElement('label');label.textContent='Server name';
-                const name=document.createElement('input');name.value=server.name;name.required=true;name.maxLength=64;label.append(name);
-                const endpoint=document.createElement('label');endpoint.textContent='HTTPS API origin';
-                const domain=document.createElement('input');domain.value=server.domain;domain.required=true;domain.type='url';endpoint.append(domain);
-                const save=document.createElement('button');save.className='term-btn';save.type='submit';save.textContent='Save and verify';
-                form.append(label,endpoint,save);article.append(form);
-                form.addEventListener('submit',async event=>{
-                    event.preventDefault();save.disabled=true;show('Checking the endpoint before saving…');
-                    try {await change(`/api/servers/${server.id}`,{name:name.value,domain:domain.value},'PATCH');await load();show('Server settings saved and verified.');if(window.atsTarget?.id===server.id)location.reload();}
-                    catch(error){show(error.message,true);}finally{save.disabled=false;}
-                });
-            }
-            if(!server.local) {
-                const details=document.createElement('details');
-                const summary=document.createElement('summary');summary.textContent='Update ID and passkey';
-                const note=document.createElement('p');note.textContent='Use the current private pairing file from this Global server. The new credentials are verified before saving. Connection state and webhook mappings are preserved. A changed ID keeps old jobs attached to the old identity.';
-                const form=document.createElement('form');form.className='server-edit';form.autocomplete='off';
-                const fields={};
-                for(const [key,text,value,type,pattern] of [
-                    ['name','Server name',server.name,'text',''],
-                    ['domain','HTTPS API origin',server.domain,'url',''],
-                    ['id','Global server ID',server.id,'text','[0-9a-f]{32}'],
-                    ['secret','New private passkey','','password','[0-9a-f]{64}']]) {
-                    const label=document.createElement('label');label.textContent=text;
-                    const input=document.createElement('input');input.type=type;input.value=value;input.required=true;input.autocomplete='off';
-                    if(pattern)input.pattern=pattern;if(key==='name')input.maxLength=64;
-                    fields[key]=input;label.append(input);form.append(label);
-                }
-                const paste=document.createElement('label');paste.className='paste';paste.textContent='Paste the new pairing file contents (optional, fills the fields)';
-                const area=document.createElement('textarea');area.rows=3;area.spellcheck=false;area.autocomplete='off';paste.append(area);form.prepend(paste);
-                watchPaste(area,value=>{
-                    if(typeof value.name==='string'&&value.name)fields.name.value=value.name;
-                    fields.domain.value=value.domain;fields.id.value=value.id;fields.secret.value=value.secret;
-                });
-                const save=document.createElement('button');save.type='submit';save.className='term-btn';save.textContent='Verify and replace credentials';form.append(save);
-                form.addEventListener('submit',async event=>{
-                    event.preventDefault();
-                    if(fields.id.value!==server.id&&!confirm(`Replace the identity of ${server.name} and move its webhook mappings to the verified new ID? Old jobs will retain the old ID.`))return;
-                    save.disabled=true;show('Verifying new credentials…');
-                    const body=Object.fromEntries(Object.entries(fields).map(([key,input])=>[key,input.value]));
-                    fields.secret.value='';
-                    try {
-                        await change(`/api/servers/${server.id}/credentials`,body);
-                        if(window.atsTarget?.id===server.id) {localStorage.setItem(selectedKey,body.id);location.reload();return;}
-                        await load();show('Credentials verified and updated. Connection state preserved.');
-                    } catch(error){show(error.message,true);}finally{body.secret='';fields.secret.value='';save.disabled=false;}
-                });
-                details.append(summary,note,form);article.append(details);
-            }
-            if(!server.local) for(const action of ['disconnect','reconnect','revoke']) {
-                const button=document.createElement('button');button.className='term-btn';button.textContent=action[0].toUpperCase()+action.slice(1);
-                button.disabled=!server.paired || (action==='disconnect'&&!server.connected) || (action==='reconnect'&&(!!server.connected||!!server.revocation_pending));
-                button.addEventListener('click',async()=>{
-                    if(action==='revoke'&&!confirm(`Revoke ${server.name}? New credentials must be generated on that Global server to pair again.`))return;
-                    button.disabled=true;show(action==='disconnect'?'Disconnecting…':action==='revoke'?'Revoking access on Global…':'Verifying Global connectivity…');
-                    try {await change(`/api/servers/${server.id}/${action}`,{});await load();show('Connection updated.');if(window.atsTarget?.id===server.id)location.reload();}
-                    catch(error){await load().catch(()=>{});show(error.message,true);}finally{button.disabled=false;}
-                });article.append(button);
-            }
-            list.append(article);
-        }
+    const el = (tag, className, text) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
     };
+    const clock = at => new Date(at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const activeId = () => { try { return localStorage.getItem(selectedKey); } catch (error) { return null; } };
+    const BADGES = {local:['Primary','ok'],checking:['Checking…','muted'],online:['Online','ok'],attention:['Needs attention','warn'],
+        offline:['Unreachable','bad'],disconnected:['Disconnected','warn'],revoked:['Access revoked','bad'],pending:['Revocation unconfirmed','bad']};
+    const results = new Map();
+    const stateOf = server => server.local ? 'local' : server.revocation_pending ? 'pending' : !server.paired ? 'revoked'
+        : !server.connected ? 'disconnected' : (results.get(server.id)?.state || 'checking');
+    const PROBLEMS = {
+        pending: 'This Global never confirmed the revocation, so its old key may still work. Update ID and passkey with a fresh pairing file from that Global.',
+        revoked: 'Access was revoked and no key is saved. Pair this server again with a fresh pairing file.',
+        disconnected: 'You disconnected this server. Nothing is sent to it until you reconnect.',
+        attention: 'Reachable, but its Monitor adapter is not configured. On that Global run: sudo python3 app.py server setup --apply'
+    };
+    const summarize = servers => {
+        const remote = servers.filter(server => !server.local);
+        const states = remote.map(stateOf);
+        const online = states.filter(state => state === 'online').length;
+        const trouble = states.filter(state => !['online', 'checking'].includes(state)).length;
+        const parts = ['1 Local', `${remote.length} Global`];
+        if (remote.length) parts.push(`${online} online`);
+        if (trouble) parts.push(`${trouble} need${trouble === 1 ? 's' : ''} attention`);
+        document.getElementById('serversSummary').textContent = parts.join(' · ');
+    };
+    const copy = async (text, label) => {
+        try { await navigator.clipboard.writeText(text); show(`${label} copied.`); }
+        catch (error) { show(`Copy ${label.toLowerCase()} manually: ${text}`); }
+    };
+    const focusPairing = prefill => {
+        const form = document.getElementById('pairServer');
+        if (prefill) {
+            form.elements.serverName.value = prefill.name || '';
+            form.elements.serverDomain.value = prefill.domain || '';
+            form.elements.serverId.value = prefill.id || '';
+        }
+        document.getElementById('addServer').scrollIntoView({behavior:'smooth', block:'start'});
+        document.getElementById('pairPaste').focus({preventScroll:true});
+    };
+    const fact = (label, ...content) => {
+        const wrap = el('div'); wrap.append(el('dt', '', label)); const value = el('dd'); value.append(...content); wrap.append(value);
+        return [wrap, value];
+    };
+    const button = (text, className, handler) => {
+        const node = el('button', 'term-btn ' + (className || ''), text); node.type = 'button';
+        node.addEventListener('click', handler); return node;
+    };
+    const render = data => {
+        const list = document.getElementById('serverList');
+        list.replaceChildren();
+        for (const server of data.servers) {
+            const card = el('article', 'srv-card st-device');
+            const head = el('header', 'srv-head');
+            const dot = el('span', 'srv-dot'); dot.setAttribute('aria-hidden', 'true');
+            const titles = el('div', 'srv-title');
+            titles.append(el('h3', '', server.name), el('span', 'srv-role', server.local ? 'Local · this server' : 'Global'));
+            const chip = el('span', 'srv-chip', 'Active'); chip.hidden = server.id !== (activeId() || data.primary_id);
+            const badge = el('span', 'srv-badge'); badge.setAttribute('role', 'status');
+            head.append(dot, titles, chip, badge);
+            const problem = el('p', 'srv-problem'); problem.hidden = true;
+            const facts = el('dl', 'srv-facts');
+            const [addressRow] = fact(server.local ? 'Webhook receiver' : 'Address', el('span', 'srv-mono', server.local ? (data.webhook || 'not set') : server.domain));
+            const [idRow] = fact('Server ID', el('code', 'srv-mono', server.id.slice(0, 8) + '…'),
+                button('Copy', 'srv-mini', () => copy(server.id, 'Server ID')));
+            const [lastRow, lastValue] = fact('Last check', '—');
+            const [adapterRow, adapterValue] = fact('Management', '—');
+            facts.append(addressRow, idRow);
+            if (!server.local) facts.append(adapterRow, lastRow);
+            if (!server.local) {
+                const mapped = server.mappings || [];
+                const [mapRow, mapValue] = fact('GitHub webhooks');
+                if (mapped.length) {
+                    const ul = el('ul', 'srv-maps');
+                    for (const item of mapped) ul.append(el('li', 'srv-mono', `${item.repository} → ${item.service} @ ${item.branch}`));
+                    mapValue.append(ul);
+                } else mapValue.append(el('span', 'srv-muted', 'None mapped (ATS CLI: server map)'));
+                facts.append(mapRow);
+            }
+            const apply = (state, detail, ms) => {
+                const [label, tone] = BADGES[state];
+                badge.textContent = label; badge.dataset.tone = tone; card.dataset.state = state;
+                const text = detail || PROBLEMS[state] || '';
+                problem.textContent = text; problem.hidden = !text; problem.dataset.tone = tone;
+                if (state === 'online' || state === 'attention') adapterValue.textContent = state === 'online' ? 'Adapter ready' : 'Adapter missing';
+                else if (state === 'offline') adapterValue.textContent = 'Unknown';
+                if (ms !== undefined) lastValue.textContent = `${clock(Date.now())} · ${ms} ms`;
+                summarize(data.servers);
+            };
+            const actions = el('div', 'srv-actions');
+            const testBox = el('ul', 'srv-test'); testBox.hidden = true; testBox.setAttribute('role', 'status');
+            const state = stateOf(server);
+            if ((server.local || (server.paired && server.connected)) && server.id !== (activeId() || data.primary_id)) {
+                actions.append(button('Manage this server', 'srv-primary', () => {
+                    try { localStorage.setItem(selectedKey, server.id); } catch (error) { /* selection is a convenience */ }
+                    location.reload();
+                }));
+            }
+            if (!server.local && server.paired && server.connected) {
+                const test = button('Test connection', '', async () => {
+                    test.disabled = true; testBox.hidden = false; testBox.replaceChildren(el('li', 'srv-muted', 'Testing…'));
+                    try {
+                        const result = await json(`/api/servers/${server.id}/test`);
+                        testBox.replaceChildren(...result.steps.map(step => {
+                            const li = el('li', step.ok ? 'ok' : 'bad');
+                            li.append(el('b', '', (step.ok ? '✔ ' : '✖ ') + step.name), el('span', 'srv-muted', step.ms ? ` ${step.ms} ms` : ''));
+                            if (step.detail) li.append(el('div', 'srv-detail', step.detail));
+                            return li;
+                        }));
+                    } catch (error) { testBox.replaceChildren(el('li', 'bad', '✖ ' + error.message)); }
+                    finally { test.disabled = false; }
+                });
+                actions.append(test);
+            }
+            if (!server.local && server.paired && server.connected) actions.append(button('Disconnect', '', () => connectionAction(server, 'disconnect')));
+            if (!server.local && server.paired && !server.connected && !server.revocation_pending)
+                actions.append(button('Reconnect', 'srv-primary', () => connectionAction(server, 'reconnect')));
+            if (!server.local && (!server.paired || server.revocation_pending))
+                actions.append(button('Pair again', 'srv-primary', () => focusPairing(server)));
+            card.append(head, problem, facts, actions, testBox);
+            const more = el('div', 'srv-sections');
+
+            if (!server.local && server.paired) {
+                const details = el('details', 'srv-section');
+                details.append(el('summary', '', 'Edit name and address'));
+                const form = el('form', 'server-edit');
+                const label = el('label', '', 'Server name');
+                const name = el('input'); name.value = server.name; name.required = true; name.maxLength = 64; label.append(name);
+                const endpoint = el('label', '', 'HTTPS API origin');
+                const domain = el('input'); domain.value = server.domain; domain.required = true; domain.type = 'url'; endpoint.append(domain);
+                const save = el('button', 'term-btn srv-primary', 'Save and verify'); save.type = 'submit';
+                form.append(label, endpoint, save); details.append(form); more.append(details);
+                form.addEventListener('submit', async event => {
+                    event.preventDefault(); save.disabled = true; show('Checking the address before saving…');
+                    try {
+                        await change(`/api/servers/${server.id}`, {name:name.value, domain:domain.value}, 'PATCH');
+                        await load(); show('Server settings saved and verified.');
+                        if (window.atsTarget?.id === server.id) location.reload();
+                    } catch (error) { show(error.message, true); } finally { save.disabled = false; }
+                });
+            }
+            if (!server.local) {
+                const details = el('details', 'srv-section');
+                details.append(el('summary', '', 'Update ID and passkey'));
+                details.append(el('p', 'srv-hint', 'Paste the current pairing file from this Global (files/pairing.json). The new credentials are verified before anything is saved. Connection state and webhook mappings are preserved.'));
+                const form = el('form', 'server-edit cred-form'); form.autocomplete = 'off';
+                const fields = {};
+                const paste = el('label', 'paste', 'Pairing file contents (optional, fills the fields)');
+                const area = el('textarea'); area.rows = 3; area.spellcheck = false; area.autocomplete = 'off'; paste.append(area); form.append(paste);
+                for (const [key, text, value, type, pattern] of [
+                    ['name', 'Server name', server.name, 'text', ''],
+                    ['domain', 'HTTPS API origin', server.domain, 'url', ''],
+                    ['id', 'Global server ID', server.id, 'text', '[0-9a-f]{32}'],
+                    ['secret', 'New private passkey', '', 'password', '[0-9a-f]{64}']]) {
+                    const field = el('label', '', text);
+                    const input = el('input'); input.type = type; input.value = value; input.required = true; input.autocomplete = 'off';
+                    if (pattern) input.pattern = pattern;
+                    if (key === 'name') input.maxLength = 64;
+                    fields[key] = input; field.append(input); form.append(field);
+                }
+                watchPaste(area, value => {
+                    if (typeof value.name === 'string' && value.name) fields.name.value = value.name;
+                    fields.domain.value = value.domain; fields.id.value = value.id; fields.secret.value = value.secret;
+                });
+                const save = el('button', 'term-btn srv-primary', 'Verify and replace credentials'); save.type = 'submit'; form.append(save);
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    if (fields.id.value !== server.id && !confirm(`Replace the identity of ${server.name} and move its webhook mappings to the verified new ID? Old jobs will retain the old ID.`)) return;
+                    save.disabled = true; show('Verifying new credentials…');
+                    const body = Object.fromEntries(Object.entries(fields).map(([key, input]) => [key, input.value]));
+                    fields.secret.value = '';
+                    try {
+                        await change(`/api/servers/${server.id}/credentials`, body);
+                        if (window.atsTarget?.id === server.id) { try { localStorage.setItem(selectedKey, body.id); } catch (error) { /* convenience only */ } location.reload(); return; }
+                        await load(); show('Credentials verified and updated. Connection state preserved.');
+                    } catch (error) { show(error.message, true); } finally { body.secret = ''; fields.secret.value = ''; save.disabled = false; }
+                });
+                details.append(form); more.append(details);
+            }
+            if (!server.local && server.paired) {
+                const details = el('details', 'srv-section srv-danger');
+                details.append(el('summary', '', 'Danger zone'));
+                details.append(el('p', 'srv-hint', 'Revoking invalidates this Global\'s key on the Global itself, then removes the saved copy here. You will need a fresh pairing file to use it again.'));
+                details.append(button('Revoke access…', 'srv-bad', () => connectionAction(server, 'revoke')));
+                more.append(details);
+            }
+            if (more.children.length) card.append(more);
+            list.append(card);
+            apply(state, '');
+            if (!server.local && server.paired && server.connected) {
+                const started = performance.now();
+                json(`/api/servers/${server.id}/health`).then(result => {
+                    const ms = Math.round(performance.now() - started);
+                    results.set(server.id, {state: result.management_ready === false ? 'attention' : 'online'});
+                    apply(results.get(server.id).state, '', ms);
+                }).catch(error => {
+                    results.set(server.id, {state: 'offline'});
+                    apply('offline', error.message && error.message !== 'Server unavailable' ? error.message : 'Cannot reach this Global. Check its daemon and HTTPS tunnel.', Math.round(performance.now() - started));
+                });
+            } else if (server.local) { adapterValue.textContent = 'Runs here'; }
+        }
+        if (!data.servers.some(item => !item.local)) {
+            const empty = el('div', 'srv-empty');
+            empty.append(el('h3', '', 'No Global servers yet'), el('p', '', 'Add one to deploy and manage services on another machine from this dashboard.'),
+                button('Add your first server', 'srv-primary', () => focusPairing()));
+            list.append(empty);
+        }
+        summarize(data.servers);
+    };
+    async function connectionAction(server, action) {
+        if (action === 'revoke' && !confirm(`Revoke ${server.name}? New credentials must be generated on that Global server to pair again.`)) return;
+        show(action === 'disconnect' ? 'Disconnecting…' : action === 'revoke' ? 'Revoking access on Global…' : 'Verifying Global connectivity…');
+        try {
+            await change(`/api/servers/${server.id}/${action}`, {}); await load(); show('Connection updated.');
+            if (window.atsTarget?.id === server.id) location.reload();
+        } catch (error) { await load().catch(() => {}); show(error.message, true); }
+    }
     async function load() {
         const data=await json('/api/servers');render(data);
         if(window.atsTarget) {
@@ -189,5 +331,6 @@
         try {await change('/api/servers',{id:form.elements.serverId.value,name:form.elements.serverName.value,domain:form.elements.serverDomain.value,secret:secret.value});form.reset();await load();show('Paired and verified. Reload to refresh the selector.');}
         catch(error){show(error.message,true);}finally{secret.value='';button.disabled=false;}
     });
-    document.getElementById('refreshServers').addEventListener('click',()=>load().catch(error=>show(error.message,true)));
+    document.getElementById('refreshServers').addEventListener('click',()=>{results.clear();show('Refreshing…');load().then(()=>show('')).catch(error=>show(error.message,true));});
+    document.getElementById('addServerJump').addEventListener('click',()=>focusPairing());
 })();
