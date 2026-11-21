@@ -602,7 +602,6 @@ function termSyncViewport() {
 
 function initTerminal() {
     if (!window.atsTarget) { termShowOverlay('Target unavailable', 'Wait for server connectivity or select an available server.'); return; }
-    if (!window.atsTarget.local) { termShowOverlay('Remote terminal unavailable', 'This Global API does not provide an interactive terminal transport. Use the operator SSH connection for this server.'); return; }
     if (term) {
         if (socket && !socket.connected) termReconnect();
         return;

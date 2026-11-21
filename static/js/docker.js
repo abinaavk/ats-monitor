@@ -423,7 +423,6 @@ function openShell(id, name) {
         toast('Terminal libraries failed to load (CDN blocked?)', true);
         return;
     }
-    if (!window.atsTarget?.local) { toast('Interactive Docker shell is unavailable for this Global server. Use its operator SSH connection.', true); return; }
     const sh = dk.shell;
     $('dkShellTitle').textContent = `Shell · ${name}`;
     shellStatus('CONNECTING', false);

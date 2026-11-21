@@ -171,7 +171,7 @@ def health(sid):
         result = {'management_ready': True}
         if not server['local']:
             result = remote(server,{'kind':'health'})
-        return jsonify(status='online',server_id=sid,management_ready=result.get('management_ready'))
+        return jsonify(status='online',server_id=sid,management_ready=result.get('management_ready'),terminal=result.get('terminal'),terminal_reason=result.get('terminal_reason',''))
     except (ValueError,OSError,sqlite3.Error) as exc:
         reason, code = explain(exc, 'Check the Global daemon and HTTPS tunnel.', 'health')
         return jsonify(status='offline',server_id=sid,error=reason,code=code),503

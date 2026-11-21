@@ -63,8 +63,10 @@ It dispatches only the existing host route allowlist after the ATS HTTPS API has
 verified the request. Existing route validators, service locks and detached jobs
 are reused. Do not publish this adapter through CGI or another executable gateway.
 
-Global terminal/Docker exec sessions are currently unavailable capabilities.
-The UI says so, and Local socket handlers reject a remote target ID. Browser
+Terminal and Docker shell sessions on a Global are relayed over the signed channel (`remote_terminal.py`): the browser
+keeps its Socket.IO connection to this Monitor, which opens, polls and writes to a session on that Global. Failures are
+shown in the terminal itself (disconnected or revoked server, wrong passkey, terminal disabled or too old on the Global).
+The Global's shell runs as its ATS service user, not root. Browser
 sessions and device trust retain the existing authentication and expiry behavior.
 
 Settings polish from Monitor PR #15 is reused from main. Review this change
@@ -89,6 +91,6 @@ trusted TLS certificates and existing routes with fake ATS/Docker/system tools.
 `tests/browser_servers.py` uses Playwright and temporary Local/Global fixtures;
 set `BROWSER_EXECUTABLE` to an existing Chromium if needed. It checks all four
 themes at phone/tablet/desktop widths, target headers across host tabs, delayed
-response isolation, credential-free web storage, and remote terminal rejection.
+response isolation, credential-free web storage, and that a remote target never receives a local shell.
 Production hosts, Cloudflare/GitHub setup and real webhook deliveries are not
 covered by fixture validation.

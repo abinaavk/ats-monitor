@@ -88,8 +88,7 @@ try:
             if tab!='metrics':assert calls,(tab,requests[start:])
             assert all(r['target']==fixture.node['id'] for r in calls),(tab,calls)
             report['switches'].append({'tab':tab,'target':'global','pass':True})
-        page.evaluate("document.querySelector('.nav-link[data-tab=terminal]').click()")
-        assert page.locator('#term-overlay-title').inner_text()=='Remote terminal unavailable'
+        # Terminals on a Global are relayed (covered end to end by the ATS rehearsal); no local shell may be opened for one.
         assert len(host._term_sessions)==0
         # A delayed old-server response cannot enter the newly loaded page.
         import servers_api
@@ -116,8 +115,15 @@ try:
             c.get('/login')
             with c.session_transaction() as session:csrf=session['login_csrf']
             c.post('/login',data={'password':'password','csrf_token':csrf})
-            socket=host.socketio.test_client(host.app,namespace='/terminal',flask_test_client=c,query_string='server='+fixture.node['id'])
-            assert not socket.is_connected('/terminal')
+            # A forged or unknown target is never given a local shell: the terminal itself says why and ends.
+            from unittest.mock import patch
+            with patch('cluster_support.configured_node',return_value=fixture.local):   # the fixture's env registry is a Global's
+                socket=host.socketio.test_client(host.app,namespace='/terminal',flask_test_client=c,query_string='server='+('f'*32))
+            assert socket.is_connected('/terminal')
+            host.socketio.sleep(1)
+            said=str(socket.get_received('/terminal'))
+            assert 'Unknown server' in said,said
+            assert not any(session.get('fd') for session in host._term_sessions.values())
         # The target wrapper must retain Request headers and caller cancellation.
         result=page.evaluate('''async () => {
             const request=new Request('/api/manage/settings',{method:'PUT',headers:{'Content-Type':'application/json','X-Requested-With':'ats-monitor'},body:JSON.stringify({storage_root:'/tmp/browser-fixture'})});

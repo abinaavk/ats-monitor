@@ -386,7 +386,7 @@ def register_shell(socketio, ns='/docker-shell', app=None):
     def _connect():
         from cluster_support import configured_node
         node = configured_node()
-        if node and (request.args.get('server') != node['id'] or node['role'] != 'local'):
+        if node and node['role'] != 'local':
             return False
         if not security.socket_authorized(session.get('auth_id')):
             return False
@@ -394,6 +394,17 @@ def register_shell(socketio, ns='/docker-shell', app=None):
         if not cid:
             return False
         sid = request.sid
+        if node and request.args.get('server') != node['id']:
+            import remote_terminal
+            auth_id = session.get('auth_id')
+
+            def authorized():
+                with app_context():
+                    return security.socket_authorized(auth_id)
+            remote_terminal.attach(socketio, _shells, sid, request.args.get('server'), auth_id, namespace=ns,
+                                   output_event='shell_output', exit_event='shell_exit', authorized=authorized,
+                                   target='docker', container=cid)
+            return
         pid, fd = pty.fork()
         if pid == 0:
             env = os.environ.copy()
@@ -410,6 +421,9 @@ def register_shell(socketio, ns='/docker-shell', app=None):
         if s and not security.socket_authorized(s.get('auth_id')):
             socketio.server.disconnect(request.sid, namespace=ns)
             return
+        if s and s.get('relay') and isinstance(data, dict):
+            s['relay'].write(str(data.get('input', '')))
+            return
         if s and isinstance(data, dict):
             try:
                 os.write(s['fd'], str(data.get('input', '')).encode())
@@ -422,6 +436,12 @@ def register_shell(socketio, ns='/docker-shell', app=None):
         if s and not security.socket_authorized(s.get('auth_id')):
             socketio.server.disconnect(request.sid, namespace=ns)
             return
+        if s and s.get('relay') and isinstance(data, dict):
+            try:
+                s['relay'].resize(max(1, min(1000, int(data.get('rows', 24)))), max(1, min(1000, int(data.get('cols', 80)))))
+            except (ValueError, TypeError, OverflowError):
+                pass
+            return
         if s and isinstance(data, dict):
             try:
                 fcntl.ioctl(s['fd'], termios.TIOCSWINSZ,
@@ -432,5 +452,8 @@ def register_shell(socketio, ns='/docker-shell', app=None):
     @socketio.on('disconnect', namespace=ns)
     def _disconnect():
         s = _shells.pop(request.sid, None)
+        if s and s.get('relay'):
+            s['relay'].close()
+            return
         if s:
             _reap(s['fd'], s['pid'])

@@ -170,3 +170,42 @@ class Relay:
                 sent = True
             if not sent:
                 self.sleep(0.02)
+
+
+MAX_RELAYS = 6
+
+
+def attach(socketio, sessions, sid, server_id, auth_id, *, namespace, output_event, exit_event, authorized,
+           target='shell', container=None, rows=24, cols=80):
+    """Bind a browser socket to a session on the Global `server_id`; every failure is shown in the terminal itself."""
+    from cluster_support import Store, registry
+
+    def emit(text):
+        socketio.emit(output_event, text, namespace=namespace, to=sid)
+
+    def finished():
+        socketio.emit(exit_event, {}, namespace=namespace, to=sid)
+        sessions.pop(sid, None)
+
+    def refuse(message):
+        def tell():
+            emit(f'\r\n[{message}]\r\n')
+            socketio.emit(exit_event, {}, namespace=namespace, to=sid)
+        socketio.start_background_task(tell)
+
+    try:
+        store = registry(Store)
+        server = store.server(server_id) if store else None
+    except Exception:
+        server = None
+    if not server or server['local']:
+        return refuse('Unknown server: no terminal was opened')
+    if not server['secret'] or not server['connected']:
+        return refuse(f"{server['name']} is disconnected or revoked: reconnect it in Settings → Servers")
+    if sum(1 for item in sessions.values() if item.get('relay')) >= MAX_RELAYS:
+        return refuse('Too many remote terminals are open; close one first')
+    relay = Relay(server, emit, finished, authorized, target=target, container=container,
+                  spawn=socketio.start_background_task, sleep=socketio.sleep)
+    sessions[sid] = {'relay': relay, 'auth_id': auth_id}
+    relay.start(rows, cols)
+    return relay

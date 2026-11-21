@@ -358,6 +358,9 @@ def _close_terminal(sid):
     sess = _term_sessions.pop(sid, None)
     if not sess:
         return
+    if sess.get('relay'):
+        sess['relay'].close()
+        return
     try:
         os.close(sess['fd'])
     except OSError:
@@ -420,11 +423,19 @@ def _read_pty(sid, fd):
 def on_term_connect(auth=None):
     from cluster_support import configured_node
     node = configured_node()
-    if node and (request.args.get('server') != node['id'] or node['role'] != 'local'):
+    if node and node['role'] != 'local':
         return False
     if not security.socket_authorized(session.get('auth_id')):
         return False
     sid = request.sid
+    if node and request.args.get('server') != node['id']:
+        # A Global: relay this browser terminal to a session on that server over the signed channel.
+        import remote_terminal
+        auth_id = session.get('auth_id')
+        remote_terminal.attach(socketio, _term_sessions, sid, request.args.get('server'), auth_id,
+                               namespace='/terminal', output_event='terminal_output', exit_event='terminal_exit',
+                               authorized=lambda: _terminal_authorized(auth_id))
+        return
     # An absent legacy default must not kill an otherwise usable shell.
     cwd = ATS_HOME if os.path.isdir(ATS_HOME) and os.access(ATS_HOME, os.X_OK) else os.path.expanduser('~')
     if not os.path.isdir(cwd):
@@ -454,6 +465,9 @@ def on_term_input(data=None):
         socketio.server.disconnect(request.sid, namespace='/terminal')
         return
     value = data.get('input') if isinstance(data, dict) else None
+    if sess and sess.get('relay'):
+        sess['relay'].write(value)
+        return
     if sess and isinstance(value, str):
         try:
             os.write(sess['fd'], value.encode())
@@ -471,6 +485,9 @@ def on_term_resize(data=None):
         try:
             rows = max(1, min(1000, int(data.get('rows', 24))))
             cols = max(1, min(1000, int(data.get('cols', 80))))
+            if sess.get('relay'):
+                sess['relay'].resize(rows, cols)
+                return
             fcntl.ioctl(sess['fd'], termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
         except (OSError, ValueError, TypeError, OverflowError):
             pass
