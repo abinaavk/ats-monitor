@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 
 import test_servers
 
@@ -72,6 +73,60 @@ class ExplainedFailures(unittest.TestCase):
         # A body missing fields is a clean 400, never a server error.
         bad = self.client.post('/api/servers/%s/credentials' % self.node['id'], json={'name': 'x'}, headers=self.csrf())
         self.assertEqual(bad.status_code, 400)
+
+
+class ServerPageApi(unittest.TestCase):
+    setUp = test_servers.ServersTests.setUp
+
+    def test_server_list_shows_webhook_mappings_but_never_secrets(self):
+        hook_secret = secrets.token_hex(32)
+        self.primary.mapping('owner/site', self.node['id'], 'site', 'main', hook_secret)
+        response = self.client.get('/api/servers')
+        body = response.get_json()
+        entry = next(item for item in body['servers'] if item['id'] == self.node['id'])
+        self.assertEqual(entry['mappings'], [{'repository': 'owner/site', 'service': 'site', 'branch': 'main'}])
+        self.assertEqual(body['webhook'], 'hooks.example.com')
+        text = response.get_data(as_text=True)
+        self.assertNotIn(hook_secret, text)
+        self.assertNotIn(self.node['secret'], text)
+        local = next(item for item in body['servers'] if item['local'])
+        self.assertEqual(local['mappings'], [])
+
+    def test_connection_test_reports_each_step(self):
+        result = self.client.get('/api/servers/%s/test' % self.node['id']).get_json()
+        self.assertTrue(result['ok'], result)
+        self.assertEqual([step['name'] for step in result['steps']],
+                         ['Signed health over HTTPS', 'Monitor adapter', 'Service read through the adapter'])
+        self.assertTrue(all(step['ok'] for step in result['steps']))
+        self.assertNotIn(self.node['secret'], json.dumps(result))
+
+    def test_connection_test_explains_failures_and_states(self):
+        sid = self.node['id']
+        with self.global_store.db() as db:
+            db.execute('UPDATE node SET secret=?', (secrets.token_hex(32),))
+        wrong = self.client.get('/api/servers/%s/test' % sid).get_json()
+        self.assertFalse(wrong['ok'])
+        self.assertIn('rejected the server ID or passkey', wrong['steps'][0]['detail'])
+        self.assertEqual(len(wrong['steps']), 1)
+        self.primary.connection(sid, 'disconnect')
+        off = self.client.get('/api/servers/%s/test' % sid).get_json()
+        self.assertFalse(off['ok'])
+        self.assertEqual(off['steps'][0]['name'], 'Connection setting')
+        local = self.client.get('/api/servers/%s/test' % self.local['id']).get_json()
+        self.assertTrue(local['ok'])
+        self.assertEqual(self.client.get('/api/servers/%s/test' % ('f' * 32)).status_code, 404)
+
+    def test_missing_adapter_stops_after_the_adapter_step(self):
+        with unittest.mock.patch.dict(os.environ, {'ATS_MONITOR_ADAPTER': '/missing/remote_host.py'}):
+            result = self.client.get('/api/servers/%s/test' % self.node['id']).get_json()
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['steps'][-1]['name'], 'Monitor adapter')
+        self.assertIn('server setup --apply', result['steps'][-1]['detail'])
+
+    def test_page_requires_login(self):
+        anonymous = self.app.test_client()
+        self.assertEqual(anonymous.get('/api/servers/%s/test' % self.node['id']).status_code, 401)
+        self.assertEqual(anonymous.get('/api/servers').status_code, 401)
 
 
 class HeadlessAdapter(unittest.TestCase):
