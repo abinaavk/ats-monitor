@@ -4,6 +4,25 @@ const $ = id => document.getElementById(id);
 let settings = null, devices = [], loadedAt = 0, pending = null, busy = false, returnFocus = null;
 const when = value => value ? new Date(value * 1000).toLocaleString() : 'Unavailable';
 const trusted = device => device.trusted_until && device.trusted_until > Date.now()/1000 && !device.revoked_at;
+let session = null;
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+function sessionText() {
+    if (!session) return 'Session details are unavailable right now.';
+    if (session.trusted) return `Trusted device: this browser stays signed in until ${new Date(session.expires_at*1000).toLocaleString()}.`;
+    const minutes = Math.max(0, Math.round((session.expires_at*1000 - Date.now())/60000));
+    return `Standard session: you will be signed out in ${plural(minutes, 'minute')}. Active use does not extend it.`;
+}
+function showSession() {
+    $('stSessionInfo').textContent = sessionText();
+    $('stSecSession').textContent = sessionText();
+    $('stPolicyTrusted').classList.toggle('is-current', !!session?.trusted);
+    $('stPolicyStandard').classList.toggle('is-current', !!session && !session.trusted);
+}
+async function refreshSession() {
+    try { const response = await fetch('/api/auth/status',{credentials:'same-origin'}); if (response.status===401) { window.location.assign('/login'); return; }
+          session = await response.json(); } catch (_) { /* keep the last known state */ }
+    showSession();
+}
 function message(text, error=false) { $('stMessage').textContent=text; $('stMessage').classList.toggle('error',error); }
 async function api(path, options={}) {
     const response = await fetch(path,{credentials:'same-origin',...options});
@@ -21,13 +40,20 @@ function section(name) {
     });
     message('');
     document.querySelector('[data-settings="'+name+'"]')?.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
-    if(name==='devices') loadDevices();
+    if(name==='devices' || name==='security') loadDevices();
+    if(name==='general') loadHost();
+    if(name==='account' || name==='security') refreshSession();
 }
+let hostLoadedAt = 0;
 window.fetchSettings = async function(force=false) {
+    // Opening Settings shows General first: load its host overview then, not at page load.
+    if(!$('st-general').hidden && (force || Date.now()-hostLoadedAt>60000)) loadHost();
+    refreshSession();
     if(!force && settings && Date.now()-loadedAt<30000) return;
     try {
         settings=await api('/api/settings'); loadedAt=Date.now();
         if(document.activeElement!==$('stDisplayName')) $('stDisplayName').value=settings.profile.display_name;
+        $('stAvatar').textContent=(settings.profile.display_name||'A').trim().charAt(0).toUpperCase()||'A';
     } catch(error) { message(error.message,true); }
 };
 async function loadDevices() {
@@ -36,7 +62,12 @@ async function loadDevices() {
     if(!devices.length) $('stDevices').textContent='Loading registered devices…';
     try {
         const result=await api('/api/settings/devices'); devices=result.devices;
-        $('stDevices').innerHTML=devices.length ? devices.map(device=>`<article class="st-device"><h3>${esc(device.name)}</h3><div class="st-badges">${device.current?'<span class="st-badge current">This device</span>':''}<span class="st-badge ${trusted(device)?'trusted':''}">${device.revoked_at?'Revoked':trusted(device)?'Trusted':'Standard security'}</span><span class="st-badge">${device.active_sessions?'Authenticated · Active session':'Signed out'}</span></div><p>${esc(device.device_type)} · ${esc(device.browser)}<br>IP ${esc(device.ip)} · Last active ${esc(when(device.last_active))}</p><div class="st-actions"><button class="term-btn" data-device="${esc(device.id)}" data-device-action="details">Details</button>${device.revoked_at?'':`<button class="term-btn" data-device="${esc(device.id)}" data-device-action="${trusted(device)?'untrust':'trust'}">${trusted(device)?'Remove trust':'Trust device'}</button><button class="term-btn" data-device="${esc(device.id)}" data-device-action="logout">Log out device</button><button class="term-btn st-sensitive" data-device="${esc(device.id)}" data-device-action="revoke">Revoke access</button>`}</div></article>`).join('') : '<p>No registered devices.</p>';
+        const live = devices.filter(device=>!device.revoked_at);
+        const trustedCount = live.filter(trusted).length, activeCount = live.filter(device=>device.active_sessions).length;
+        $('stDeviceSummary').textContent = `${plural(live.length,'device')} · ${trustedCount} trusted · ${activeCount} signed in`;
+        $('stSecStats').innerHTML = [['Devices',live.length],['Trusted',trustedCount],['Signed in',activeCount],['Other devices',live.filter(device=>!device.current).length]]
+            .map(([label,value])=>`<div class="st-stat"><b>${value}</b><span>${label}</span></div>`).join('');
+        $('stDevices').innerHTML=devices.length ? devices.map(device=>`<article class="st-device ${device.current?'is-current':''}"><header class="st-dhead"><h3>${esc(device.name)}</h3><div class="st-badges">${device.current?'<span class="st-badge current">This device</span>':''}<span class="st-badge ${trusted(device)?'trusted':''}">${device.revoked_at?'Revoked':trusted(device)?'Trusted':'Standard security'}</span><span class="st-badge">${device.active_sessions?'Signed in':'Signed out'}</span></div></header><dl class="st-facts"><div><dt>Device</dt><dd>${esc(device.device_type)} · ${esc(device.browser)}</dd></div><div><dt>Network address</dt><dd>${esc(device.ip)}</dd></div><div><dt>Last active</dt><dd>${esc(when(device.last_active))}</dd></div></dl><div class="st-actions"><button class="term-btn" data-device="${esc(device.id)}" data-device-action="details">Details</button>${device.revoked_at?'':`<button class="term-btn" data-device="${esc(device.id)}" data-device-action="${trusted(device)?'untrust':'trust'}">${trusted(device)?'Remove trust':'Trust device'}</button><button class="term-btn" data-device="${esc(device.id)}" data-device-action="logout">Log out device</button><button class="term-btn st-sensitive" data-device="${esc(device.id)}" data-device-action="revoke">Revoke access</button>`}</div></article>`).join('') : '<p>No registered devices.</p>';
         $('stAudit').innerHTML=result.audit.map(entry=>`<li>${esc(entry.action.replaceAll('_',' '))}<time>${esc(when(entry.at))} · ${esc(entry.ip)}</time></li>`).join('') || '<li>No security activity yet.</li>';
     } catch(error) {
         if(!devices.length) $('stDevices').textContent='Devices could not be loaded. Use Refresh to try again.';
@@ -94,10 +125,62 @@ $('stHostSettings').addEventListener('click',async()=>{
         $('mgSettingsBtn').click();
     } catch(error) {message(error.message,true);}
 });
+const field = (label, value) => `<div><dt>${esc(label)}</dt><dd>${value}</dd></div>`;
+const code = value => (value === undefined || value === null || value === '') ? '<span class="st-muted">—</span>' : `<code>${esc(value)}</code>`;
+async function loadHost() {
+    hostLoadedAt = Date.now();
+    const box = $('stHostOverview'); box.setAttribute('aria-busy','true');
+    const selected = document.querySelector('#activeServer option:checked')?.textContent;
+    $('stHostTarget').innerHTML = selected ? `Showing settings for <strong>${esc(selected)}</strong>` : '';
+    try {
+        const reply = await api('/api/manage/settings'); const d = reply.data || reply;
+        const defaults = d.defaults || {}, hook = d.webhook || {}, drive = d.gdrive || {};
+        const card = (title, rows) => `<article class="st-card"><h3>${esc(title)}</h3><dl class="st-facts">${rows.join('')}</dl></article>`;
+        box.innerHTML = [
+            card('Deployment', [field('Main domain', code(d.main_domain)), field('Saved domains', (d.domains||[]).map(code).join(' ') || '—'),
+                field('Storage root', code(d.storage_root)), field('Service user', code(d.service_user)), field('ATS home', code(d.ats_home))]),
+            card('Cloudflare tunnel', [field('Config file', code(d.cloudflare_config)), field('Tunnel service', code(d.cloudflared_service))]),
+            card('GitHub webhooks', [field('Receiver', code(hook.domain ? `${hook.domain}:${hook.port}` : '—'))]),
+            card('Defaults for new services', [field('Runtime', esc(defaults.runtime ?? '—')), field('Branch', code(defaults.branch)),
+                field('Workers', esc(defaults.workers ?? '—')), field('Memory', esc(defaults.max_memory_mb ? defaults.max_memory_mb+' MB' : '—')),
+                field('CPU quota', esc(defaults.cpu_quota ? defaults.cpu_quota+' %' : '—')), field('Container port', esc(defaults.container_port ?? '—'))]),
+            card('Backups', [field('Google Drive remote', code(drive.remote)), field('Retention', esc(drive.retention_days ? drive.retention_days+' days' : '—'))])
+        ].join('');
+    } catch (error) {
+        box.innerHTML = `<article class="st-card st-error"><h3>Host settings unavailable</h3><p>${esc(error.message)}</p><button class="term-btn" id="stHostRetry" type="button">Try again</button></article>`;
+        $('stHostRetry').addEventListener('click', loadHost);
+    } finally { box.setAttribute('aria-busy','false'); }
+}
+$('stRefreshHost').addEventListener('click', loadHost);
+$('stCloudflareSettings').addEventListener('click', async()=>{
+    try { await window.fetchManage(true); if($('mgSettingsBtn').disabled) throw new Error('Host settings are unavailable. Check the ATS connection in Manage.');
+          if (typeof openSettings === 'function') openSettings('cf'); else $('mgSettingsBtn').click(); }
+    catch(error){ message(error.message,true); }
+});
+$('stSecLogoutOthers').addEventListener('click',()=>$('stLogoutOthers').click());
+const strength = value => { let score = Math.min(value.length, 20) / 20 * 55; for (const re of [/[a-z]/,/[A-Z]/,/\d/,/[^A-Za-z0-9]/]) if (re.test(value)) score += 11; return Math.min(100, Math.round(score)); };
+$('stNewPw').addEventListener('input',()=>{
+    const value = $('stNewPw').value, score = value ? strength(value) : 0;
+    $('stPwBar').style.width = score+'%'; $('stPwBar').dataset.level = score < 45 ? 'weak' : score < 75 ? 'fair' : 'strong';
+    $('stPwHint').textContent = !value ? 'At least 10 characters.' : value.length < 10 ? `${10-value.length} more character${10-value.length===1?'':'s'} needed.` : score < 75 ? 'Acceptable. Longer or mixed characters are stronger.' : 'Strong.';
+});
+$('stPwToggle').addEventListener('click',()=>{
+    const show = $('stNewPw').type === 'password';
+    for (const id of ['stNewPw','stNewPw2']) $(id).type = show ? 'text' : 'password';
+    $('stPwToggle').textContent = show ? 'Hide' : 'Show'; $('stPwToggle').setAttribute('aria-pressed', String(show));
+});
+$('stPwForm').addEventListener('submit',event=>{
+    event.preventDefault();
+    const value = $('stNewPw').value;
+    if (value.length < 10) { message('The new password must be at least 10 characters.',true); return; }
+    if (value !== $('stNewPw2').value) { message('The two new passwords do not match.',true); return; }
+    confirmChange('Change administrator password','Enter your current password to confirm. Every other device will be signed out; this one stays signed in.','/api/settings/password',{new_password:value});
+    $('stNewPw').value=''; $('stNewPw2').value=''; $('stNewPw').dispatchEvent(new Event('input'));
+});
 // Display expiry according to server policy. Never extend Standard sessions here.
 async function checkAuthentication() {
     try {const response=await fetch('/api/auth/status',{credentials:'same-origin'});if(response.status===401)window.location.assign('/login');}
     catch(_) { /* Leave connection errors visible through the normal dashboard. */ }
 }
-setInterval(checkAuthentication,30000);
+setInterval(()=>{checkAuthentication();refreshSession();},30000);
 })();
