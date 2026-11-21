@@ -24,7 +24,7 @@
         for(const server of data.servers) {
             const article=document.createElement('article'); article.className='st-device';
             const title=document.createElement('h3');title.textContent=server.name;
-            const detail=document.createElement('p');detail.textContent=`${server.local?'Local · Primary':'Global'} · ${server.domain||'Central control point'} · ${server.local?'Available':!server.paired?'Revoked':server.connected?'Enabled':'Disconnected'}`;
+            const detail=document.createElement('p');detail.textContent=`${server.local?'Local · Primary':'Global'} · ${server.domain||'Central control point'} · ${server.local?'Available':server.revocation_pending?'Revocation unconfirmed':!server.paired?'Revoked':server.connected?'Enabled':'Disconnected'}`;
             article.append(title,detail);
             const health=document.createElement('p');health.setAttribute('role','status');
             health.textContent=server.local?'Local control':server.connected?'Checking reachability…':'Remote requests disabled';
@@ -46,20 +46,60 @@
                     catch(error){show(error.message,true);}finally{save.disabled=false;}
                 });
             }
+            if(!server.local) {
+                const details=document.createElement('details');
+                const summary=document.createElement('summary');summary.textContent='Update ID and passkey';
+                const note=document.createElement('p');note.textContent='Use the current private pairing file from this Global server. The new credentials are verified before saving. Connection state and webhook mappings are preserved. A changed ID keeps old jobs attached to the old identity.';
+                const form=document.createElement('form');form.className='server-edit';form.autocomplete='off';
+                const fields={};
+                for(const [key,text,value,type,pattern] of [
+                    ['name','Server name',server.name,'text',''],
+                    ['domain','HTTPS API origin',server.domain,'url',''],
+                    ['id','Global server ID',server.id,'text','[0-9a-f]{32}'],
+                    ['secret','New private passkey','','password','[0-9a-f]{64}']]) {
+                    const label=document.createElement('label');label.textContent=text;
+                    const input=document.createElement('input');input.type=type;input.value=value;input.required=true;input.autocomplete='off';
+                    if(pattern)input.pattern=pattern;if(key==='name')input.maxLength=64;
+                    fields[key]=input;label.append(input);form.append(label);
+                }
+                const save=document.createElement('button');save.type='submit';save.className='term-btn';save.textContent='Verify and replace credentials';form.append(save);
+                form.addEventListener('submit',async event=>{
+                    event.preventDefault();
+                    if(fields.id.value!==server.id&&!confirm(`Replace the identity of ${server.name} and move its webhook mappings to the verified new ID? Old jobs will retain the old ID.`))return;
+                    save.disabled=true;show('Verifying new credentials…');
+                    const body=Object.fromEntries(Object.entries(fields).map(([key,input])=>[key,input.value]));
+                    fields.secret.value='';
+                    try {
+                        await change(`/api/servers/${server.id}/credentials`,body);
+                        if(window.atsTarget?.id===server.id) {localStorage.setItem(selectedKey,body.id);location.reload();return;}
+                        await load();show('Credentials verified and updated. Connection state preserved.');
+                    } catch(error){show(error.message,true);}finally{body.secret='';fields.secret.value='';save.disabled=false;}
+                });
+                details.append(summary,note,form);article.append(details);
+            }
             if(!server.local) for(const action of ['disconnect','reconnect','revoke']) {
                 const button=document.createElement('button');button.className='term-btn';button.textContent=action[0].toUpperCase()+action.slice(1);
-                button.disabled=!server.paired || (action==='disconnect'&&!server.connected) || (action==='reconnect'&&!!server.connected);
+                button.disabled=!server.paired || (action==='disconnect'&&!server.connected) || (action==='reconnect'&&(!!server.connected||!!server.revocation_pending));
                 button.addEventListener('click',async()=>{
                     if(action==='revoke'&&!confirm(`Revoke ${server.name}? New credentials must be generated on that Global server to pair again.`))return;
                     button.disabled=true;show(action==='disconnect'?'Disconnecting…':action==='revoke'?'Revoking access on Global…':'Verifying Global connectivity…');
                     try {await change(`/api/servers/${server.id}/${action}`,{});await load();show('Connection updated.');if(window.atsTarget?.id===server.id)location.reload();}
-                    catch(error){show(error.message,true);}finally{button.disabled=false;}
+                    catch(error){await load().catch(()=>{});show(error.message,true);}finally{button.disabled=false;}
                 });article.append(button);
             }
             list.append(article);
         }
     };
-    async function load() {const data=await json('/api/servers');render(data);return data;}
+    async function load() {
+        const data=await json('/api/servers');render(data);
+        if(window.atsTarget) {
+            const id=window.atsTarget.id;
+            selector.replaceChildren(...data.servers.map(server=>new Option(`${server.name} · ${server.local?'Local':'Global'}`,server.id)));
+            if(!data.servers.some(server=>server.id===id))selector.add(new Option('Selected server unavailable',id));
+            selector.value=id;
+        }
+        return data;
+    }
     async function change(path,body,method='POST') {
         const settings=await json('/api/settings');
         return json(path,{method,headers:{'Content-Type':'application/json','X-CSRF-Token':settings.csrf_token},body:JSON.stringify(body)});
@@ -88,12 +128,20 @@
     // Avoid an unhandled rejection while every target request remains fail-closed.
     window.atsServerReady.catch(()=>{});
     window.fetch=async function(input,options={}) {
-        const url=new URL(typeof input==='string'?input:input.url,location.href);
+        const url=new URL(input instanceof Request?input.url:input,location.href);
         if(url.origin!==location.origin||!hostRoutes(url.pathname))return originalFetch(input,options);
         const server=await window.atsServerReady;
         if(switching)throw new DOMException('Server changed','AbortError');
-        const headers=new Headers(options.headers||{});headers.set('X-ATS-Target',server.id);
-        const response=await originalFetch(input,{...options,headers,signal:controller.signal});
+        const request=new Request(input,options);
+        const headers=new Headers(request.headers);headers.set('X-ATS-Target',server.id);
+        const combined=new AbortController();
+        const abort=()=>combined.abort();
+        for(const signal of [request.signal,controller.signal]) {
+            if(signal.aborted)abort();else signal.addEventListener('abort',abort,{once:true});
+        }
+        let response;
+        try {response=await originalFetch(request,{headers,signal:combined.signal});}
+        finally {request.signal.removeEventListener('abort',abort);controller.signal.removeEventListener('abort',abort);}
         if(switching)throw new DOMException('Server changed','AbortError');
         if(response.status===503)status.textContent='Offline';
         else if(response.ok)status.textContent='Online';

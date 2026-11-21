@@ -47,17 +47,19 @@ try:
         page.wait_for_selector('#activeServer:not([disabled])')
         # No fixture credentials may appear in any web storage.
         assert fixture.node['secret'] not in page.evaluate('JSON.stringify({...localStorage,...sessionStorage})')
-        for width,height in [(390,844),(768,1024),(1440,1000)]:
+        for width,height in [(360,800),(390,844),(768,1024),(1440,1000)]:
             page.set_viewport_size({'width':width,'height':height})
             for theme in ['jetblack','light','midnight','rose']:
                 page.evaluate('(theme)=>setTheme(theme)',theme)
                 page.evaluate("document.querySelector('.nav-link[data-tab=settings]').click()")
                 page.locator('[data-settings=servers]').click()
                 assert page.locator('#st-servers').is_visible()
+                page.locator('#serverList details').evaluate('(element)=>element.open=true')
                 assert page.locator('#serverList article').count()==2
                 assert page.locator('#activeServer').is_visible()
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,'horizontal overflow')
                 form=page.locator('#pairServer').bounding_box();assert form['x']>=0 and form['x']+form['width']<=width+1
+                update=page.locator('#serverList details .server-edit').bounding_box();assert update['x']>=0 and update['x']+update['width']<=width+1
                 report['layouts'].append({'width':width,'theme':theme,'pass':True})
         page.set_viewport_size({'width':1440,'height':1000})
         requests=[]
@@ -108,6 +110,32 @@ try:
             c.post('/login',data={'password':'password','csrf_token':csrf})
             socket=host.socketio.test_client(host.app,namespace='/terminal',flask_test_client=c,query_string='server='+fixture.node['id'])
             assert not socket.is_connected('/terminal')
+        # The target wrapper must retain Request headers and caller cancellation.
+        result=page.evaluate('''async () => {
+            const request=new Request('/api/manage/settings',{method:'PUT',headers:{'Content-Type':'application/json','X-Requested-With':'ats-monitor'},body:JSON.stringify({storage_root:'/tmp/browser-fixture'})});
+            const controller=new AbortController();controller.abort();
+            try {await fetch(request,{signal:controller.signal});return 'not aborted';}
+            catch(error){return error.name;}
+        }''')
+        assert result=='AbortError',result
+        # Rotate on the fixture Global, then repair the existing entry through the UI.
+        fresh=__import__('secrets').token_hex(32)
+        with fixture.global_store.db() as db:db.execute('UPDATE node SET secret=?',(fresh,))
+        page.evaluate("document.querySelector('.nav-link[data-tab=settings]').click()")
+        page.locator('[data-settings=servers]').click()
+        page.locator('#serverList details').evaluate('(element)=>element.open=true')
+        form=page.locator('#serverList details .server-edit')
+        form.locator('input[type=password]').fill(fresh)
+        form.locator('button').click()
+        page.wait_for_function("document.querySelector('#serversMessage').textContent.includes('Credentials verified')")
+        assert fixture.primary.server(fixture.node['id'])['secret']==fresh
+        assert page.locator('#serverList details input[type=password]').input_value()==''
+        assert fresh not in page.evaluate('JSON.stringify({...localStorage,...sessionStorage})')
+        assert fresh not in page.content()
+        page.set_viewport_size({'width':390,'height':844})
+        page.locator('#serverList details').evaluate('(element)=>element.open=true')
+        page.screenshot(path='/tmp/gai18-servers-mobile.png',full_page=True)
+        report['switches'].append({'tab':'credential replacement','target':'global','pass':True})
         assert not report['errors'],report['errors']
         context.close();browser.close()
     print(json.dumps(report,indent=2))

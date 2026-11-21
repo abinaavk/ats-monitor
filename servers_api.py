@@ -59,7 +59,9 @@ def servers():
     error = guard()
     if error:
         return error
-    value = request.get_json(silent=True) or {}
+    value = request.get_json(silent=True)
+    if not isinstance(value, dict):
+        return jsonify(error='Expected a pairing object'),400
     try:
         store.pair(value.get('id'), value.get('name'), value.get('domain'), value.get('secret'))
         return jsonify(ok=True)
@@ -88,6 +90,25 @@ def update_server(sid):
         return jsonify(ok=True)
     except (ValueError, OSError, sqlite3.Error):
         return jsonify(error='Server update failed. Check the name, HTTPS origin and Global connectivity; existing settings were preserved.'),400
+
+
+@bp.post('/api/servers/<sid>/credentials')
+def replace_credentials(sid):
+    error = guard()
+    if error:
+        return error
+    value = request.get_json(silent=True)
+    if not isinstance(value, dict):
+        return jsonify(error='Expected server ID, name, HTTPS origin and pairing secret'),400
+    try:
+        store = registry(Store)
+        if not store or not hasattr(store, 'replace_credentials'):
+            return jsonify(error='Update ATS on Local before replacing credentials'),503
+        store.replace_credentials(sid, value.get('id'), value.get('name'),
+                                  value.get('domain'), value.get('secret'))
+        return jsonify(ok=True, server_id=value['id'])
+    except (ValueError, OSError, sqlite3.Error):
+        return jsonify(error='Credential update failed. Verify the new Global ID, key and HTTPS origin. Existing pairing and routes were preserved.'),400
 
 
 @bp.post('/api/servers/<sid>/<action>')
