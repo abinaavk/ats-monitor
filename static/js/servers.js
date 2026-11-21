@@ -333,4 +333,5 @@
     });
     document.getElementById('refreshServers').addEventListener('click',()=>{results.clear();show('Refreshing…');load().then(()=>show('')).catch(error=>show(error.message,true));});
     document.getElementById('addServerJump').addEventListener('click',()=>focusPairing());
+    document.addEventListener('click',event=>{const target=event.target.closest('[data-copy]');if(target)copy(target.dataset.copy,'Command');});
 })();
