@@ -379,14 +379,30 @@
 
 
 <section class="tabcontent" id="tab-settings">
+  <div class="st-glance" id="stGlance" aria-label="At a glance">
+    <button type="button" class="st-tile" data-jump="servers"><small>Servers</small><b id="glanceServers">Checking…</b><span>Manage Local &amp; Global</span></button>
+    <button type="button" class="st-tile" data-jump="general"><small>Host</small><b id="glanceHost">Open General</b><span>Domains, storage, Cloudflare</span></button>
+    <button type="button" class="st-tile" data-jump="security"><small>Session</small><b id="glanceSecurity">Checking…</b><span>Sign-in policy</span></button>
+    <button type="button" class="st-tile" data-jump="devices"><small>Devices</small><b id="glanceDevices">Open Devices</b><span>Browsers &amp; trust</span></button>
+  </div>
   <div class="st-layout">
     <nav class="st-nav" aria-label="Settings sections">
-      <button class="term-btn active" id="st-nav-general" aria-controls="st-general" data-settings="general" aria-current="page"><span>General</span><small>Storage & deployment</small></button>
-      <button class="term-btn" id="st-nav-account" aria-controls="st-account" data-settings="account"><span>Account</span><small>Administrator profile</small></button>
-      <button class="term-btn" id="st-nav-security" aria-controls="st-security" data-settings="security"><span>Security</span><small>Authentication policies</small></button>
-      <button class="term-btn" id="st-nav-appearance" aria-controls="st-appearance" data-settings="appearance"><span>Appearance</span><small>Themes for this browser</small></button>
-      <button class="term-btn" id="st-nav-devices" aria-controls="st-devices" data-settings="devices"><span>Devices</span><small>Sessions & trusted access</small></button>
-      <button class="term-btn" id="st-nav-servers" aria-controls="st-servers" data-settings="servers"><span>Servers</span><small>Local &amp; Global control</small></button>
+      <label class="st-search"><span class="sr-only">Search settings</span><input id="stSearch" type="search" placeholder="Search settings   ( / )" autocomplete="off" spellcheck="false" aria-controls="stNavList"></label>
+      <div id="stNavList">
+        <div class="st-group"><p class="st-group-title">Workspace</p>
+          <button class="term-btn" id="st-nav-servers" aria-controls="st-servers" data-settings="servers" data-keywords="servers global local pair connect disconnect tunnel passkey id webhook mapping address health test"><span>Servers</span><small>Local &amp; Global control</small></button>
+          <button class="term-btn active" id="st-nav-general" aria-controls="st-general" data-settings="general" aria-current="page" data-keywords="general host storage domain cloudflare tunnel defaults backups google drive webhook receiver service user runtime"><span>General</span><small>Storage &amp; deployment</small></button>
+        </div>
+        <div class="st-group"><p class="st-group-title">Security</p>
+          <button class="term-btn" id="st-nav-account" aria-controls="st-account" data-settings="account" data-keywords="account profile display name password change session sign in"><span>Account</span><small>Profile &amp; password</small></button>
+          <button class="term-btn" id="st-nav-security" aria-controls="st-security" data-settings="security" data-keywords="security authentication policy trusted standard session expire"><span>Security</span><small>Authentication policies</small></button>
+          <button class="term-btn" id="st-nav-devices" aria-controls="st-devices" data-settings="devices" data-keywords="devices browsers trusted revoke log out sessions activity audit"><span>Devices</span><small>Sessions &amp; trusted access</small></button>
+        </div>
+        <div class="st-group"><p class="st-group-title">Preferences</p>
+          <button class="term-btn" id="st-nav-appearance" aria-controls="st-appearance" data-settings="appearance" data-keywords="appearance theme dark light colour color graphite paper ink clay"><span>Appearance</span><small>Themes for this browser</small></button>
+        </div>
+      </div>
+      <p class="st-nomatch" id="stNoMatch" hidden>No settings match your search.</p>
     </nav>
     <div class="st-content">
       <p id="stMessage" class="st-message" role="status" aria-live="polite"></p>
@@ -437,6 +453,7 @@
         <p id="serversSummary" class="srv-summary" aria-live="polite"></p>
         <p id="serversMessage" role="status" aria-live="polite"></p>
         <div id="serverList" class="srv-list"></div>
+        <div class="srv-lower">
         <section class="srv-setup" aria-labelledby="srvSetupTitle">
           <h3 id="srvSetupTitle">Automatic setup on a Global server</h3>
           <p>Run one command on the Global server. It installs the API service and adds the tunnel route for you, then proves both work. Monitor never runs commands on a Global itself.</p>
@@ -467,6 +484,7 @@
           </ol>
           <form id="pairServer" autocomplete="off"><label class="paste">Pairing file contents<textarea id="pairPaste" rows="3" spellcheck="false" autocomplete="off" placeholder='{"id": "…", "name": "…", "domain": "https://…", "secret": "…"}'></textarea></label><label>Server name<input name="serverName" required maxlength="64"></label><label>HTTPS API origin<input name="serverDomain" type="url" placeholder="https://api.example.com" required></label><label>Stable server ID<input name="serverId" required pattern="[0-9a-f]{32}"></label><label>Private pairing secret<input id="serverSecret" type="password" required pattern="[0-9a-f]{64}" autocomplete="off"></label><button type="submit" class="term-btn srv-primary">Pair and validate</button></form>
         </section>
+        </div>
         <details class="srv-help"><summary>Troubleshooting: what the messages mean</summary>
           <table><thead><tr><th>Message</th><th>Fix</th></tr></thead><tbody>
             <tr><td>rejected the server ID or passkey</td><td>The saved key is out of date. Open that server&rsquo;s <b>Update ID and passkey</b> and paste its current pairing file.</td></tr>

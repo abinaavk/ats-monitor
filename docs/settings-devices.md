@@ -48,3 +48,15 @@ Cookie flags follow [Flask security guidance](https://flask.palletsprojects.com/
 - **Devices** shows a summary line and a card per device. **Servers** is described in `server-management.md`.
 
 On phones the section list becomes a horizontally scrollable row, cards stack in one column and confirmation dialogs open as bottom sheets.
+
+## Finding things and using the whole screen
+
+On a PC the Settings page uses the full window width: an **At a glance** strip (servers online, host domain, session, devices; click a tile to
+jump to it), a grouped section list (Workspace: Servers, General; Security: Account, Security, Devices; Preferences: Appearance) and cards that
+flow into as many columns as fit. Server cards sit side by side on wide screens, with the automatic-setup guide next to the pairing form.
+
+* **Search settings** filters the section list by name and by keywords (for example "password", "tunnel", "theme", "webhook"); press **/**
+  anywhere on the Settings page to focus it, **Enter** to open the first match and **Esc** to clear.
+* Each section has a link you can bookmark or share: `#settings/servers`, `#settings/general`, `#settings/account`, `#settings/security`,
+  `#settings/devices`, `#settings/appearance`.
+* On phones the search is a full-width row above a horizontally scrollable row of sections, and the glance tiles form a two-column grid.
