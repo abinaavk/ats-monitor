@@ -9,8 +9,19 @@ except ImportError:
 
 import json, sqlite3, subprocess, datetime, socket, threading, select, signal, pty, fcntl, termios, struct
 from flask import Flask, render_template, session, redirect, request, jsonify, url_for, send_from_directory
-from flask_socketio import SocketIO, emit
 from functools import wraps
+
+# The private Global adapter (remote_host.py) serves no browser or WebSocket, so it
+# runs headless and needs only Flask. The browser-facing Monitor is unaffected.
+if os.environ.get('ATS_MONITOR_HEADLESS') == '1':
+    class SocketIO:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def on(self, *args, **kwargs):
+            return lambda function: function
+else:
+    from flask_socketio import SocketIO, emit
 
 try:
     import psutil

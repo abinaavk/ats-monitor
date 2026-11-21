@@ -37,6 +37,11 @@ if not (_transport / 'ats_cluster.py').is_file():
 # Keep Monitor's own app.py ahead of ATS's identically named entry point.
 sys.path.append(str(_transport))
 from ats_cluster import Store, remote, MAX_BODY
+try:
+    from ats_cluster import TransportError
+except ImportError:  # An older ATS: failures fall back to generic wording.
+    class TransportError(Exception):
+        code = 'transport'
 
 
 def registry(store_factory=Store):

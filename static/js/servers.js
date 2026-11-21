@@ -18,6 +18,22 @@
         if(!response.ok) throw Error(data.error||'Server unavailable');
         return data;
     };
+    // A pairing file holds the Global's ID, name, address and passkey. Pasting it fills the form
+    // and the textarea is emptied at once, so the key is never left sitting in the page.
+    const parsePairing = text => {
+        try {
+            const value = JSON.parse(text);
+            if (value && typeof value === 'object' && ['id','domain','secret'].every(key => typeof value[key] === 'string')) return value;
+        } catch (error) { /* not a pairing file yet */ }
+        return null;
+    };
+    const watchPaste = (area, apply) => area.addEventListener('input', () => {
+        const value = parsePairing(area.value);
+        if (!value) return;
+        apply(value);
+        area.value = '';
+        show('Pairing details filled in. Review them, then submit.');
+    });
     const render = data => {
         const list=document.getElementById('serverList');
         list.replaceChildren();
@@ -31,7 +47,7 @@
             article.append(health);
             if(!server.local && server.connected) json(`/api/servers/${server.id}/health`).then(result=>{
                 health.textContent=result.management_ready===false?'Reachable · Management adapter missing on Global':'Reachable';
-            }).catch(()=>{health.textContent='Unreachable · Check the Global daemon and HTTPS tunnel';});
+            }).catch(error=>{health.textContent='Unreachable · '+(error.message&&error.message!=='Server unavailable'?error.message:'Check the Global daemon and HTTPS tunnel');});
             if(!server.local && server.paired) {
                 const form=document.createElement('form');form.className='server-edit';
                 const label=document.createElement('label');label.textContent='Server name';
@@ -62,6 +78,12 @@
                     if(pattern)input.pattern=pattern;if(key==='name')input.maxLength=64;
                     fields[key]=input;label.append(input);form.append(label);
                 }
+                const paste=document.createElement('label');paste.className='paste';paste.textContent='Paste the new pairing file contents (optional, fills the fields)';
+                const area=document.createElement('textarea');area.rows=3;area.spellcheck=false;area.autocomplete='off';paste.append(area);form.prepend(paste);
+                watchPaste(area,value=>{
+                    if(typeof value.name==='string'&&value.name)fields.name.value=value.name;
+                    fields.domain.value=value.domain;fields.id.value=value.id;fields.secret.value=value.secret;
+                });
                 const save=document.createElement('button');save.type='submit';save.className='term-btn';save.textContent='Verify and replace credentials';form.append(save);
                 form.addEventListener('submit',async event=>{
                     event.preventDefault();
@@ -155,6 +177,12 @@
         location.reload();
     });
     document.addEventListener('click',event=>{const section=event.target.closest('[data-settings]');if(section)sessionStorage.setItem('ats.settingsSection',section.dataset.settings);const tab=event.target.closest('[data-tab]');if(tab?.classList.contains('nav-link'))sessionStorage.setItem('ats.activeTab',tab.dataset.tab);});
+    watchPaste(document.getElementById('pairPaste'),value=>{
+        const form=document.getElementById('pairServer');
+        if(typeof value.name==='string'&&value.name)form.elements.serverName.value=value.name;
+        form.elements.serverDomain.value=value.domain;form.elements.serverId.value=value.id;
+        document.getElementById('serverSecret').value=value.secret;
+    });
     document.getElementById('pairServer').addEventListener('submit',async event=>{
         event.preventDefault();const form=event.currentTarget;const button=form.querySelector('button[type="submit"]');button.disabled=true;
         const secret=document.getElementById('serverSecret');

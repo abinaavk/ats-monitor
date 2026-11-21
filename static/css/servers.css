@@ -6,3 +6,5 @@
 @media(min-width:901px){.server-control{margin-left:var(--side-w);position:sticky;top:0;z-index:20}}
 
 .server-edit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0;max-width:720px}.server-edit label{display:flex;flex-direction:column;gap:6px;min-width:0}.server-edit input{width:100%;min-width:0;box-sizing:border-box;min-height:44px;padding:10px;color:var(--text-1);background:var(--bg);border:1px solid var(--line);border-radius:5px}.server-edit button{justify-self:start;min-height:44px}#serverList p{overflow-wrap:anywhere}@media(max-width:600px){.server-edit{grid-template-columns:1fr}#serverList button{min-height:44px}}
+
+.paste{grid-column:1/-1}.paste textarea{width:100%;box-sizing:border-box;min-height:76px;padding:10px;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--text-1);background:var(--bg);border:1px solid var(--line);border-radius:5px;resize:vertical}

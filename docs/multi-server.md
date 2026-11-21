@@ -53,8 +53,11 @@ Long operations remain detached on their originating host; switch back to see
 their status and logs. Browser account/device/session settings remain centralized.
 
 On Global, set `ATS_MONITOR_ADAPTER` to `remote_host.py` and `ATS_CLI` to that
-host's ATS CLI. Install the normal Monitor Python dependencies in the ATS Python
-environment. The adapter is a private subprocess with JSON on stdin/stdout; it
+host's ATS CLI (`server setup --apply` does this). The adapter runs **headless**: the Global's
+Python needs only Flask (and optionally `psutil`), see `requirements-adapter.txt`; Socket.IO and
+gevent are for the browser-facing Local Monitor only. Prove an installation with
+`python remote_host.py --check` using the daemon's interpreter and environment: it prints a
+JSON report naming any missing module or unusable setting, and exits 2 on a problem. The adapter is a private subprocess with JSON on stdin/stdout; it
 does not run a public Monitor server or expose its browser authentication routes.
 It dispatches only the existing host route allowlist after the ATS HTTPS API has
 verified the request. Existing route validators, service locks and detached jobs
@@ -67,6 +70,17 @@ sessions and device trust retain the existing authentication and expiry behavior
 Settings polish from Monitor PR #15 is reused from main. Review this change
 against main; the existing Settings, Themes, Devices and session behavior is
 preserved. Recheck the exact head and base before merging this change.
+
+## Diagnosing a Global
+
+Failures from a selected or paired Global say what went wrong instead of "unavailable":
+wrong ID or passkey, clock skew between the servers, a Cloudflare block, a missing tunnel
+route, a stopped daemon or tunnel, DNS or TLS problems, or a missing adapter module. The reason
+is also written to the Monitor log (no credentials). On either server `server doctor` (in the ATS
+checkout) runs the same checks end to end and prints the fix for each.
+
+Every operation error on a Global (not found, validation, a job already running) now reaches
+Monitor with its real status and message; earlier versions reported them as an adapter outage.
 
 ## Validation
 
