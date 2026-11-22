@@ -5,6 +5,7 @@ never returns a key, token or webhook secret (a new mapping's secret is returned
 import hashlib
 import hmac
 import json
+import os
 from pathlib import Path
 import re
 import secrets
@@ -58,7 +59,17 @@ def offload(function, *args, **kwargs):
         from gevent import get_hub
     except ImportError:
         return function(*args, **kwargs)
-    return get_hub().threadpool.apply(function, args, kwargs)
+
+    def run():
+        # Carry an expected failure back to the caller instead of letting the thread pool print it as a crash.
+        try:
+            return True, function(*args, **kwargs)
+        except Exception as exc:
+            return False, exc
+    ok, value = get_hub().threadpool.apply(run)
+    if not ok:
+        raise value
+    return value
 
 
 def guarded(handler):
@@ -324,7 +335,11 @@ def alerts_test():
 def backup_status():
     store, _ = local()
     backups = ats('ats_registry_backup')
-    return jsonify(status=backups.status(store), items=backups.listing(store)[:10], directory=str(backups.directory(store, False)))
+    offsite = backups.offsite_status(store) if hasattr(backups, 'offsite_status') else {}
+    destinations = [x['name'] for x in store.servers() if not x['local'] and x['paired'] and x['connected']]
+    return jsonify(status=backups.status(store), items=backups.listing(store)[:10], directory=str(backups.directory(store, False)),
+                   offsite=list(offsite.values()), destinations=destinations,
+                   passphrase_configured=bool(os.environ.get('ATS_REGISTRY_BACKUP_PASSPHRASE_FILE')))
 
 
 @bp.post('/api/registry-backup')
@@ -340,6 +355,23 @@ def backup_now():
     store.kv_set('registry_backup', {'at': made['at'], 'path': made['path'], 'size': made['size'], 'encrypted': made['encrypted'], 'error': None})
     security.record('registry_backup_created', 'encrypted' if made['encrypted'] else 'not encrypted')
     return jsonify(ok=True, name=made['path'].rsplit('/', 1)[-1], size=made['size'], encrypted=made['encrypted'])
+
+
+@bp.post('/api/registry-backup/offsite')
+@guarded
+def backup_offsite():
+    """Send an encrypted copy to every connected Global now. Unencrypted data never leaves this server."""
+    store, _ = local()
+    backups = ats('ats_registry_backup')
+    if not hasattr(backups, 'push_offsite'):
+        raise Unavailable('Update ATS on this Local server (git pull, then restart ATS) to use this feature.')
+    passphrase = (request.get_json(silent=True) or {}).get('passphrase') or None
+    if passphrase is not None and (not isinstance(passphrase, str) or len(passphrase) < 8):
+        raise ValueError('The passphrase must be at least 8 characters')
+    results = offload(backups.push_offsite, store, passphrase)
+    sent = [r['server'] for r in results.values() if r['ok']]
+    security.record('registry_backup_sent_offsite', 'to ' + (', '.join(sent) if sent else 'no server (all failed)'))
+    return jsonify(ok=all(r['ok'] for r in results.values()), results=[{'server': r['server'], 'ok': r['ok'], 'error': r.get('error'), 'at': r['at']} for r in results.values()])
 
 
 def initialize(app):
