@@ -15,6 +15,9 @@ from test_servers import ServersTests
 
 fixture=ServersTests(methodName='test_all_host_reads_use_real_global_http_with_zero_local_calls')
 fixture.setUp()
+from unittest.mock import patch as _patch
+# Key rotation on the fixture Global rewrites its pairing file; keep that inside the fixture directory.
+_pairing=_patch('ats_server_cli.default_pairing_path',return_value=fixture.root/'pairing'/'pairing.json');_pairing.start()
 try:
     os.environ['ATS_ACCESS_PASSWORD']='password'
     import app as host
@@ -101,7 +104,13 @@ try:
                 assert page.locator('#stNavList [data-settings]:not([hidden])').count()==1 and page.locator('[data-settings=account]').is_visible(),(width,theme,'search')
                 page.locator('#stSearch').fill('zzzz');assert page.locator('#stNoMatch').is_visible(),(width,theme,'no-match message')
                 page.locator('#stSearch').fill('');assert page.locator('#stNavList [data-settings]:not([hidden])').count()==6,(width,theme,'search reset')
-                assert page.locator('#st-servers .srv-setup').is_visible() and page.locator('#st-servers [data-copy]').count()==4,(width,theme,'setup guide')
+                # Fleet panel: overview table (stacked cards on phones), alerts, backup and one-time-code form all fit the viewport.
+                for panel in ('#fleetOverview','#fleetAlerts','#fleetBackup','#pairCode'):
+                    assert page.locator(panel).is_visible(),(width,theme,panel,'missing')
+                    bounds=page.locator(panel).bounding_box();assert bounds['x']>=0 and bounds['x']+bounds['width']<=width+1,(width,theme,panel,bounds)
+                assert page.evaluate("getComputedStyle(document.querySelector('.fleet-table thead')).display==='none'")==(width<=700),(width,theme,'table should stack on phones only')
+                assert page.evaluate("[...document.querySelectorAll('#fleetAlerts input:not([type=checkbox]),#fleetBackup input,#pairCode input')].every(e=>e.getBoundingClientRect().height>=40)"),(width,theme,'inputs must be touch sized')
+                assert page.locator('#st-servers .srv-setup').is_visible() and page.locator('#st-servers [data-copy]').count()==5,(width,theme,'setup guide')
                 assert 'server setup --apply' in page.locator('#st-servers .srv-setup').inner_text(),(width,theme,'setup command')
                 report['layouts'].append({'width':width,'theme':theme,'pass':True})
         page.set_viewport_size({'width':1440,'height':1000})
@@ -167,6 +176,92 @@ try:
             catch(error){return error.name;}
         }''')
         assert result=='AbortError',result
+        # ── Fleet panel, end to end through the UI ──
+        import fleet_api, re as regex
+        from unittest.mock import patch as patch_
+        page.on('dialog',lambda dialog:dialog.accept())
+        page.set_viewport_size({'width':1440,'height':1000})
+        page.evaluate("document.querySelector('.nav-link[data-tab=settings]').click()")
+        page.locator('[data-settings=servers]').click()
+        page.locator('#fleetRefresh').click()
+        page.wait_for_selector('#fleetOverview [role=meter]')
+        rows=page.locator('#fleetOverview tbody tr');assert rows.count()==2,rows.count()
+        assert page.locator('#fleetOverview .srv-badge',has_text='Online').count()==2
+        assert page.locator('#fleetOverview [role=meter][aria-valuenow]').count()>=6      # CPU, memory and disk for both servers
+        # Create a webhook mapping: the secret is shown once, in the page only, and never listed afterwards.
+        page.locator('#serverList details').evaluate_all('(items)=>items.forEach(item=>item.open=true)')
+        card=page.locator('#serverList .srv-card[data-local="0"]')
+        card.locator('input[name=repository]').fill('Browser/Fixture');card.locator('input[name=service]').fill('service')
+        card.locator('button',has_text='Create mapping').click()
+        page.wait_for_selector('.fleet-secret')
+        secret=page.locator('.fleet-secret code').nth(2).inner_text()
+        assert regex.fullmatch('[0-9a-f]{64}',secret),secret
+        assert page.locator('.fleet-secret code').nth(0).inner_text()=='https://hooks.example.com/webhook'
+        with fixture.primary.db() as db:assert db.execute('SELECT secret FROM routes').fetchone()[0]==secret      # stored on the server, shown to the browser once
+        page.locator('.fleet-secret button',has_text='I have saved it').click()
+        page.wait_for_selector('#serverList .srv-maps li[data-repository="browser/fixture"]')
+        assert secret not in page.content() and secret not in page.locator('body').inner_text()
+        assert secret not in page.evaluate('JSON.stringify({...localStorage,...sessionStorage})')
+        with patch_.object(fleet_api,'deliver',return_value=200):
+            page.locator('.srv-maps li[data-repository="browser/fixture"] button',has_text='Test').click()
+            page.wait_for_selector('.srv-map-result .ok')
+        assert page.locator('.srv-map-result li.ok').count()==4 and page.locator('.srv-map-result li.bad').count()==0
+        page.locator('.srv-maps li[data-repository="browser/fixture"] button',has_text='Delete').click()
+        page.wait_for_function("!document.querySelector('.srv-maps li[data-repository=\"browser/fixture\"]')")
+        # Alerts: tokens are masked after saving and never come back to the page.
+        page.locator('#fleetAlerts input[name="ntfy.url"]').fill('https://ntfy.example.com/browser')
+        page.locator('#fleetAlerts input[name="ntfy.token"]').fill('tk_browser1234')
+        page.locator('#fleetAlerts input[name="ntfy.enabled"]').check()
+        page.locator('#fleetAlerts button[type=submit]').click()
+        page.wait_for_function("document.querySelector('#serversMessage').textContent.includes('Alert settings saved')")
+        page.locator('#refreshServers').click()
+        page.wait_for_function("document.querySelector('#fleetAlerts input[name=\"ntfy.token\"]')?.value==='********'")
+        assert 'tk_browser1234' not in page.content() and 'tk_browser1234' not in page.evaluate("[...document.querySelectorAll('#fleetAlerts input')].map(i=>i.value).join()")
+        # Registry backup.
+        page.locator('#fleetBackup button',has_text='Back up now').click()
+        page.wait_for_function("document.querySelector('#fleetBackup').innerText.includes('Newest backup')")
+        # Rotate the key on the Global over the signed channel.
+        before=fixture.primary.server(fixture.node['id'])['secret']
+        page.locator('#serverList details').evaluate_all('(items)=>items.forEach(item=>item.open=true)')
+        page.locator('#serverList .srv-card[data-local="0"] button',has_text='Rotate key now').click()
+        page.wait_for_function("document.querySelector('#serversMessage').textContent.includes('Key rotated and verified')")
+        assert fixture.primary.server(fixture.node['id'])['secret']==fixture.global_store.node()['secret']!=before
+        # Settings → Devices shows who did what, with the device name.
+        page.locator('[data-settings=devices]').click()
+        page.wait_for_function("document.querySelector('#stAudit').innerText.includes('webhook mapping created')")
+        text=page.locator('#stAudit').inner_text()
+        assert 'server key rotated' in text and 'browser/fixture' in text and secret not in text,text
+        # Cloudflare editor: list backups and restore one (the API answers are fixtures; the restore job is checked in the API tests).
+        digest='c'*64
+        def cloudflare(route):
+            url=route.request.url
+            if url.endswith('/cloudflare/config'):data={'path':'/etc/cloudflared/config.yml','exists':True,'content':'tunnel: t\n','sha256':digest,'service':'cloudflared','active':True,'validator':True}
+            elif url.endswith('/cloudflare/backups'):data={'path':'/etc/cloudflared/config.yml','backups':[
+                {'name':'config.yml.bak-20240102-100000','at':1704189600,'size':120,'sha256':'d'*64,'hostnames':['a.example.com','b.example.com']},
+                {'name':'config.yml.bak-20240101-100000','at':1704103200,'size':100,'sha256':digest,'hostnames':[]}]}
+            elif url.endswith('/cloudflare/restore'):
+                posted.append(json.loads(route.request.post_data));return route.fulfill(status=202,json={'ok':True,'data':{'job_id':'abcdef0123456789','op':'cloudflare.config.restore','name':'cloudflare'}})
+            else:data={'service':'cloudflared','active':True,'config_path':'/etc/cloudflared/config.yml','missing':[],'orphans':[],'routes':[]}
+            route.fulfill(json={'ok':True,'data':data})
+        posted=[]
+        page.route('**/api/manage/cloudflare**',cloudflare)
+        page.evaluate("document.querySelector('.nav-link[data-tab=manage]').click()")
+        page.wait_for_function("!document.getElementById('mgSettingsBtn').disabled")
+        page.locator('#mgSettingsBtn').click();page.locator('[data-st=cf]').click()
+        page.locator('[data-cf=edit]').click()
+        page.locator('#mgCfBackups summary').click()
+        page.wait_for_selector('#mgCfBackupList [data-cf-restore]')
+        assert page.locator('#mgCfBackupList li').count()==2 and 'a.example.com, b.example.com' in page.locator('#mgCfBackupList').inner_text()
+        assert page.locator('#mgCfBackupList [data-cf-restore]').nth(1).is_disabled()          # the one identical to the current file
+        assert page.evaluate("document.getElementById('mgCfEdit').scrollWidth<=document.getElementById('mgCfEdit').clientWidth+1")
+        page.locator('#mgCfBackupList [data-cf-restore]').nth(0).click()
+        page.locator('#mgConfirmGo').click()
+        page.wait_for_function('!document.getElementById("mgCfEdit").open')
+        page.wait_for_timeout(600)
+        assert posted==[{'name':'config.yml.bak-20240102-100000','base_sha256':digest,'restart':True}],posted
+        page.unroute('**/api/manage/cloudflare**')
+        page.evaluate("document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close())")      # the fixture job dialog and Settings
+        page.evaluate("document.querySelector('.nav-link[data-tab=settings]').click()")
         # Rotate on the fixture Global, then repair the existing entry through the UI.
         fresh=__import__('secrets').token_hex(32)
         with fixture.global_store.db() as db:db.execute('UPDATE node SET secret=?',(fresh,))
@@ -190,4 +285,5 @@ try:
     print(json.dumps(report,indent=2))
     server.shutdown()
 finally:
+    _pairing.stop()
     fixture.doCleanups()

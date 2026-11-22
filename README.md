@@ -13,6 +13,10 @@ For the required ATS transport module and custom installation paths, see
 
 Settings includes profile, appearance and registered-device controls. Standard sessions expire after 10 minutes; password-confirmed trusted devices authenticate persistently for up to 30 days, with individual and all-other-device revocation. See [deployment, migration and security behavior](docs/settings-devices.md) before upgrading: HTTPS and persistent private storage for `ATS_SECURITY_DB` are required, and existing sessions need one fresh login.
 
+## Fleet panel
+
+Overview, updates, key rotation, pairing codes, webhook mappings, alerts, registry backups and the audit trail: see [docs/fleet.md](docs/fleet.md).
+
 ### Updating an existing Global pairing
 
 Update the companion ATS checkout first. Settings → Servers → **Update ID and

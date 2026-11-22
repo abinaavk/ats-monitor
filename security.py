@@ -40,9 +40,29 @@ def database():
         conn.close()
 
 
-def audit(db, action, device=None):
-    db.execute('INSERT INTO security_audit(at,action,device_id,ip) VALUES(?,?,?,?)',
-               (time.time(), action, device, request.remote_addr or 'Unavailable'))
+def audit(db, action, device=None, detail=None):
+    db.execute('INSERT INTO security_audit(at,action,device_id,ip,detail) VALUES(?,?,?,?,?)',
+               (time.time(), action, device, request.remote_addr or 'Unavailable', detail[:300] if isinstance(detail, str) else None))
+
+
+def record(action, detail=None):
+    """Record an administrative action for the signed-in device. Never raises: auditing must not break the action."""
+    device = (getattr(g, 'auth', None) or {}).get('device_id')
+    try:
+        with database() as db:
+            audit(db, action, device, detail)
+    except Exception:
+        current_app.logger.warning('audit entry %s could not be written', action)
+
+
+def record_for_session(auth_id, action, detail=None):
+    """The same for a socket handler, which has no Flask ``g.auth``: the device is looked up from the session token hash."""
+    try:
+        with database() as db:
+            row = db.execute('SELECT device_id FROM auth_sessions WHERE token_hash=?', (auth_id,)).fetchone() if auth_id else None
+            audit(db, action, row['device_id'] if row else None, detail)
+    except Exception:
+        current_app.logger.warning('audit entry %s could not be written', action)
 
 
 def same_origin():
@@ -121,6 +141,8 @@ def init_app(app, legacy_password):
         CREATE TABLE IF NOT EXISTS login_attempts(ip TEXT,at REAL);
         PRAGMA user_version=1;
         ''')
+        if 'detail' not in {row[1] for row in db.execute('PRAGMA table_info(security_audit)')}:
+            db.execute('ALTER TABLE security_audit ADD COLUMN detail TEXT')
         db.execute('INSERT OR IGNORE INTO security_meta VALUES(?,?)', ('secret_key', secrets.token_hex(32)))
         db.execute('INSERT OR IGNORE INTO security_meta VALUES(?,?)', ('password_hash', generate_password_hash(os.environ.get('ATS_ACCESS_PASSWORD', legacy_password))))
         db.execute('INSERT OR IGNORE INTO security_meta VALUES(?,?)', ('display_name','Administrator'))
@@ -278,7 +300,8 @@ def init_app(app, legacy_password):
             rows=db.execute('''SELECT d.id,d.name,d.os,d.browser,d.device_type,d.ip,d.first_login,d.last_active,d.trusted_until,d.revoked_at,
                 (SELECT count(*) FROM auth_sessions s WHERE s.device_id=d.id AND s.revoked=0 AND s.expires_at>?) AS active_sessions
                 FROM devices d ORDER BY last_active DESC''',(time.time(),)).fetchall()
-            entries=[dict(r) for r in db.execute('SELECT at,action,device_id,ip FROM security_audit ORDER BY id DESC LIMIT 100')]
+            entries=[dict(r) for r in db.execute('''SELECT a.at,a.action,a.device_id,a.ip,a.detail,d.name AS device_name
+                FROM security_audit a LEFT JOIN devices d ON d.id=a.device_id ORDER BY a.id DESC LIMIT 200''')]
         result=[]
         for row in rows:
             item=dict(row); item.update(current=item['id']==g.auth['device_id'],mac=None,location=None)

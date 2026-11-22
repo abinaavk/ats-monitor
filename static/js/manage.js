@@ -2078,10 +2078,12 @@ async function openCfEditor() {
         <textarea id="mgCfText" class="mg-cfe-text" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Cloudflare config file contents"></textarea>
         <p class="mg-hint">The previous file is kept as a timestamped backup next to it. If cloudflared will not start with your change, the previous file is put back automatically. Keep <code>tunnel</code> and <code>credentials-file</code>; the last rule must be a catch-all such as <code>service: http_status:404</code>.</p>
         <label class="mg-switch"><input type="checkbox" id="mgCfRestart" role="switch" checked><span class="mg-track" aria-hidden="true"></span><span>Restart cloudflared to apply the change</span></label>
+        <details class="mg-cfe-restore" id="mgCfBackups"><summary>Restore an earlier version</summary><div id="mgCfBackupList" class="mg-muted" aria-live="polite">Loading backups…</div></details>
         <p id="mgCfeErr" class="mg-form-err" role="alert" hidden></p>
         <div class="mg-final-act"><button class="dk-primary mg-lg" id="mgCfSave" disabled>Save</button><button class="term-btn mg-lg" data-close>Cancel</button></div>`;
     const area = $('mgCfText'), save = $('mgCfSave');
     area.value = f.content;
+    loadCfBackups(d, f, area);
     area.addEventListener('input', () => { save.disabled = area.value === f.content; });
     save.addEventListener('click', async () => {
         save.disabled = true; $('mgCfeErr').hidden = true;
@@ -2091,6 +2093,32 @@ async function openCfEditor() {
         closeDlg(d);
         adoptJob(res, 'Saving Cloudflare config', true);
     });
+}
+
+// Every edit keeps a timestamped copy next to the config; this lists them and puts one back through the same validated, undoable path.
+async function loadCfBackups(d, f, area) {
+    const box = $('mgCfBackupList');
+    const r = await GET('/cloudflare/backups');
+    if (!d.open || !box) return;
+    if (!r.ok) { box.innerHTML = `<span class="mg-bad">${esc(r.error)}</span>`; return; }
+    const list = r.data.backups;
+    if (!list.length) { box.textContent = 'No backups yet. One is kept automatically each time you save a change here.'; return; }
+    box.innerHTML = `<ul class="mg-cfe-list">${list.map(b => {
+        const hosts = b.hostnames.length ? b.hostnames.slice(0, 4).map(esc).join(', ') + (b.hostnames.length > 4 ? ` +${b.hostnames.length - 4} more` : '') : 'no hostnames';
+        const same = b.sha256 === f.sha256;
+        return `<li><div><b>${esc(new Date(b.at * 1000).toLocaleString())}</b>${same ? ' ' + flag('ok', 'same as current') : ''}<small>${hosts} · ${b.size} bytes</small></div><button class="term-btn" data-cf-restore="${esc(b.name)}" ${same ? 'disabled' : ''}>Restore</button></li>`;
+    }).join('')}</ul>`;
+    box.querySelectorAll('[data-cf-restore]').forEach(btn => btn.addEventListener('click', async () => {
+        const unsaved = area.value !== f.content;
+        const restart = $('mgCfRestart').checked;
+        if (!await confirmDlg({ title: 'Restore this version?', confirm: 'Restore', danger: true,
+            body: `<p>The file will be replaced by the copy from <b>${esc(btn.closest('li').querySelector('b').textContent)}</b>. It is checked like any edit, and the current file is backed up first so you can undo this.</p>${restart ? '<p>cloudflared will be restarted.</p>' : '<p>cloudflared will <b>not</b> be restarted.</p>'}${unsaved ? '<p class="mg-bad">Your unsaved edits in the editor will be lost.</p>' : ''}` })) return;
+        btn.disabled = true;
+        const res = await POST('/cloudflare/restore', { name: btn.dataset.cfRestore, base_sha256: f.sha256, restart });
+        if (!res.ok) { $('mgCfeErr').textContent = res.error; $('mgCfeErr').hidden = false; btn.disabled = false; return; }
+        closeDlg(d);
+        adoptJob(res, 'Restoring Cloudflare config', true);
+    }));
 }
 
 $('mgSettings').addEventListener('click', async e => {
