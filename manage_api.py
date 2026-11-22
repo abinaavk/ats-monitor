@@ -877,6 +877,24 @@ def cloudflare_config_set():
     return _job_accepted(start_job('cloudflare.config.set', 'cloudflare', args), 'cloudflare.config.set', 'cloudflare')
 
 
+@bp.route('/cloudflare/backups', methods=['GET'])
+def cloudflare_backups():
+    return _sync('cloudflare.config.backups')
+
+
+@bp.route('/cloudflare/restore', methods=['POST'])
+def cloudflare_restore():
+    src = _body()
+    _reject_unknown(src, {'name', 'base_sha256', 'restart'}, 'Cloudflare restore')
+    name, base = src.get('name'), src.get('base_sha256')
+    if not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9._-]{1,120}\.bak-\d{8}-\d{6}', name):
+        raise ApiError('choose one of the listed backups')
+    if not isinstance(base, str) or not re.fullmatch('[0-9a-f]{64}', base):
+        raise ApiError('base_sha256 is required: reload the file and try again')
+    args = {'name': name, 'base_sha256': base, 'restart': _bool(src['restart'], 'restart') if 'restart' in src else True}
+    return _job_accepted(start_job('cloudflare.config.restore', 'cloudflare', args), 'cloudflare.config.restore', 'cloudflare')
+
+
 @bp.route('/cloudflare/sync', methods=['POST'])
 def cloudflare_sync():
     src = _body()

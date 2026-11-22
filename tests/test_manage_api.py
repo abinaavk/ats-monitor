@@ -624,6 +624,25 @@ class TestJobs(Base):
         self.assertEqual(sent['cloudflare.config.set'], {'content': 'tunnel: t\n', 'base_sha256': digest, 'restart': False})
         self.assertEqual(sent['system.install'], {'name': 'rclone'})
 
+    def test_cloudflare_backups_are_listed_and_restore_is_a_validated_job(self):
+        digest, good = 'a' * 64, 'cloudflared.yml.bak-20240101-101010'
+        with mock.patch.dict(os.environ, {'STUB_MODE': 'job'}):
+            bad = [{'name': '../../etc/passwd', 'base_sha256': digest}, {'name': 'config.yml', 'base_sha256': digest},
+                   {'name': good}, {'name': good, 'base_sha256': 'short'}, {'name': 5, 'base_sha256': digest},
+                   {'name': good, 'base_sha256': digest, 'restart': 'yes'}, {'name': good, 'base_sha256': digest, 'path': '/etc/passwd'},
+                   {'name': good + '/../x', 'base_sha256': digest}]
+            for body in bad:
+                self.assertEqual(self.c.post('/api/manage/cloudflare/restore', json=body, headers=H).status_code, 400, body)
+            self.assertEqual(self.c.post('/api/manage/cloudflare/restore', json={'name': good, 'base_sha256': digest}, headers={}).status_code, 403)
+            ok = self.c.post('/api/manage/cloudflare/restore', json={'name': good, 'base_sha256': digest, 'restart': False}, headers=H)
+            self.assertEqual((ok.status_code, self.j(ok)['data']['op']), (202, 'cloudflare.config.restore'))
+            self.wait_job(self.j(ok)['data']['job_id'])
+            listed = self.c.get('/api/manage/cloudflare/backups')
+            self.assertEqual(listed.status_code, 200)
+        sent = [c for c in self.calls() if c['argv'][1] in ('cloudflare.config.restore', 'cloudflare.config.backups')]
+        self.assertEqual([c['argv'][1] for c in sent], ['cloudflare.config.restore', 'cloudflare.config.backups'])
+        self.assertEqual(json.loads(sent[0]['stdin']), {'name': good, 'base_sha256': digest, 'restart': False})
+
     def test_detached_job_survives_the_starting_process(self):
         env = dict(os.environ, STUB_MODE='job', STUB_STEP='0.5', PYTHONPATH=os.pathsep.join(filter(None, [ROOT, os.environ.get('PYTHONPATH')])))
         code = textwrap.dedent('''

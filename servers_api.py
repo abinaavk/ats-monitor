@@ -21,7 +21,9 @@ def explain(exc, fallback, where=''):
     if isinstance(exc, sqlite3.IntegrityError):
         text = str(exc)
         reason = ('Another server already uses this name.' if 'servers.name' in text else
-                  'Another server already uses this HTTPS address.' if 'servers.domain' in text else None)
+                  'Another server already uses this HTTPS address.' if 'servers.domain' in text else
+                  'That service on that server already has a webhook mapping. Delete the existing one first.' if 'routes.service' in text else
+                  'That repository is already mapped. Delete the existing mapping first.' if 'routes.repository' in text else None)
     elif isinstance(exc, ValueError) and str(exc):
         reason = str(exc)[:300]
     else:
@@ -33,6 +35,8 @@ def explain(exc, fallback, where=''):
 
 def initialize(app):
     app.register_blueprint(bp)
+    import activity
+    activity.install(app)
 
     @app.before_request
     def selected_target():

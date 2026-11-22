@@ -64,6 +64,7 @@ class ServersTests(unittest.TestCase):
         self.store_patch=patch.object(servers_api,'Store',return_value=self.primary);self.store_patch.start();self.addCleanup(self.store_patch.stop)
         self.app=Flask(__name__,template_folder=str(Path(__file__).resolve().parents[1]/'templates'));self.app.config.update(TESTING=True,ATS_SECURITY_DB=str(self.root/'local-security.db'))
         security.init_app(self.app,'password');servers_api.initialize(self.app)
+        import fleet_api;fleet_api.initialize(self.app)
         self.local_calls=[]
         def local_view(**kwargs):self.local_calls.append(kwargs);return jsonify(target='LOCAL SENTINEL')
         for i,path in enumerate(['/api/overview','/api/logs','/api/database','/api/stats','/api/audit','/api/docker/containers','/api/manage/services','/api/manage/services/<name>/action','/api/manage/jobs','/api/manage/jobs/<job_id>','/api/manage/settings','/api/manage/backups']):

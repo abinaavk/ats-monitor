@@ -52,6 +52,8 @@ import manage_api
 app.register_blueprint(manage_api.bp)
 import servers_api
 servers_api.initialize(app)
+import fleet_api
+fleet_api.initialize(app)
 
 # sid → {fd, pid}
 _term_sessions = {}
@@ -428,6 +430,9 @@ def on_term_connect(auth=None):
     if not security.socket_authorized(session.get('auth_id')):
         return False
     sid = request.sid
+    import activity
+    security.record_for_session(session.get('auth_id'), 'terminal_opened',
+                                activity.describe(activity.server_label(request.args.get('server') if node else None)))
     if node and request.args.get('server') != node['id']:
         # A Global: relay this browser terminal to a session on that server over the signed channel.
         import remote_terminal
