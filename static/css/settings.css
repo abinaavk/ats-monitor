@@ -443,3 +443,5 @@
   .st-group-title { display:none; }
   .st-panel { min-height:0; padding:16px; }
 }
+
+.st-audit-detail{color:var(--text-2);overflow-wrap:anywhere}

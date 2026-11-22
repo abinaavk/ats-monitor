@@ -95,6 +95,7 @@
         list.replaceChildren();
         for (const server of data.servers) {
             const card = el('article', 'srv-card st-device');
+            Object.assign(card.dataset, {id: server.id, local: server.local ? '1' : '0', paired: server.paired ? '1' : '0', connected: server.connected ? '1' : '0', name: server.name});
             const head = el('header', 'srv-head');
             const dot = el('span', 'srv-dot'); dot.setAttribute('aria-hidden', 'true');
             const titles = el('div', 'srv-title');
@@ -125,7 +126,7 @@
             const [mapRow, mapValue] = fact('GitHub webhooks');
             if (mapped.length) {
                 const ul = el('ul', 'srv-maps');
-                for (const item of mapped) ul.append(el('li', 'srv-mono', `${item.repository} → ${item.service} @ ${item.branch}`));
+                for (const item of mapped) { const li = el('li', 'srv-mono', `${item.repository} → ${item.service} @ ${item.branch}`); li.dataset.repository = item.repository; ul.append(li); }
                 mapValue.append(ul);
             } else mapValue.append(el('span', 'srv-muted', server.local ? 'None mapped. Map a service: server map --from-service NAME' : 'None mapped. On this server: server map --generate-secret'));
             for (const row of [addressRow, idRow, mapRow]) row.classList.add('srv-span');
@@ -356,4 +357,12 @@
     document.getElementById('refreshServers').addEventListener('click',()=>{results.clear();show('Refreshing…');load().then(()=>show('')).catch(error=>show(error.message,true));});
     document.getElementById('addServerJump').addEventListener('click',()=>focusPairing());
     document.addEventListener('click',event=>{const target=event.target.closest('[data-copy]');if(target)copy(target.dataset.copy,'Command');});
+    document.getElementById('pairCode').addEventListener('submit',async event=>{
+        event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button[type="submit"]');submit.disabled=true;show('Pairing with the one-time code…');
+        try {await change('/api/servers/pair-code',{domain:form.elements.codeDomain.value,code:form.elements.codeValue.value,name:form.elements.codeName.value});form.reset();await load();show('Paired and verified. No key was copied by hand.');}
+        catch(error){show(error.message,true);}finally{form.elements.codeValue.value='';submit.disabled=false;}
+    });
+    // The fleet panel (fleet.js) reuses these so it shares one session, CSRF and message line.
+    window.atsServers={json,change,show,el,button,copy,reload:load};
+    document.dispatchEvent(new Event('ats-servers-ready'));
 })();
