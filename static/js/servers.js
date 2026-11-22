@@ -6,6 +6,9 @@
     const controller = new AbortController();
     const selectedKey = 'ats.activeServer';
     let switching = false;
+    // The sticky "Target server" bar is taller on some screens; everything that sticks or scrolls below it follows its real height.
+    const bar = document.querySelector('.server-control');
+    if (bar && window.ResizeObserver) new ResizeObserver(() => document.documentElement.style.setProperty('--srv-bar-h', Math.ceil(bar.getBoundingClientRect().height) + 'px')).observe(bar);
     const selector = document.getElementById('activeServer');
     const status = document.getElementById('activeServerStatus');
     const message = document.getElementById('serversMessage');
@@ -66,8 +69,8 @@
         if (glance) glance.textContent = remote.length ? `${online} of ${remote.length} Global online` : 'Local only';
     };
     const copy = async (text, label) => {
-        try { await navigator.clipboard.writeText(text); show(`${label} copied.`); }
-        catch (error) { show(`Copy ${label.toLowerCase()} manually: ${text}`); }
+        try { await navigator.clipboard.writeText(text); show(`${label} copied.`); return true; }
+        catch (error) { show(`Copy ${label.toLowerCase()} manually: ${text}`); return false; }
     };
     const focusPairing = prefill => {
         const form = document.getElementById('pairServer');
@@ -101,23 +104,32 @@
             head.append(dot, titles, chip, badge);
             const problem = el('p', 'srv-problem'); problem.hidden = true;
             const facts = el('dl', 'srv-facts');
-            const [addressRow] = fact(server.local ? 'Webhook receiver' : 'Address', el('span', 'srv-mono', server.local ? (data.webhook || 'not set') : server.domain));
-            const [idRow] = fact('Server ID', el('code', 'srv-mono', server.id.slice(0, 8) + '…'),
-                button('Copy', 'srv-mini', () => copy(server.id, 'Server ID')));
-            const [lastRow, lastValue] = fact('Last check', '—');
-            const [adapterRow, adapterValue] = fact('Management', '—');
-            facts.append(addressRow, idRow);
-            if (!server.local) facts.append(adapterRow, lastRow);
-            if (!server.local) {
-                const mapped = server.mappings || [];
-                const [mapRow, mapValue] = fact('GitHub webhooks');
-                if (mapped.length) {
-                    const ul = el('ul', 'srv-maps');
-                    for (const item of mapped) ul.append(el('li', 'srv-mono', `${item.repository} → ${item.service} @ ${item.branch}`));
-                    mapValue.append(ul);
-                } else mapValue.append(el('span', 'srv-muted', 'None mapped. On this server: server map --generate-secret'));
-                facts.append(mapRow);
-            }
+            // Same five fields in the same order on every card; a field that does not apply says so instead of vanishing.
+            const addr = el('span', 'srv-mono srv-addr', server.local ? (data.webhook || 'not set') : server.domain);
+            addr.title = server.local ? (data.webhook ? 'https://' + data.webhook : 'No webhook host is configured') : server.domain;
+            const [addressRow] = fact(server.local ? 'Webhook receiver' : 'Address', addr);
+            const idCode = el('code', 'srv-mono srv-id', server.id.slice(0, 8) + '…');
+            idCode.title = server.id;
+            const idCopy = button('Copy', 'srv-mini srv-copy', async () => {
+                if (!await copy(server.id, 'Server ID')) return;
+                idCopy.textContent = 'Copied';
+                clearTimeout(idCopy._reset);
+                idCopy._reset = setTimeout(() => { idCopy.textContent = 'Copy'; }, 1500);
+            });
+            idCopy.setAttribute('aria-label', 'Copy the full server ID');
+            const [idRow, idValue] = fact('Server ID', idCode, idCopy);
+            idValue.classList.add('srv-idrow');
+            const [adapterRow, adapterValue] = fact('Management', server.local ? 'Local · runs here' : '—');
+            const [lastRow, lastValue] = fact('Last check', server.local ? 'N/A · local' : '—');
+            const mapped = server.mappings || [];
+            const [mapRow, mapValue] = fact('GitHub webhooks');
+            if (mapped.length) {
+                const ul = el('ul', 'srv-maps');
+                for (const item of mapped) ul.append(el('li', 'srv-mono', `${item.repository} → ${item.service} @ ${item.branch}`));
+                mapValue.append(ul);
+            } else mapValue.append(el('span', 'srv-muted', server.local ? 'None mapped. Map a service: server map --from-service NAME' : 'None mapped. On this server: server map --generate-secret'));
+            for (const row of [addressRow, idRow, mapRow]) row.classList.add('srv-span');
+            facts.append(addressRow, idRow, adapterRow, lastRow, mapRow);
             const apply = (state, detail, ms) => {
                 const [label, tone] = BADGES[state];
                 badge.textContent = label; badge.dataset.tone = tone; card.dataset.state = state;
@@ -131,13 +143,18 @@
             const actions = el('div', 'srv-actions');
             const testBox = el('ul', 'srv-test'); testBox.hidden = true; testBox.setAttribute('role', 'status');
             const state = stateOf(server);
-            if ((server.local || (server.paired && server.connected)) && server.id !== (activeId() || data.primary_id)) {
-                actions.append(button('Manage this server', 'srv-primary', () => {
-                    try { localStorage.setItem(selectedKey, server.id); } catch (error) { /* selection is a convenience */ }
-                    location.reload();
-                }));
+            if (server.local || (server.paired && server.connected)) {
+                if (server.id === (activeId() || data.primary_id)) {
+                    const current = button('Managing now', '', () => {}); current.disabled = true;
+                    actions.append(current);
+                } else {
+                    actions.append(button('Manage this server', 'srv-primary', () => {
+                        try { localStorage.setItem(selectedKey, server.id); } catch (error) { /* selection is a convenience */ }
+                        location.reload();
+                    }));
+                }
             }
-            if (!server.local && server.paired && server.connected) {
+            if (server.local || (server.paired && server.connected)) {
                 const test = button('Test connection', '', async () => {
                     test.disabled = true; testBox.hidden = false; testBox.replaceChildren(el('li', 'srv-muted', 'Testing…'));
                     try {
@@ -158,7 +175,9 @@
                 actions.append(button('Reconnect', 'srv-primary', () => connectionAction(server, 'reconnect')));
             if (!server.local && (!server.paired || server.revocation_pending))
                 actions.append(button('Pair again', 'srv-primary', () => focusPairing(server)));
-            card.append(head, problem, facts, actions, testBox);
+            const foot = el('div', 'srv-foot');
+            card.append(head, problem, facts, foot);
+            foot.append(testBox);
             const more = el('div', 'srv-sections');
 
             if (!server.local && server.paired) {
@@ -225,7 +244,8 @@
                 details.append(button('Revoke access…', 'srv-bad', () => connectionAction(server, 'revoke')));
                 more.append(details);
             }
-            if (more.children.length) card.append(more);
+            if (server.local) more.append(el('span', 'srv-muted srv-note', 'Local identity is set in the ATS CLI (server configuration).'));
+            foot.append(more, actions);
             list.append(card);
             apply(state, '');
             if (!server.local && server.paired && server.connected) {
@@ -238,7 +258,7 @@
                     results.set(server.id, {state: 'offline'});
                     apply('offline', error.message && error.message !== 'Server unavailable' ? error.message : 'Cannot reach this Global. Check its daemon and HTTPS tunnel.', Math.round(performance.now() - started));
                 });
-            } else if (server.local) { adapterValue.textContent = 'Runs here'; }
+            }
         }
         if (!data.servers.some(item => !item.local)) {
             const empty = el('div', 'srv-empty');
