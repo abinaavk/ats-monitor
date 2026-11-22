@@ -226,7 +226,7 @@ const dockerState = () => {
     const installed = dk ? !!dk.available : !!(dep && dep.ok);
     const access = dk ? !!dk.access : !!(acc && acc.ok);
     return { installed, access, usable: installed && access, version: (dk && dk.version) || (dep && dep.version) || '',
-        hint: (dk && dk.hint) || (acc && acc.hint) || (dep && dep.hint) || '' };
+        hint: (dk && dk.hint) || (acc && acc.hint) || (dep && dep.hint) || '', installable: !!(dep && dep.installable) };
 };
 const dockerUsable = () => { const d = dockerState(); return !!(d && d.usable); };
 
@@ -246,7 +246,7 @@ function renderDeps() {
     const d = mg.deps, dk = dockerState();
     const items = [
         ['git', d.git, true], ['docker', dk ? { ok: dk.usable, version: dk.version, hint: dk.hint || (dk.installed ? 'The service user cannot reach the Docker socket.' : 'Docker is not installed.'),
-            label: dk.installed && !dk.access ? 'no access' : '' } : null, false],
+            label: dk.installed && !dk.access ? 'no access' : '', installable: !dk.installed && dk.installable } : null, false],
         ['cloudflared', d.cloudflared, true], ['rclone', d.rclone, false]
     ];
     const missing = items.filter(([, x]) => x && !x.ok);
@@ -258,7 +258,8 @@ function renderDeps() {
         const cls = x.ok ? 'ok' : required ? 'fail' : 'warn';
         if (!x.ok && x.hint) hl.push(`<b>${esc(name)}</b> ${esc(x.hint)}`);
         const meta = x.ok ? (x.version ? esc(String(x.version).replace(/^v/, '')) : 'ok') : (x.label || (required ? 'missing' : 'optional, unavailable'));
-        return `<span class="pill ${cls}" role="listitem" tabindex="0" title="${esc(x.hint || (x.ok ? name + ' is available' : name + ' is not available'))}">${esc(name)} <span class="mg-pill-v">${meta}</span></span>`;
+        const install = !x.ok && x.installable ? ` <button class="term-btn mg-mini" data-act="dep-install" data-dep="${esc(name)}" aria-label="Install ${esc(name)} on this server">Install</button>` : '';
+        return `<span class="pill ${cls}" role="listitem" tabindex="0" title="${esc(x.hint || (x.ok ? name + ' is available' : name + ' is not available'))}">${esc(name)} <span class="mg-pill-v">${meta}</span>${install}</span>`;
     }).join('');
     hints.hidden = !hl.length;
     hints.innerHTML = hl.map(h => `<p>${h}</p>`).join('');
@@ -443,13 +444,17 @@ const STEP_LABELS = {
     clone: 'Clone repository', build: 'Dependencies and build', deps: 'Dependencies', unit: 'Systemd unit', cloudflare: 'Cloudflare route',
     start: 'Start service', health: 'Health check', fetch: 'Fetch source', restart: 'Restart service', stop: 'Stop service',
     archive: 'Archive files', checksum: 'Checksum', upload: 'Upload to Google Drive', verify: 'Verify', extract: 'Extract archive',
-    backup: 'Backup', remove: 'Remove', deliver: 'Deliver test push', update: 'Run update'
+    backup: 'Backup', remove: 'Remove', deliver: 'Deliver test push', update: 'Run update',
+    disable: 'Disable at boot', container: 'Remove container and image', files: 'Delete service files', backups: 'Delete backups',
+    record: 'Remove from ATS', reload: 'Reload systemd', validate: 'Validate config', write: 'Write config file',
+    prepare: 'Update package lists', install: 'Install packages', enable: 'Start the service', access: 'Grant the service user access'
 };
 const DEPLOY_STEPS = ['clone', 'build', 'unit', 'cloudflare', 'start', 'health'];
 const stepLabel = id => STEP_LABELS[id] || id.charAt(0).toUpperCase() + id.slice(1).replace(/[_-]/g, ' ');
 const OP_LABELS = {
     'services.deploy': 'Deploying', 'services.redeploy': 'Redeploying', 'services.delete': 'Deleting', 'services.action': 'Updating',
-    'backups.create': 'Backing up', 'backups.restore': 'Restoring', 'webhook.test': 'Testing webhook'
+    'backups.create': 'Backing up', 'backups.restore': 'Restoring', 'webhook.test': 'Testing webhook',
+    'cloudflare.config.set': 'Saving Cloudflare config', 'system.install': 'Installing'
 };
 const JOB_NOUN = { 'services.deploy': 'Deploy', 'services.redeploy': 'Redeploy', 'services.delete': 'Delete', 'services.action': 'Update', 'backups.create': 'Backup', 'backups.restore': 'Restore', 'webhook.test': 'Webhook test', 'deployments.rollback': 'Rollback', 'backups.verify': 'Backup verification' };
 const jobLabel = j => j.label || OP_LABELS[j.op] || j.op;
@@ -535,6 +540,8 @@ function resultSummary(j) {
         case 'backups.restore': return 'Backup restored and the service started again.';
         case 'webhook.test': return `${d.message || (d.ok ? 'Accepted' : 'Rejected')}${d.status ? ' (HTTP ' + d.status + ')' : ''}`;
         case 'services.delete': return 'Service deleted.';
+        case 'system.install': return d.already ? `${esc(d.name)} was already installed.` : `${d.name} ${d.version ? '(' + d.version + ') ' : ''}was installed.`;
+        case 'cloudflare.config.set': return d.restarted ? 'Saved, and cloudflared restarted with the new config.' : 'Saved. cloudflared was not restarted.';
         default: return 'Completed';
     }
 }
@@ -601,7 +608,11 @@ function jobResultHtml(j) {
             <p class="mg-muted">Add the webhook in GitHub under Settings, Webhooks: content type <code>application/json</code>, this secret, push events only. The secret is also available later on the service's Git and webhook tab.</p>
             <div class="mg-final-act"><button class="dk-primary mg-lg" data-act="job-open" data-name="${esc(d.name || j.name)}">Open service</button><button class="term-btn mg-lg" data-close>Close</button></div></div>`;
     }
-    return `<div class="mg-final ok"><h3>Finished</h3><p>${esc(resultSummary(j))}</p><div class="mg-final-act"><button class="term-btn mg-lg" data-close>Close</button></div></div>`;
+    const notes = Array.isArray(d.warnings) ? d.warnings : [];
+    return `<div class="mg-final ${notes.length ? 'warn' : 'ok'}"><h3>${notes.length ? 'Finished with notes' : 'Finished'}</h3><p>${esc(resultSummary(j))}</p>
+        ${d.next ? `<p>${esc(d.next)}</p>` : ''}
+        ${notes.length ? `<ul class="mg-final-notes">${notes.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+        <div class="mg-final-act"><button class="term-btn mg-lg" data-close>Close</button></div></div>`;
 }
 
 $('mgJob').addEventListener('click', e => {
@@ -905,6 +916,9 @@ function renderPanelHead() {
 function onListRefreshed() { if (panelOpen()) renderPanelHead(); }
 
 function afterJob(j) {
+    if (j.op === 'system.install') { mg.depsAt = 0; loadDeps(); }
+    if (j.op === 'cloudflare.config.set' && $('mgSettings').open && S.tab === 'cf') loadCloudflare();
+    if (j.op === 'services.delete' && j.status === 'done') fetchManage(true);
     if (j.op === 'services.deploy' && j.status === 'done' && D.v && D.v.name === j.name) D.v = null;
     if (panelOpen() && P.name === j.name) {
         if (j.op === 'services.delete' && j.status === 'done') { closeDlg($('mgPanel')); return; }
@@ -2023,7 +2037,7 @@ function renderCloudflare() {
                 <dt>Config file</dt><dd><code>${esc(c.config_path)}</code></dd>
                 <dt>Routes</dt><dd>${problems ? flag('warn', problems + (problems === 1 ? ' needs attention' : ' need attention')) : flag('ok', 'all routes match the services')}</dd>
             </dl>
-            <div class="mg-btnrow"><button class="dk-primary mg-lg" data-cf="sync"${S.cfBusy ? ' disabled' : ''}>Sync routes</button><button class="term-btn mg-lg" data-cf="restart"${S.cfBusy ? ' disabled' : ''}>Restart cloudflared</button><button class="term-btn mg-lg" data-cf="refresh"${S.cfBusy ? ' disabled' : ''}>Refresh</button></div>
+            <div class="mg-btnrow"><button class="dk-primary mg-lg" data-cf="sync"${S.cfBusy ? ' disabled' : ''}>Sync routes</button><button class="term-btn mg-lg" data-cf="edit"${S.cfBusy ? ' disabled' : ''}>Edit config file</button><button class="term-btn mg-lg" data-cf="restart"${S.cfBusy ? ' disabled' : ''}>Restart cloudflared</button><button class="term-btn mg-lg" data-cf="refresh"${S.cfBusy ? ' disabled' : ''}>Refresh</button></div>
             ${S.cfBusy ? '<p class="mg-note"><span class="mg-spin" aria-hidden="true"></span> Working...</p>' : ''}
             ${S.cfNote ? `<p class="mg-note" role="status">${S.cfNote}</p>` : ''}
         </div>
@@ -2034,6 +2048,51 @@ function renderCloudflare() {
             : emptyBlock('No routes', 'The Cloudflare config has no ingress rules yet.')}`;
 }
 
+const DEP_INFO = {
+    docker: ['Docker', 'This installs the <code>docker.io</code> package from your distribution, starts the Docker service and gives the ATS service user access to it.'],
+    rclone: ['rclone', 'This installs the <code>rclone</code> package from your distribution. You still configure the Google Drive remote on that server with <code>rclone config</code>.']
+};
+async function installDependency(name) {
+    const [label, what] = DEP_INFO[name] || [name, ''];
+    const server = document.querySelector('#activeServer option:checked')?.textContent || 'this server';
+    const ok = await confirmDlg({ title: `Install ${label} on ${server}?`, confirm: `Install ${label}`,
+        body: `<p>${what}</p><p>It runs as root on <b>${esc(server)}</b>, needs internet access and can take a minute or two. Nothing is downloaded except the distribution's own packages.</p>` });
+    if (!ok) return;
+    adoptJob(await POST('/dependencies/install', { name }), 'Installing', true);
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-act="dep-install"]'); if (b) installDependency(b.dataset.dep); });
+window.mgInstallDependency = installDependency;
+
+async function openCfEditor() {
+    const d = $('mgCfEdit');
+    d.innerHTML = `<div class="dk-dhead"><h2 id="mgCfEditTitle">Edit Cloudflare config</h2><button class="term-btn" data-close>Close</button></div><div class="mg-cfe-body"><div class="mg-pane-skel">${skelRows(6)}</div></div>`;
+    openDlg(d);
+    const r = await GET('/cloudflare/config');
+    if (!d.open) return;
+    const body = qs('.mg-cfe-body', d);
+    if (!r.ok) { body.innerHTML = errBlock(r, 'cfe-retry'); qs('[data-act="cfe-retry"]', body)?.addEventListener('click', openCfEditor); return; }
+    const f = r.data;
+    body.innerHTML = `<dl class="mg-dl mg-dl-wide"><dt>File</dt><dd><code>${esc(f.path)}</code>${f.exists ? '' : ' ' + flag('warn', 'does not exist yet')}</dd>
+        <dt>Tunnel service</dt><dd><code>${esc(f.service)}</code> ${flag(f.active ? 'ok' : 'bad', f.active ? 'active' : 'not running')}</dd>
+        <dt>Checked by</dt><dd>${f.validator ? 'cloudflared validates the file before it is saved' : flag('warn', 'cloudflared not found: only the structure is checked')}</dd></dl>
+        <textarea id="mgCfText" class="mg-cfe-text" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Cloudflare config file contents"></textarea>
+        <p class="mg-hint">The previous file is kept as a timestamped backup next to it. If cloudflared will not start with your change, the previous file is put back automatically. Keep <code>tunnel</code> and <code>credentials-file</code>; the last rule must be a catch-all such as <code>service: http_status:404</code>.</p>
+        <label class="mg-switch"><input type="checkbox" id="mgCfRestart" role="switch" checked><span class="mg-track" aria-hidden="true"></span><span>Restart cloudflared to apply the change</span></label>
+        <p id="mgCfeErr" class="mg-form-err" role="alert" hidden></p>
+        <div class="mg-final-act"><button class="dk-primary mg-lg" id="mgCfSave" disabled>Save</button><button class="term-btn mg-lg" data-close>Cancel</button></div>`;
+    const area = $('mgCfText'), save = $('mgCfSave');
+    area.value = f.content;
+    area.addEventListener('input', () => { save.disabled = area.value === f.content; });
+    save.addEventListener('click', async () => {
+        save.disabled = true; $('mgCfeErr').hidden = true;
+        const restart = $('mgCfRestart').checked;
+        const res = await PUT('/cloudflare/config', { content: area.value, base_sha256: f.sha256, restart });
+        if (!res.ok) { $('mgCfeErr').textContent = res.error; $('mgCfeErr').hidden = false; save.disabled = false; return; }
+        closeDlg(d);
+        adoptJob(res, 'Saving Cloudflare config', true);
+    });
+}
+
 $('mgSettings').addEventListener('click', async e => {
     const st = e.target.closest('[data-st]');
     if (st) { setSettingsTab(st.dataset.st); return; }
@@ -2042,6 +2101,7 @@ $('mgSettings').addEventListener('click', async e => {
     const b = e.target.closest('[data-cf]'); if (!b) return;
     const act = b.dataset.cf;
     if (act === 'refresh') { S.cfNote = ''; loadCloudflare(); return; }
+    if (act === 'edit') { openCfEditor(); return; }
     if (act === 'sync') {
         const c = S.cf;
         const res = await confirmDlg({ title: 'Sync Cloudflare routes?', confirm: 'Sync routes',

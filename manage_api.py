@@ -661,6 +661,16 @@ def dependencies():
     return _ok({'dependencies': deps, 'docker': docker})
 
 
+@bp.route('/dependencies/install', methods=['POST'])
+def dependency_install():
+    src = _body()
+    _reject_unknown(src, {'name'}, 'install')
+    name = src.get('name')
+    if name not in ('docker', 'rclone'):
+        raise ApiError('only docker and rclone can be installed from here')
+    return _job_accepted(start_job('system.install', name, {'name': name}), 'system.install', name)
+
+
 @bp.route('/domains/check')
 def domains_check():
     return _sync('domains.check', {'domain': _host(request.args.get('domain', ''))})
@@ -705,9 +715,8 @@ def service_delete(name):
     for k in ('delete_files', 'delete_backups', 'backup_first'):
         if k in src:
             args[k] = _bool(src[k], k)
-    if args['backup_first']:
-        return _job_accepted(start_job('services.delete', name, args), 'services.delete', name)
-    return _sync('services.delete', args, timeout=300)
+    # Always a job: the steps are streamed to the UI and a slow Cloudflare restart cannot hit a request timeout.
+    return _job_accepted(start_job('services.delete', name, args), 'services.delete', name)
 
 
 @bp.route('/services/<name>/redeploy', methods=['POST'])
@@ -846,6 +855,26 @@ def webhook_test(name):
 @bp.route('/cloudflare', methods=['GET'])
 def cloudflare_status():
     return _sync('cloudflare.status')
+
+
+@bp.route('/cloudflare/config', methods=['GET'])
+def cloudflare_config_get():
+    return _sync('cloudflare.config.get')
+
+
+@bp.route('/cloudflare/config', methods=['PUT'])
+def cloudflare_config_set():
+    src = _body()
+    _reject_unknown(src, {'content', 'base_sha256', 'restart'}, 'Cloudflare config')
+    content, base = src.get('content'), src.get('base_sha256')
+    if not isinstance(content, str) or '\x00' in content:
+        raise ApiError('content must be text')
+    if len(content.encode()) > MAX_BODY - 4096:
+        raise ApiError('the Cloudflare config is too large to save from here')
+    if not isinstance(base, str) or not re.fullmatch('[0-9a-f]{64}', base):
+        raise ApiError('base_sha256 is required: reload the file and try again')
+    args = {'content': content, 'base_sha256': base, 'restart': _bool(src['restart'], 'restart') if 'restart' in src else True}
+    return _job_accepted(start_job('cloudflare.config.set', 'cloudflare', args), 'cloudflare.config.set', 'cloudflare')
 
 
 @bp.route('/cloudflare/sync', methods=['POST'])

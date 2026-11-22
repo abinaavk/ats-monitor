@@ -73,3 +73,21 @@ with a deterministic fake ATS CLI, on desktop and phone viewports. These checks
 do not verify the host's systemd, Docker daemon, Cloudflare tunnel, Google Drive
 credentials or real GitHub deliveries. After installation, verify those on the
 server using a disposable service before managing production services.
+
+## Deleting services, editing the tunnel config, installing Docker and rclone
+
+These work on whichever server is selected (Local or a Global); the work runs on that server.
+
+* **Delete** always runs as a job and shows its steps (backup if requested, stop, disable, Cloudflare route, container and image, systemd unit,
+  files, backups, record, reload). It can be repeated safely: a service whose unit never existed, a container that is already gone or a Drive backup
+  that was already deleted no longer block it, and a missing Docker or rclone is reported as a note instead of failing the delete. A Cloudflare route
+  that cannot be removed right now is also a note; run **Sync routes** or edit the config later. A real failure (for example the service will not stop)
+  leaves everything in place so you can fix it and delete again.
+* **Edit config file** (Settings → Cloudflare, or Manage → Settings → Cloudflare) opens the configured tunnel config in an editor. Saving validates
+  the YAML and the ingress rules (and runs `cloudflared ingress validate` when installed), keeps the previous file as a timestamped backup
+  (`config.yml.bak-YYYYmmdd-HHMMSS`, newest 10 kept), writes atomically keeping owner and mode, then restarts cloudflared. If cloudflared will not start
+  with the change, the previous file is restored. An edit made on a stale copy is refused. `tunnel` and `credentials-file` cannot be removed, and
+  only the file named in ATS settings is ever written.
+* **Install** appears next to Docker or rclone when they are missing and the server has apt or dnf. It asks for confirmation, then installs the
+  distribution package (`docker.io` / `rclone`), starts Docker and adds the ATS service user to the `docker` group. Nothing is downloaded outside
+  the distribution's repositories. rclone still needs its Google Drive remote configured with `rclone config`.

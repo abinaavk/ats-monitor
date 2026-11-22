@@ -580,7 +580,8 @@ class TestJobs(Base):
                      ('post', '/api/manage/backups', {'name': 's7', 'gdrive': True}, 202),
                      ('post', '/api/manage/backups/restore', {'name': 's8', 'filename': 'f.tar.gz', 'source': 'local'}, 202),
                      ('delete', '/api/manage/services/s9', {'confirm': 's9', 'backup_first': True}, 202),
-                     ('delete', '/api/manage/services/s10', {'confirm': 's10'}, 200)]
+                     # Every delete is a job now, with or without a backup, so its steps stream to the UI.
+                     ('delete', '/api/manage/services/s10', {'confirm': 's10'}, 202)]
             ids = []
             for method, url, body, status in cases:
                 r = getattr(self.c, method)(url, json=body, headers=H)
@@ -595,6 +596,33 @@ class TestJobs(Base):
         self.assertEqual(sorted(d['name'] for d in delete_calls), ['s10', 's9'])
         d10 = next(d for d in delete_calls if d['name'] == 's10')
         self.assertEqual((d10['confirm'], d10['delete_files'], d10['delete_backups'], d10['backup_first']), ('s10', True, False, False))
+
+    def test_cloudflare_config_edit_and_dependency_install_are_validated_jobs(self):
+        digest = 'a' * 64
+        with mock.patch.dict(os.environ, {'STUB_MODE': 'job'}):
+            bad = [('/api/manage/cloudflare/config', 'put', {'content': 5, 'base_sha256': digest}),
+                   ('/api/manage/cloudflare/config', 'put', {'content': 'x', 'base_sha256': 'short'}),
+                   ('/api/manage/cloudflare/config', 'put', {'content': 'x'}),
+                   ('/api/manage/cloudflare/config', 'put', {'content': 'x', 'base_sha256': digest, 'restart': 'yes'}),
+                   ('/api/manage/cloudflare/config', 'put', {'content': 'x', 'base_sha256': digest, 'path': '/etc/passwd'}),
+                   ('/api/manage/cloudflare/config', 'put', {'content': 'x' * 300000, 'base_sha256': digest}),
+                   ('/api/manage/dependencies/install', 'post', {'name': 'git'}),
+                   ('/api/manage/dependencies/install', 'post', {'name': 'docker.io'}),
+                   ('/api/manage/dependencies/install', 'post', {'name': 'docker', 'packages': ['x']})]
+            for url, method, body in bad:
+                self.assertIn(getattr(self.c, method)(url, json=body, headers=H).status_code, (400, 413), (url, str(body)[:60]))
+            ok = self.c.put('/api/manage/cloudflare/config', json={'content': 'tunnel: t\n', 'base_sha256': digest, 'restart': False}, headers=H)
+            self.assertEqual(ok.status_code, 202)
+            self.assertEqual(self.j(ok)['data']['op'], 'cloudflare.config.set')
+            install = self.c.post('/api/manage/dependencies/install', json={'name': 'rclone'}, headers=H)
+            self.assertEqual((install.status_code, self.j(install)['data']['op']), (202, 'system.install'))
+            missing = self.c.put('/api/manage/cloudflare/config', json={'content': 'x', 'base_sha256': digest}, headers={})
+            self.assertEqual(missing.status_code, 403)                      # needs the anti-CSRF header like every mutation
+            for job in (self.j(ok)['data']['job_id'], self.j(install)['data']['job_id']):
+                self.wait_job(job)
+        sent = {c['argv'][1]: json.loads(c['stdin']) for c in self.calls() if c['argv'][1] in ('cloudflare.config.set', 'system.install')}
+        self.assertEqual(sent['cloudflare.config.set'], {'content': 'tunnel: t\n', 'base_sha256': digest, 'restart': False})
+        self.assertEqual(sent['system.install'], {'name': 'rclone'})
 
     def test_detached_job_survives_the_starting_process(self):
         env = dict(os.environ, STUB_MODE='job', STUB_STEP='0.5', PYTHONPATH=os.pathsep.join(filter(None, [ROOT, os.environ.get('PYTHONPATH')])))
