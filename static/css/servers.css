@@ -116,3 +116,32 @@
   .srv-lower>.srv-add h3 { margin-top:0; }
 }
 @media(min-width:1700px) { .srv-list { grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr)); } }
+
+/* ── Servers page layout fixes ── */
+:root { --srv-bar-h: 53px; }                       /* kept exact by servers.js (ResizeObserver) */
+
+/* Cards: equal width, equal height per row, no gaps; every card has the same sections in the same order. */
+.srv-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); align-items: stretch; gap: 14px; }
+.srv-list > .srv-empty { grid-column: 1 / -1; }
+.srv-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.srv-foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }   /* action buttons line up across cards */
+.srv-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.srv-foot > .srv-actions { padding-top: 12px; border-top: 1px solid var(--line); }   /* the last row of every card */
+.srv-sections { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 34px; border-top: 0; padding-top: 0; }
+.srv-note { font-size: .8rem; }
+
+/* Facts: address, server ID and webhooks take a full row; management and last check sit side by side. */
+.srv-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.srv-facts > .srv-span { grid-column: 1 / -1; }
+.srv-facts dd { min-width: 0; }
+.srv-addr { display: block; flex: 1 1 0; min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+.srv-idrow { flex-wrap: nowrap !important; }
+.srv-id { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
+.srv-copy { flex: none; min-width: 68px; justify-content: center; text-align: center; }
+
+/* On a PC the target bar sticks to the top: the section list sticks below it and anchors never land under it. */
+@media (min-width: 901px) {
+  #tab-settings .st-nav { top: calc(var(--srv-bar-h) + 16px); max-height: calc(100vh - var(--srv-bar-h) - 32px); overflow-y: auto; overscroll-behavior: contain; z-index: 5; }
+  #tab-settings [id], #tab-settings .srv-card, #tab-settings .st-panel { scroll-margin-top: calc(var(--srv-bar-h) + 16px); }
+}
+@media (max-width: 800px) { .srv-summary { margin-top: 14px; } }

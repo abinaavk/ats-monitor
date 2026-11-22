@@ -66,6 +66,32 @@ try:
                     assert page.locator(f'#st-{section}').is_visible(),(width,theme,section)
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,section,'horizontal overflow')
                     assert page.evaluate("[...document.querySelectorAll('#st-%s button, #st-%s input')].filter(e=>e.offsetParent).every(e=>e.getBoundingClientRect().right<=innerWidth+1)"%(section,section)),(width,theme,section,'control clipped')
+                # Servers page layout invariants (cards, addresses, IDs, sticky header and section list).
+                metrics=page.evaluate('''() => {
+                    const box=e=>e.getBoundingClientRect(), cards=[...document.querySelectorAll('#serverList .srv-card')];
+                    const rows={};cards.forEach(c=>{(rows[Math.round(box(c).top+scrollY)]=rows[Math.round(box(c).top+scrollY)]||[]).push(c);});
+                    const addr=cards.map(c=>c.querySelector('.srv-addr'));
+                    const long=addr[addr.length-1];const original=long.textContent;long.textContent='https://'+'a-very-long-server-name-'.repeat(8)+'gaiasentinel.online';
+                    const probe={ellipsis:getComputedStyle(long).textOverflow==='ellipsis'&&getComputedStyle(long).whiteSpace==='nowrap',clipped:long.scrollWidth>long.clientWidth,lines:Math.round(box(long).height/parseFloat(getComputedStyle(long).lineHeight||18))};
+                    long.textContent=original;
+                    return {count:cards.length,sameWidth:new Set(cards.map(c=>Math.round(box(c).width))).size===1,
+                      equalRowHeights:Object.values(rows).every(r=>new Set(r.map(c=>Math.round(box(c).height))).size===1),
+                      sameFields:new Set(cards.map(c=>[...c.querySelectorAll('.srv-facts dt')].map(x=>x.textContent.replace(/Webhook receiver/,'Address')).join('|'))).size===1,
+                      addrTitles:addr.every(a=>a.title&&a.title.length>=a.textContent.length-1),idTitles:cards.every(c=>c.querySelector('.srv-id').title.length===32),
+                      idOneRow:cards.every(c=>Math.abs(box(c.querySelector('.srv-id')).top-box(c.querySelector('.srv-copy')).top)<8),
+                      actionsLast:cards.every(c=>c.querySelector('.srv-foot').lastElementChild.classList.contains('srv-actions')),
+                      actionGaps:new Set(cards.map(c=>Math.round(box(c).bottom-box(c.querySelector('.srv-actions')).bottom))).size===1,
+                      pillsInside:cards.every(c=>[...c.querySelectorAll('.srv-sections .srv-section')].every(p=>box(p).bottom<=box(c).bottom&&box(p).right<=box(c).right+1)),
+                      long:probe};
+                }''')
+                assert metrics['count']>=1 and metrics['sameWidth'] and metrics['equalRowHeights'] and metrics['sameFields'],(width,theme,metrics)
+                assert metrics['addrTitles'] and metrics['idTitles'] and metrics['idOneRow'] and metrics['actionsLast'] and metrics['actionGaps'] and metrics['pillsInside'],(width,theme,metrics)
+                assert metrics['long']['ellipsis'] and metrics['long']['clipped'] and metrics['long']['lines']==1,(width,theme,'address must stay on one line',metrics['long'])
+                if width>=901:   # the section list sticks below the target bar and never slides under it
+                    page.evaluate('window.scrollTo(0,500)');page.wait_for_timeout(120)
+                    gap=page.evaluate("document.getElementById('stSearch').getBoundingClientRect().top-document.querySelector('.server-control').getBoundingClientRect().bottom")
+                    page.evaluate('window.scrollTo(0,0)')
+                    assert gap>=0,(width,theme,'section list is under the sticky header',gap)
                 assert page.locator('#stGlance .st-tile').count()==4 and page.locator('#stGlance').is_visible(),(width,theme,'glance strip')
                 if width>=1440:   # a PC uses the whole page, not a narrow column
                     box=page.locator('#st-servers').bounding_box();assert box['x']+box['width']>=width-80,(width,theme,'content does not reach the right edge',box)
