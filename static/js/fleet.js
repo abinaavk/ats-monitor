@@ -40,6 +40,10 @@
         const badge = el('span', 'srv-badge', text); badge.dataset.tone = tone; state.append(badge);
         const err = live?.error || server.error;
         if (status === 'down' && err) { const why = el('div', 'fleet-why', err); why.title = err; state.append(why); }
+        const flags = el('div', 'fleet-flags');
+        if (metrics?.failed?.length) { const f = el('span', 'srv-badge', `${metrics.failed.length} failed service${metrics.failed.length === 1 ? '' : 's'}`); f.dataset.tone = 'warn'; f.title = metrics.failed.join(', '); flags.append(f); }
+        if (metrics?.alerts?.length) { const f = el('span', 'srv-badge', `${metrics.alerts.length} problem${metrics.alerts.length === 1 ? '' : 's'}`); f.dataset.tone = 'bad'; f.title = metrics.alerts.map(a => `${a.kind}: ${a.name} — ${a.message}`).join('\n'); flags.append(f); }
+        if (flags.childElementCount) state.append(flags);
         const cells = [['CPU', metrics?.cpu], ['Memory', metrics?.memory], ['Disk', metrics?.disk]].map(([label, value]) => {
             const td = el('td'); td.dataset.label = label; td.append(meter(label + ' use of ' + server.name, value)); return td;
         });
@@ -151,10 +155,20 @@
             field('Disk full at (%)', 'thresholds.disk', config.thresholds.disk, 'number', {min: 50, max: 99}),
             field('Memory full at (%)', 'thresholds.memory', config.thresholds.memory, 'number', {min: 50, max: 99}));
         form.append(limits);
+        const watch = el('fieldset', 'alert-channel'); watch.append(el('legend', '', 'What to tell me about'));
+        for (const [kind, label] of [['deployment', 'A deployment failed'], ['service', 'A service is down'], ['health', 'A health check keeps failing'], ['backup', 'A scheduled backup failed']]) {
+            const wrap = el('label', 'alert-check'); const box = el('input'); box.type = 'checkbox'; box.dataset.kind = kind; box.checked = config.watch.kinds.includes(kind); wrap.append(box, ' ' + label); watch.append(wrap);
+        }
+        const units = el('label', 'alert-check'); const unitBox = el('input'); unitBox.type = 'checkbox'; unitBox.name = 'watch.failed_units'; unitBox.checked = config.watch.failed_units; units.append(unitBox, ' A systemd service has failed'); watch.append(units);
+        watch.append(field('Ignore these units (names separated by spaces)', 'watch.ignore_units', config.watch.ignore_units.join(' ')));
+        form.append(watch);
         const read = () => {
-            const value = {ntfy: {}, telegram: {}, webhook: {}, enabled: {}, thresholds: {}};
+            const value = {ntfy: {}, telegram: {}, webhook: {}, enabled: {}, thresholds: {}, watch: {kinds: []}};
             for (const input of form.elements) {
+                if (input.dataset.kind) { if (input.checked) value.watch.kinds.push(input.dataset.kind); continue; }
                 if (!input.name) continue;
+                if (input.name === 'watch.failed_units') { value.watch.failed_units = input.checked; continue; }
+                if (input.name === 'watch.ignore_units') { value.watch.ignore_units = input.value; continue; }
                 const [group, key] = input.name.split('.');
                 if (key === 'enabled') value.enabled[group] = input.checked;
                 else if (group === 'thresholds') value.thresholds[key] = Number(input.value);
@@ -198,7 +212,26 @@
             catch (error) { say(error.message, true); } finally { go.disabled = false; }
         });
         box.append(form);
-        box.append(el('p', 'srv-hint', 'Backups stay on this server (mode 0600) and are never sent to the browser. An unencrypted backup contains private keys: keep it out of shared storage. To restore, run this on this server and restart ATS:'));
+        const offsite = el('div', 'fleet-offsite');
+        offsite.append(el('h4', '', 'Copies on other servers'));
+        if (!data.destinations.length) offsite.append(el('p', 'fleet-note', 'Pair a Global first: copies are sent to your Globals so a lost disk here does not lose the backups.'));
+        else {
+            if (data.offsite.length) { const ul = el('ul', 'fleet-events'); for (const r of data.offsite) { const li = el('li'); li.dataset.kind = r.ok ? 'recovered' : 'down'; li.append(el('time', '', clock(r.at)), el('span', '', r.ok ? `${r.server}: copy stored (encrypted)` : `${r.server}: failed — ${r.error}`)); ul.append(li); } offsite.append(ul); }
+            else { const none = el('p', 'fleet-note', 'No copy has left this server yet.'); none.dataset.tone = 'warn'; offsite.append(none); }
+            offsite.append(el('p', 'srv-hint', data.passphrase_configured ? 'The daily backup is encrypted and sent to ' + data.destinations.join(', ') + ' automatically.' : 'Copies are always encrypted. Enter a passphrase to send one now; set ATS_REGISTRY_BACKUP_PASSPHRASE_FILE on this server to do it every day without typing it.'));
+            const sendForm = el('form', 'backup-form'); sendForm.autocomplete = 'off';
+            const key = el('input'); key.type = 'password'; key.autocomplete = 'new-password'; key.placeholder = data.passphrase_configured ? 'Passphrase (optional, the configured one is used)' : 'Passphrase to encrypt the copy (8+ characters)'; key.setAttribute('aria-label', 'Passphrase to encrypt the copy');
+            const send = el('button', 'term-btn', 'Send a copy now'); send.type = 'submit';
+            sendForm.append(key, send);
+            sendForm.addEventListener('submit', async event => {
+                event.preventDefault(); send.disabled = true; say('Sending an encrypted copy…');
+                try { const r = await api.change('/api/registry-backup/offsite', key.value ? {passphrase: key.value} : {}); key.value = ''; say(r.ok ? 'Encrypted copy stored on ' + r.results.map(x => x.server).join(', ') + '.' : 'Not every copy was stored: ' + r.results.filter(x => !x.ok).map(x => `${x.server}: ${x.error}`).join('; '), !r.ok); await renderBackup(); }
+                catch (error) { say(error.message, true); } finally { send.disabled = false; }
+            });
+            offsite.append(sendForm);
+        }
+        box.append(offsite);
+        box.append(el('p', 'srv-hint', 'Backups stay on this server (mode 0600) and are never sent to the browser. An unencrypted backup contains private keys: keep it out of shared storage. To restore, run this on this server and restart ATS (to bring a copy back from a Global first: sudo python3 app.py server backup-fetch --output FILE):'));
         const cmd = el('div', 'srv-cmd'); const code = el('code', '', 'sudo python3 app.py server restore --input FILE');
         cmd.append(code, btn('Copy', 'srv-mini', () => api.copy(code.textContent, 'Command'))); box.append(cmd);
     }

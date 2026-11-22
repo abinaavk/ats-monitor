@@ -197,3 +197,13 @@
   .fleet-meter{flex:1;justify-content:flex-end}.fleet-why{max-width:60vw}
   .alert-channel .term-btn,.backup-form .term-btn,.srv-map .srv-mini{min-height:44px!important}
 }
+
+.fleet-flags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.alert-check{display:flex!important;flex-direction:row!important;align-items:center;gap:8px}
+.fleet-offsite{display:grid;gap:8px;padding-top:6px;border-top:1px solid var(--line)}
+.fleet-offsite h4{margin:0}
+/* A lone grid column otherwise grows to its widest child (a long note or input) and pushes the page wider than a phone. */
+.fleet{grid-template-columns:minmax(0,1fr)}
+.fleet-offsite{grid-template-columns:minmax(0,1fr)}
+.backup-form input,.alert-channel input{min-width:0;max-width:100%}
+.fleet .srv-hint,.fleet .fleet-note,.fleet label{overflow-wrap:anywhere}

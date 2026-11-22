@@ -18,6 +18,7 @@ fixture.setUp()
 from unittest.mock import patch as _patch
 # Key rotation on the fixture Global rewrites its pairing file; keep that inside the fixture directory.
 _pairing=_patch('ats_server_cli.default_pairing_path',return_value=fixture.root/'pairing'/'pairing.json');_pairing.start()
+_units=_patch('ats_status.failed_units',return_value=['demo.service']);_units.start()      # never read the real host's units in a test
 try:
     os.environ['ATS_ACCESS_PASSWORD']='password'
     import app as host
@@ -60,7 +61,7 @@ try:
                 page.locator('#serverList details').evaluate_all('(items)=>items.forEach(item=>item.open=true)')
                 assert page.locator('#serverList article').count()==2
                 assert page.locator('#activeServer').is_visible()
-                assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,'horizontal overflow')
+                assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,'horizontal overflow',page.evaluate("[document.documentElement.scrollWidth,innerWidth,...[...document.querySelectorAll('html,body,body *')].filter(e=>e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).overflowX==='visible'&&e.clientWidth>0).slice(0,8).map(e=>e.tagName+'.'+e.className+'#'+e.id+' scroll='+e.scrollWidth+' client='+e.clientWidth)]"))
                 form=page.locator('#pairServer').bounding_box();assert form['x']>=0 and form['x']+form['width']<=width+1
                 update=page.locator('#serverList details .cred-form').bounding_box();assert update['x']>=0 and update['x']+update['width']<=width+1
                 # Every Settings section must fit the viewport and render its content.
@@ -188,6 +189,8 @@ try:
         rows=page.locator('#fleetOverview tbody tr');assert rows.count()==2,rows.count()
         assert page.locator('#fleetOverview .srv-badge',has_text='Online').count()==2
         assert page.locator('#fleetOverview [role=meter][aria-valuenow]').count()>=6      # CPU, memory and disk for both servers
+        badge=page.locator('#fleetOverview .fleet-flags .srv-badge',has_text='1 failed service')
+        assert badge.count()==2 and badge.first.get_attribute('title')=='demo.service',badge.count()      # both servers report it, with the unit name on hover
         # Create a webhook mapping: the secret is shown once, in the page only, and never listed afterwards.
         page.locator('#serverList details').evaluate_all('(items)=>items.forEach(item=>item.open=true)')
         card=page.locator('#serverList .srv-card[data-local="0"]')
@@ -212,14 +215,30 @@ try:
         page.locator('#fleetAlerts input[name="ntfy.url"]').fill('https://ntfy.example.com/browser')
         page.locator('#fleetAlerts input[name="ntfy.token"]').fill('tk_browser1234')
         page.locator('#fleetAlerts input[name="ntfy.enabled"]').check()
+        page.locator('#fleetAlerts input[data-kind=backup]').uncheck()
+        page.locator('#fleetAlerts input[name="watch.ignore_units"]').fill('atopacct.service morphic.service')
         page.locator('#fleetAlerts button[type=submit]').click()
         page.wait_for_function("document.querySelector('#serversMessage').textContent.includes('Alert settings saved')")
         page.locator('#refreshServers').click()
         page.wait_for_function("document.querySelector('#fleetAlerts input[name=\"ntfy.token\"]')?.value==='********'")
+        assert page.locator('#fleetAlerts input[name="watch.ignore_units"]').input_value()=='atopacct.service morphic.service'
+        assert page.locator('#fleetAlerts input[data-kind=backup]').is_checked()==False and page.locator('#fleetAlerts input[data-kind=deployment]').is_checked()
         assert 'tk_browser1234' not in page.content() and 'tk_browser1234' not in page.evaluate("[...document.querySelectorAll('#fleetAlerts input')].map(i=>i.value).join()")
         # Registry backup.
         page.locator('#fleetBackup button',has_text='Back up now').click()
         page.wait_for_function("document.querySelector('#fleetBackup').innerText.includes('Newest backup')")
+        # An encrypted copy goes to the Global; plaintext cannot.
+        page.locator('#fleetBackup .fleet-offsite').wait_for()
+        assert 'No copy has left this server yet' in page.locator('#fleetBackup .fleet-offsite').inner_text()
+        page.locator('#fleetBackup .fleet-offsite input[type=password]').fill('short')
+        page.locator('#fleetBackup .fleet-offsite button',has_text='Send a copy now').click()
+        page.wait_for_function("document.querySelector('#serversMessage').textContent.includes('at least 8')")
+        page.locator('#fleetBackup .fleet-offsite input[type=password]').fill('a long enough passphrase')
+        page.locator('#fleetBackup .fleet-offsite button',has_text='Send a copy now').click()
+        page.wait_for_function("document.querySelector('#fleetBackup .fleet-offsite')?.innerText.includes('copy stored')")
+        stored=list((Path(fixture.global_store.path).parent/'offsite-backups').glob('registry-*.sqlite3.enc'))
+        assert len(stored)==1 and fixture.node['secret'].encode() not in stored[0].read_bytes()
+        assert 'a long enough passphrase' not in page.content() and 'a long enough passphrase' not in page.evaluate('JSON.stringify({...localStorage,...sessionStorage})')
         # Rotate the key on the Global over the signed channel.
         before=fixture.primary.server(fixture.node['id'])['secret']
         page.locator('#serverList details').evaluate_all('(items)=>items.forEach(item=>item.open=true)')
@@ -285,5 +304,6 @@ try:
     print(json.dumps(report,indent=2))
     server.shutdown()
 finally:
+    _units.stop()
     _pairing.stop()
     fixture.doCleanups()

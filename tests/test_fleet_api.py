@@ -49,7 +49,7 @@ class AccessTests(FleetBase):
     def test_every_route_needs_a_session_and_changes_need_the_anti_csrf_token(self):
         outsider = self.app.test_client()
         for method, path in (('get', '/api/fleet'), ('post', '/api/fleet/refresh'), ('get', '/api/alerts'), ('put', '/api/alerts'), ('post', '/api/alerts/test'),
-                             ('get', '/api/registry-backup'), ('post', '/api/registry-backup'), ('post', f'/api/servers/{self.sid}/update'),
+                             ('get', '/api/registry-backup'), ('post', '/api/registry-backup'), ('post', '/api/registry-backup/offsite'), ('post', f'/api/servers/{self.sid}/update'),
                              ('post', f'/api/servers/{self.sid}/rotate'), ('post', '/api/servers/pair-code'), ('post', f'/api/servers/{self.sid}/mappings'),
                              ('delete', '/api/mappings/o/r'), ('post', '/api/mappings/o/r/test')):
             self.assertEqual(getattr(outsider, method)(path).status_code, 401, path)
@@ -289,6 +289,54 @@ class RegistryBackupTests(FleetBase):
             made = self.post('/api/registry-backup', {'passphrase': 'a long enough passphrase'})
             self.assertTrue(made.json['encrypted'], made.json)
             self.assertNotIn('passphrase', made.get_data(as_text=True).lower().replace('"encrypted"', ''))
+
+
+class OffsiteBackupApiTests(FleetBase):
+    def test_a_copy_is_sent_to_the_global_encrypted_and_reported(self):
+        status = self.client.get('/api/registry-backup').json
+        self.assertEqual((status['offsite'], status['destinations'], status['passphrase_configured']), ([], ['Global'], False))
+        sent = self.post('/api/registry-backup/offsite', {'passphrase': 'a long enough passphrase'})
+        self.assertEqual(sent.status_code, 200, sent.json)
+        self.assertEqual([(r['server'], r['ok']) for r in sent.json['results']], [('Global', True)])
+        stored = list((Path(self.global_store.path).parent / 'offsite-backups').glob('registry-*.sqlite3.enc'))
+        self.assertEqual(len(stored), 1)
+        self.assertNotIn(self.node['secret'].encode(), stored[0].read_bytes())
+        again = self.client.get('/api/registry-backup').json
+        self.assertEqual([(r['server'], r['ok']) for r in again['offsite']], [('Global', True)])
+        self.assertNotIn(self.node['secret'], json.dumps(again))
+        self.assertIn('sent offsite', self.audit()[0]['action'].replace('_', ' '))
+
+    def test_it_will_not_send_without_a_passphrase_or_with_a_weak_one(self):
+        refused = self.post('/api/registry-backup/offsite', {})
+        self.assertEqual(refused.status_code, 400)
+        self.assertIn('always encrypted', refused.json['error'])
+        self.assertEqual(self.post('/api/registry-backup/offsite', {'passphrase': 'short'}).status_code, 400)
+        self.assertEqual(self.post('/api/registry-backup/offsite', {'passphrase': 12345678}).status_code, 400)
+        self.assertFalse((Path(self.global_store.path).parent / 'offsite-backups').exists())
+
+    def test_a_down_global_is_reported_per_server_not_as_a_crash(self):
+        self.http.shutdown()
+        self.http.server_close()
+        response = self.post('/api/registry-backup/offsite', {'passphrase': 'a long enough passphrase'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json['ok'])
+        self.assertTrue(response.json['results'][0]['error'])
+
+    def test_the_overview_carries_failed_units_and_collector_alerts(self):
+        now = time.time()
+        self.primary.kv_set('fleet_state', {self.sid: {'status': 'up', 'metrics': {'at': now, 'failed': ['atopacct.service'],
+            'alerts': [{'name': 'site', 'kind': 'deployment', 'message': 'Deployment failed'}], 'cpu': 1.0, 'memory': 2.0, 'disk': 3.0, 'ats': 'abc1234'}}})
+        server = [s for s in self.client.get('/api/fleet').json['servers'] if s['id'] == self.sid][0]
+        self.assertEqual(server['metrics']['failed'], ['atopacct.service'])
+        self.assertEqual(server['metrics']['alerts'][0]['kind'], 'deployment')
+
+    def test_watch_settings_round_trip_through_the_alerts_api(self):
+        saved = self.client.put('/api/alerts', json={'watch': {'kinds': ['deployment'], 'failed_units': True, 'ignore_units': 'atopacct.service morphic.service'}}, headers=self.csrf())
+        self.assertEqual(saved.status_code, 200, saved.json)
+        self.assertEqual(self.client.get('/api/alerts').json['config']['watch'],
+                         {'kinds': ['deployment'], 'failed_units': True, 'ignore_units': ['atopacct.service', 'morphic.service']})
+        bad = self.client.put('/api/alerts', json={'watch': {'ignore_units': 'rm -rf /'}}, headers=self.csrf())
+        self.assertEqual(bad.status_code, 400)
 
 
 class AuditTrailTests(FleetBase):
