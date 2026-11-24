@@ -139,10 +139,12 @@
 .srv-id { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
 .srv-copy { flex: none; min-width: 68px; justify-content: center; text-align: center; }
 
-/* On a PC the target bar sticks to the top: the section list sticks below it and anchors never land under it. */
+/* The vertical Settings rail is used on wide desktops only. */
 @media (min-width: 901px) {
-  #tab-settings .st-nav { top: calc(var(--srv-bar-h) + 16px); max-height: calc(100vh - var(--srv-bar-h) - 32px); overflow-y: auto; overscroll-behavior: contain; z-index: 5; }
   #tab-settings [id], #tab-settings .srv-card, #tab-settings .st-panel { scroll-margin-top: calc(var(--srv-bar-h) + 16px); }
+}
+@media (min-width: 1201px) {
+  #tab-settings .st-nav { top: calc(var(--srv-bar-h) + 16px); max-height: calc(100dvh - var(--srv-bar-h) - 32px); overflow-y: auto; overscroll-behavior: contain; z-index: 5; }
 }
 @media (max-width: 800px) { .srv-summary { margin-top: 14px; } }
 
@@ -207,3 +209,18 @@
 .fleet-offsite{grid-template-columns:minmax(0,1fr)}
 .backup-form input,.alert-channel input{min-width:0;max-width:100%}
 .fleet .srv-hint,.fleet .fleet-note,.fleet label{overflow-wrap:anywhere}
+
+/* These grids sit inside the Settings panel, which can be much narrower than
+   the viewport. Their minimum tracks must also fit a 320px phone. */
+.alert-form{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
+#pairCode{grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))}
+.srv-lower,.srv-setup,.srv-add,.srv-codebox,.fleet-scroll{min-width:0}
+.srv-help table{overflow-wrap:anywhere}
+#st-servers .term-btn{min-height:44px}
+@media(max-width:600px){
+  #st-servers .srv-mini,#st-servers .srv-section>summary,#st-servers .srv-help>summary{min-height:44px!important}
+  .srv-setup,.srv-codebox,.fleet{padding:14px}
+  .srv-lower{gap:18px}
+  .srv-facts{grid-template-columns:minmax(0,1fr)}
+  .srv-facts dd{min-width:0}
+}

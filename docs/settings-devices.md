@@ -47,7 +47,9 @@ Cookie flags follow [Flask security guidance](https://flask.palletsprojects.com/
 - **Appearance** previews each theme; the choice is stored in this browser only.
 - **Devices** shows a summary line and a card per device. **Servers** is described in `server-management.md`.
 
-On phones the section list becomes a horizontally scrollable row, cards stack in one column and confirmation dialogs open as bottom sheets.
+On phones every Settings section is visible in a grid, cards stack in one column and confirmation dialogs open as bottom sheets. The overview tiles are hidden on phones to keep the section controls and content near the top. Tablet and smaller desktop layouts put navigation above the content; wide desktops use a compact, sticky section rail below the target-server bar. Search still supports keywords, Enter, Escape and the `/` shortcut. Section links such as `#settings/devices` work on reload and when the URL fragment changes.
+
+`tests/browser_settings.py` checks all six sections at 320, 390, 600, 768, 820, 1024, 1280, 1440 and 1920 pixels in all four themes. It checks section navigation bounds, phone touch controls, long paths, profile confirmation, device details, keyboard focus, host-read retry and deep links against temporary fixtures only. Run it with the same dependencies and environment as `tests/browser_servers.py`; optionally set `SETTINGS_CAPTURE_DIR` for screenshots.
 
 ## Finding things and using the whole screen
 
@@ -59,4 +61,4 @@ flow into as many columns as fit. Server cards sit side by side on wide screens,
   anywhere on the Settings page to focus it, **Enter** to open the first match and **Esc** to clear.
 * Each section has a link you can bookmark or share: `#settings/servers`, `#settings/general`, `#settings/account`, `#settings/security`,
   `#settings/devices`, `#settings/appearance`.
-* On phones the search is a full-width row above a horizontally scrollable row of sections, and the glance tiles form a two-column grid.
+* On phones the search is a full-width row above the section grid. The glance tiles are hidden so the settings themselves appear sooner.

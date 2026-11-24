@@ -40,7 +40,6 @@ function section(name) {
         $('st-'+button.dataset.settings).hidden=!on;
     });
     message('');
-    document.querySelector('[data-settings="'+name+'"]')?.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
     try { history.replaceState(null,'','#settings/'+name); } catch(_) { /* a convenience only */ }
     if(name==='devices' || name==='security') loadDevices();
     if(name==='general') loadHost();
@@ -209,10 +208,12 @@ document.addEventListener('keydown', event => {
     event.preventDefault(); $('stSearch').focus();
 });
 document.querySelectorAll('[data-jump]').forEach(tile => tile.addEventListener('click', () => { $('stSearch').value = ''; filterSections(); section(tile.dataset.jump); }));
-{   // #settings/<section> opens Settings on that section (shareable, survives reload)
+function restoreSection() { // Deep links also work when only the URL fragment changes.
     const match = /^#settings\/(general|account|security|appearance|devices|servers)$/.exec(location.hash);
     if (match) { document.querySelector('.nav-link[data-tab="settings"]')?.click(); section(match[1]); }
 }
+window.addEventListener('hashchange', restoreSection);
+restoreSection();
 // Display expiry according to server policy. Never extend Standard sessions here.
 async function checkAuthentication() {
     try {const response=await fetch('/api/auth/status',{credentials:'same-origin'});if(response.status===401)window.location.assign('/login');}
