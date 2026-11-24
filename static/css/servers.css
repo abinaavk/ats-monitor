@@ -120,11 +120,11 @@
 /* ── Servers page layout fixes ── */
 :root { --srv-bar-h: 53px; }                       /* kept exact by servers.js (ResizeObserver) */
 
-/* Cards: equal width, equal height per row, no gaps; every card has the same sections in the same order. */
-.srv-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); align-items: stretch; gap: 14px; }
+/* Cards share a width, but each follows its own content height. */
+.srv-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); align-items: start; gap: 14px; }
 .srv-list > .srv-empty { grid-column: 1 / -1; }
 .srv-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.srv-foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }   /* action buttons line up across cards */
+.srv-foot { margin-top: 0; display: flex; flex-direction: column; gap: 12px; }
 .srv-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .srv-foot > .srv-actions { padding-top: 12px; border-top: 1px solid var(--line); }   /* the last row of every card */
 .srv-sections { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 34px; border-top: 0; padding-top: 0; }
@@ -171,7 +171,8 @@
 .fleet-events time{color:var(--text-3);font-size:.78rem;white-space:nowrap}
 .fleet-events li[data-kind=down] span,.fleet-events li[data-kind=still_down] span{color:var(--bad)}
 .fleet-events li[data-kind=warn] span{color:var(--warn)}.fleet-events li[data-kind=recovered] span{color:var(--ok)}
-.alert-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:start}
+.alert-form{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.alert-channels,.alert-rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;align-items:start;min-width:0}
 .alert-form .term-btn[type=submit]{grid-column:1/-1;justify-self:start;min-height:44px}
 .alert-channel{margin:0;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);display:grid;gap:10px;min-width:0}
 .alert-channel legend{padding:0 6px;font-weight:600;display:flex;align-items:center;gap:8px}
@@ -212,7 +213,6 @@
 
 /* These grids sit inside the Settings panel, which can be much narrower than
    the viewport. Their minimum tracks must also fit a 320px phone. */
-.alert-form{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
 #pairCode{grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))}
 .srv-lower,.srv-setup,.srv-add,.srv-codebox,.fleet-scroll{min-width:0}
 .srv-help table{overflow-wrap:anywhere}
@@ -224,3 +224,26 @@
   .srv-facts{grid-template-columns:minmax(0,1fr)}
   .srv-facts dd{min-width:0}
 }
+
+/* Mapping counts keep busy Local servers compact. The list remains keyboard scrollable. */
+.srv-mappings{width:100%;min-width:0}
+.srv-mappings>summary{cursor:pointer;display:flex;align-items:center;gap:8px;min-height:44px;font-weight:600;list-style:none}
+.srv-mappings>summary::-webkit-details-marker{display:none}
+.srv-mappings>summary::before{content:'▸';color:var(--text-3)}
+.srv-mappings[open]>summary::before{content:'▾'}
+.srv-maps{max-height:24rem;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:4px;gap:0}
+.srv-map{padding:8px 0;border-top:1px solid var(--line);align-items:center}
+.srv-map-name{flex:1 1 100%;min-width:0;overflow-wrap:anywhere;line-height:1.5}
+.srv-maps:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Text fields and checkbox rows have distinct sizes; the label supplies the touch target. */
+#fleetAlerts .alert-channel label{display:flex;flex-direction:column;gap:6px;margin:0;font-size:.86rem}
+#fleetAlerts .alert-channel .alert-check{flex-direction:row;gap:10px;min-height:44px;cursor:pointer;line-height:1.5}
+#fleetAlerts input[type=checkbox]{display:block;flex:0 0 18px;width:18px;height:18px;min-height:18px;padding:0;margin:0;accent-color:var(--accent)}
+#fleetAlerts .alert-check span{min-width:0;overflow-wrap:normal}
+#fleetAlerts .alert-channel input:not([type=checkbox]),#fleetBackup input{margin:0}
+#fleetAlerts .alert-channel legend{padding:0 6px;font-size:.86rem;max-width:100%}
+#fleetAlerts .alert-channel legend .alert-check{margin:0}
+#fleetAlerts .alert-watch{gap:4px}
+#fleetAlerts .alert-watch>label:last-child{margin-top:8px}
+#st-servers .fleet-head h3{margin:0}
+#st-servers .fleet .srv-hint,#st-servers .fleet .fleet-note{margin:0}

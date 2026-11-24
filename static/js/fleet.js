@@ -134,7 +134,8 @@
         const channel = (key, title, fields) => {
             const set = el('fieldset', 'alert-channel'); const legend = el('legend');
             const on = el('input'); on.type = 'checkbox'; on.name = key + '.enabled'; on.checked = !!config.enabled[key];
-            legend.append(on, ' ' + title); set.append(legend, ...fields);
+            const toggle = el('label', 'alert-check'); toggle.append(on, el('span', '', title));
+            legend.append(toggle); set.append(legend, ...fields);
             const test = btn('Send test', 'srv-mini', async () => {
                 test.disabled = true; say('Sending a test alert…');
                 try {
@@ -146,22 +147,25 @@
             });
             set.append(test); return set;
         };
-        form.append(
+        const channels = el('div', 'alert-channels');
+        channels.append(
             channel('ntfy', 'ntfy', [field('Topic address (https://ntfy.sh/your-topic)', 'ntfy.url', config.ntfy.url, 'url'), field('Access token (optional)', 'ntfy.token', config.ntfy.token, 'password')]),
             channel('telegram', 'Telegram', [field('Bot token', 'telegram.token', config.telegram.token, 'password'), field('Chat ID', 'telegram.chat_id', config.telegram.chat_id)]),
             channel('webhook', 'Webhook', [field('HTTPS address (receives JSON: title, message, level)', 'webhook.url', config.webhook.url, 'password')]));
+        form.append(channels);
+        const rules = el('div', 'alert-rules');
         const limits = el('fieldset', 'alert-channel'); limits.append(el('legend', '', 'When to alert'));
         limits.append(field('Down after this many failed checks (1 per minute)', 'thresholds.failures', config.thresholds.failures, 'number', {min: 1, max: 20}),
             field('Disk full at (%)', 'thresholds.disk', config.thresholds.disk, 'number', {min: 50, max: 99}),
             field('Memory full at (%)', 'thresholds.memory', config.thresholds.memory, 'number', {min: 50, max: 99}));
-        form.append(limits);
-        const watch = el('fieldset', 'alert-channel'); watch.append(el('legend', '', 'What to tell me about'));
+        rules.append(limits);
+        const watch = el('fieldset', 'alert-channel alert-watch'); watch.append(el('legend', '', 'What to tell me about'));
         for (const [kind, label] of [['deployment', 'A deployment failed'], ['service', 'A service is down'], ['health', 'A health check keeps failing'], ['backup', 'A scheduled backup failed']]) {
-            const wrap = el('label', 'alert-check'); const box = el('input'); box.type = 'checkbox'; box.dataset.kind = kind; box.checked = config.watch.kinds.includes(kind); wrap.append(box, ' ' + label); watch.append(wrap);
+            const wrap = el('label', 'alert-check'); const box = el('input'); box.type = 'checkbox'; box.dataset.kind = kind; box.checked = config.watch.kinds.includes(kind); wrap.append(box, el('span', '', label)); watch.append(wrap);
         }
-        const units = el('label', 'alert-check'); const unitBox = el('input'); unitBox.type = 'checkbox'; unitBox.name = 'watch.failed_units'; unitBox.checked = config.watch.failed_units; units.append(unitBox, ' A systemd service has failed'); watch.append(units);
+        const units = el('label', 'alert-check'); const unitBox = el('input'); unitBox.type = 'checkbox'; unitBox.name = 'watch.failed_units'; unitBox.checked = config.watch.failed_units; units.append(unitBox, el('span', '', 'A systemd service has failed')); watch.append(units);
         watch.append(field('Ignore these units (names separated by spaces)', 'watch.ignore_units', config.watch.ignore_units.join(' ')));
-        form.append(watch);
+        rules.append(watch); form.append(rules);
         const read = () => {
             const value = {ntfy: {}, telegram: {}, webhook: {}, enabled: {}, thresholds: {}, watch: {kinds: []}};
             for (const input of form.elements) {

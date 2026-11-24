@@ -48,3 +48,20 @@ and forwards it over signed HTTPS to the mapped Global (or updates a Local servi
 Settings → Servers (never with their secrets). In Manage → a service → Webhook, **Central receiver** shows whether that service is mapped;
 if not, the page shows the command to run on the Local (`server map --from-service NAME`), which reuses the service's existing secret so a GitHub
 webhook that already uses the payload URL and secret needs no change. For a Global service use `server map … --generate-secret`.
+
+
+### Busy Settings pages
+
+Server cards follow their own content height. Each populated webhook list starts
+collapsed with its mapping count; expand it to use Test or Delete. Long lists
+scroll within the card and can be reached and scrolled from the keyboard.
+Alert channels share a responsive grid, followed by the thresholds and event
+choices. Checkbox labels provide 44px touch targets while the checkbox itself
+keeps its normal size. Backup fields align with their buttons.
+
+`tests/browser_dense_settings.py` adds a three-server fixture with 24 Local
+webhooks. It checks nine viewport widths across all four themes, normal checkbox
+sizes, label targets, keyboard expansion/scrolling, and independent card heights.
+Use the same environment as `tests/browser_settings.py`; set `DENSE_CAPTURE_DIR`
+to save previews. Optional `DENSE_BASELINE_ASSETS` points to a prior `static/`
+snapshot to record a before comparison without applying the new assertions.
