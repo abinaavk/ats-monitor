@@ -62,6 +62,7 @@ try:
                 assert page.locator('#serverList article').count()==2
                 assert page.locator('#activeServer').is_visible()
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,'horizontal overflow',page.evaluate("[document.documentElement.scrollWidth,innerWidth,...[...document.querySelectorAll('html,body,body *')].filter(e=>e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).overflowX==='visible'&&e.clientWidth>0).slice(0,8).map(e=>e.tagName+'.'+e.className+'#'+e.id+' scroll='+e.scrollWidth+' client='+e.clientWidth)]"))
+                page.locator('#globalSetup, #pairingFile').evaluate_all('(items)=>items.forEach(e=>e.open=true)')
                 form=page.locator('#pairServer').bounding_box();assert form['x']>=0 and form['x']+form['width']<=width+1
                 update=page.locator('#serverList details .cred-form').bounding_box();assert update['x']>=0 and update['x']+update['width']<=width+1
                 # Every Settings section must fit the viewport and render its content.
