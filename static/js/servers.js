@@ -75,12 +75,14 @@
     const focusPairing = prefill => {
         const form = document.getElementById('pairServer');
         if (prefill) {
+            document.getElementById('pairingFile').open = true;
             form.elements.serverName.value = prefill.name || '';
             form.elements.serverDomain.value = prefill.domain || '';
             form.elements.serverId.value = prefill.id || '';
         }
-        document.getElementById('addServer').scrollIntoView({behavior:'smooth', block:'start'});
-        document.getElementById('pairPaste').focus({preventScroll:true});
+        const target = prefill ? document.getElementById('pairPaste') : document.querySelector('#pairCode input');
+        target.focus({preventScroll:true});
+        target.scrollIntoView({behavior:'smooth', block:'center'});
     };
     const fact = (label, ...content) => {
         const wrap = el('div'); wrap.append(el('dt', '', label)); const value = el('dd'); value.append(...content); wrap.append(value);
