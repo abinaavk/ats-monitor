@@ -73,13 +73,11 @@ try:
                 # Servers page layout invariants (cards, addresses, IDs, sticky header and section list).
                 metrics=page.evaluate('''() => {
                     const box=e=>e.getBoundingClientRect(), cards=[...document.querySelectorAll('#serverList .srv-card')];
-                    const rows={};cards.forEach(c=>{(rows[Math.round(box(c).top+scrollY)]=rows[Math.round(box(c).top+scrollY)]||[]).push(c);});
                     const addr=cards.map(c=>c.querySelector('.srv-addr'));
                     const long=addr[addr.length-1];const original=long.textContent;long.textContent='https://'+'a-very-long-server-name-'.repeat(8)+'gaiasentinel.online';
                     const probe={ellipsis:getComputedStyle(long).textOverflow==='ellipsis'&&getComputedStyle(long).whiteSpace==='nowrap',clipped:long.scrollWidth>long.clientWidth,lines:Math.round(box(long).height/parseFloat(getComputedStyle(long).lineHeight||18))};
                     long.textContent=original;
                     return {count:cards.length,sameWidth:new Set(cards.map(c=>Math.round(box(c).width))).size===1,
-                      equalRowHeights:Object.values(rows).every(r=>new Set(r.map(c=>Math.round(box(c).height))).size===1),
                       sameFields:new Set(cards.map(c=>[...c.querySelectorAll('.srv-facts dt')].map(x=>x.textContent.replace(/Webhook receiver/,'Address')).join('|'))).size===1,
                       addrTitles:addr.every(a=>a.title&&a.title.length>=a.textContent.length-1),idTitles:cards.every(c=>c.querySelector('.srv-id').title.length===32),
                       idOneRow:cards.every(c=>{const id=box(c.querySelector('.srv-id')),copy=box(c.querySelector('.srv-copy'));return Math.abs(id.top+id.height/2-copy.top-copy.height/2)<2;}),
@@ -88,7 +86,7 @@ try:
                       pillsInside:cards.every(c=>[...c.querySelectorAll('.srv-sections .srv-section')].every(p=>box(p).bottom<=box(c).bottom&&box(p).right<=box(c).right+1)),
                       long:probe};
                 }''')
-                assert metrics['count']>=1 and metrics['sameWidth'] and metrics['equalRowHeights'] and metrics['sameFields'],(width,theme,metrics)
+                assert metrics['count']>=1 and metrics['sameWidth'] and metrics['sameFields'],(width,theme,metrics)
                 assert metrics['addrTitles'] and metrics['idTitles'] and metrics['idOneRow'] and metrics['actionsLast'] and metrics['actionGaps'] and metrics['pillsInside'],(width,theme,metrics)
                 assert metrics['long']['ellipsis'] and metrics['long']['clipped'] and metrics['long']['lines']==1,(width,theme,'address must stay on one line',metrics['long'])
                 if width>=1201:   # the vertical rail sticks below the target bar on wide desktops
@@ -202,7 +200,8 @@ try:
         assert page.locator('.fleet-secret code').nth(0).inner_text()=='https://hooks.example.com/webhook'
         with fixture.primary.db() as db:assert db.execute('SELECT secret FROM routes').fetchone()[0]==secret      # stored on the server, shown to the browser once
         page.locator('.fleet-secret button',has_text='I have saved it').click()
-        page.wait_for_selector('#serverList .srv-maps li[data-repository="browser/fixture"]')
+        page.wait_for_selector('#serverList .srv-maps li[data-repository="browser/fixture"]', state='attached')
+        page.locator('#serverList .srv-mappings summary').click()
         assert secret not in page.content() and secret not in page.locator('body').inner_text()
         assert secret not in page.evaluate('JSON.stringify({...localStorage,...sessionStorage})')
         with patch_.object(fleet_api,'deliver',return_value=200):

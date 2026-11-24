@@ -126,8 +126,15 @@
             const [mapRow, mapValue] = fact('GitHub webhooks');
             if (mapped.length) {
                 const ul = el('ul', 'srv-maps');
-                for (const item of mapped) { const li = el('li', 'srv-mono', `${item.repository} → ${item.service} @ ${item.branch}`); li.dataset.repository = item.repository; ul.append(li); }
-                mapValue.append(ul);
+                ul.tabIndex = 0; ul.setAttribute('aria-label', 'Webhook mappings for ' + server.name);
+                for (const item of mapped) {
+                    const li = el('li'); li.dataset.repository = item.repository;
+                    li.append(el('span', 'srv-mono srv-map-name', `${item.repository} → ${item.service} @ ${item.branch}`));
+                    ul.append(li);
+                }
+                const details = el('details', 'srv-mappings');
+                details.append(el('summary', '', `${mapped.length} webhook mapping${mapped.length === 1 ? '' : 's'}`), ul);
+                mapValue.append(details);
             } else mapValue.append(el('span', 'srv-muted', server.local ? 'None mapped. Map a service: server map --from-service NAME' : 'None mapped. On this server: server map --generate-secret'));
             for (const row of [addressRow, idRow, mapRow]) row.classList.add('srv-span');
             facts.append(addressRow, idRow, adapterRow, lastRow, mapRow);

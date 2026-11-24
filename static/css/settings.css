@@ -21,7 +21,7 @@
 .st-panel .st-note { font-size:.875rem; color:var(--text-3); margin:18px 0 0; }
 .st-panel .term-btn,.st-dialog .term-btn { min-height:44px; padding:10px 14px; font:.875rem/1.4 var(--sans); white-space:normal; }
 .st-panel label,.st-dialog label { display:block; font:500 .9375rem/1.5 var(--sans); margin-bottom:8px; }
-.st-panel input,.st-dialog input { display:block; width:100%; min-width:0; max-width:100%; min-height:44px; padding:12px; margin-bottom:16px; font:16px var(--sans); border-radius:var(--r); }
+.st-panel input:not([type=checkbox]):not([type=radio]),.st-dialog input:not([type=checkbox]):not([type=radio]) { display:block; width:100%; min-width:0; max-width:100%; min-height:44px; padding:12px; margin-bottom:16px; font:16px var(--sans); border-radius:var(--r); }
 .st-panel :is(button,input,textarea,summary):focus-visible,.st-nav :is(button,input):focus-visible,.st-dialog :is(button,input):focus-visible,.st-audit:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .st-heading { display:flex; gap:16px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; }
 .st-heading > div:first-child { min-width:0; flex:1 1 260px; }
