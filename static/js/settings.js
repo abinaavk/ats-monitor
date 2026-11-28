@@ -166,7 +166,7 @@ const strength = value => { let score = Math.min(value.length, 20) / 20 * 55; fo
 $('stNewPw').addEventListener('input',()=>{
     const value = $('stNewPw').value, score = value ? strength(value) : 0;
     $('stPwBar').style.width = score+'%'; $('stPwBar').dataset.level = score < 45 ? 'weak' : score < 75 ? 'fair' : 'strong';
-    $('stPwHint').textContent = !value ? 'At least 10 characters.' : value.length < 10 ? `${10-value.length} more character${10-value.length===1?'':'s'} needed.` : score < 75 ? 'Acceptable. Longer or mixed characters are stronger.' : 'Strong.';
+    $('stPwHint').textContent = !value ? 'No minimum length. Longer passwords are stronger.' : score < 75 ? 'Longer or mixed characters can make this password stronger.' : 'Strong.';
 });
 $('stPwToggle').addEventListener('click',()=>{
     const show = $('stNewPw').type === 'password';
@@ -176,7 +176,7 @@ $('stPwToggle').addEventListener('click',()=>{
 $('stPwForm').addEventListener('submit',event=>{
     event.preventDefault();
     const value = $('stNewPw').value;
-    if (value.length < 10) { message('The new password must be at least 10 characters.',true); return; }
+    if (!value) { message('Enter a new password.',true); return; }
     if (value !== $('stNewPw2').value) { message('The two new passwords do not match.',true); return; }
     confirmChange('Change administrator password','Enter your current password to confirm. Every other device will be signed out; this one stays signed in.','/api/settings/password',{new_password:value});
     $('stNewPw').value=''; $('stNewPw2').value=''; $('stNewPw').dispatchEvent(new Event('input'));

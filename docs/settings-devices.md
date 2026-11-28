@@ -40,7 +40,7 @@ Cookie flags follow [Flask security guidance](https://flask.palletsprojects.com/
   webhook receiver, defaults for new services, Google Drive backups) as read-only cards, loaded when the section opens.
   *Edit host settings* and *Cloudflare…* open the existing editors in Manage.
 - **Account** has the shared display name, **Change password** and the current session. Changing the password needs the
-  current password (rate limited), requires at least 10 characters, signs out every other device (including trusted ones) and
+  current password (rate limited), accepts any nonempty password up to 1024 characters, signs out every other device (including trusted ones) and
   keeps this device signed in. It is recorded in the security activity as `password_changed`; passwords are never logged.
   New installations still start from the first-run default, so change it here.
 - **Security** summarises the current session (standard or trusted, with time left) and device counts, and highlights the policy in effect.

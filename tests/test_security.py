@@ -160,8 +160,8 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(self.a.post('/api/settings/password',json={'password':'test-password','new_password':new}).status_code,403)
         self.assertEqual(self.a.post('/api/settings/password',json={'password':'wrong','new_password':new},headers=headers).status_code,403)
         self.assertEqual(self.a.post('/api/settings/password',json={'password':'test-password','new_password':new},headers={**headers,'Origin':'http://evil.test'}).status_code,403)
-        # Weak, unchanged or malformed passwords are refused.
-        for bad in ('short',123,None,'test-password','x'*1025):
+        # Empty, unchanged or malformed passwords are refused.
+        for bad in ('',123,None,'test-password','x'*1025):
             self.assertEqual(self.a.post('/api/settings/password',json={'password':'test-password','new_password':bad},headers=headers).status_code,400,bad)
         self.assertEqual(self.a.post('/api/settings/password',json={'password':'test-password','new_password':new},headers=headers).status_code,200)
         self.assertEqual(self.a.get('/api/settings').status_code,200)       # this device stays signed in
@@ -175,6 +175,22 @@ class SecurityTests(unittest.TestCase):
         actions=[e['action'] for e in self.a.get('/api/settings/devices').json['audit']]
         self.assertIn('password_changed',actions)
         self.assertNotIn(new,str(self.a.get('/api/settings/devices').json))
+
+    def test_password_changes_accept_nonempty_lengths_and_preserve_exact_value(self):
+        self.login(self.a)
+        current='test-password'
+        for new in ('a', 'ninechars', 'tenletters', '🔐', ' spaced ', 'x'*1024):
+            with self.subTest(length=len(new)):
+                csrf=self.a.get('/api/settings').json['csrf_token']
+                response=self.a.post('/api/settings/password',
+                    json={'password':current,'new_password':new},headers={'X-CSRF-Token':csrf})
+                self.assertEqual(response.status_code,200)
+                # A fresh app verifies that the exact password persists across restarts.
+                fresh=self.make_app().test_client()
+                token=self.form_token(fresh.get('/login'))
+                self.assertEqual(fresh.post('/login',data={'password':new,'csrf_token':token}).status_code,302)
+                # The short password also authorizes subsequent confirmed changes.
+                current=new
 
     def test_logout_cannot_silently_reauthenticate(self):
         did=self.login(self.a);self.trust(self.a,did)
