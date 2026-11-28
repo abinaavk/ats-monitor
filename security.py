@@ -343,8 +343,8 @@ def init_app(app, legacy_password):
         data,error=require_change()  # verifies the CSRF token, same origin and the CURRENT password
         if error: return error
         new=data.get('new_password')
-        if not isinstance(new,str) or not 10 <= len(new) <= 1024:
-            return jsonify(error='The new password must be 10–1024 characters long'),400
+        if not isinstance(new,str) or not 1 <= len(new) <= 1024:
+            return jsonify(error='Enter a nonempty new password of at most 1024 characters'),400
         if new == data.get('password'):
             return jsonify(error='Choose a password different from the current one'),400
         with database() as db:

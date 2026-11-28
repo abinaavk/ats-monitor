@@ -427,10 +427,10 @@
         <div class="st-grid">
           <article class="st-card"><div class="st-profile"><div class="st-avatar" id="stAvatar" aria-hidden="true">A</div><div><h3>Profile</h3><p class="st-muted">A label shown across devices. It does not change the login password.</p></div></div>
             <form id="stProfile"><label for="stDisplayName">Display name</label><input class="filter-input" id="stDisplayName" maxlength="80" required autocomplete="nickname"><button class="term-btn" type="submit">Save profile</button></form></article>
-          <article class="st-card"><h3>Password</h3><p class="st-muted">Use at least 10 characters. Changing it signs out every other device; this one stays signed in.</p>
-            <form id="stPwForm" autocomplete="off"><label for="stNewPw">New password</label><div class="st-pw"><input class="filter-input" id="stNewPw" type="password" minlength="10" maxlength="1024" required autocomplete="new-password"><button class="term-btn st-mini" id="stPwToggle" type="button" aria-pressed="false">Show</button></div>
-              <div class="st-meter" aria-hidden="true"><span id="stPwBar"></span></div><p class="st-muted" id="stPwHint">At least 10 characters.</p>
-              <label for="stNewPw2">Repeat new password</label><input class="filter-input" id="stNewPw2" type="password" minlength="10" maxlength="1024" required autocomplete="new-password">
+          <article class="st-card"><h3>Password</h3><p class="st-muted">Choose a password of any length, up to 1024 characters. Changing it signs out every other device; this one stays signed in.</p>
+            <form id="stPwForm" autocomplete="off"><label for="stNewPw">New password</label><div class="st-pw"><input class="filter-input" id="stNewPw" type="password" maxlength="1024" required autocomplete="new-password"><button class="term-btn st-mini" id="stPwToggle" type="button" aria-pressed="false">Show</button></div>
+              <div class="st-meter" aria-hidden="true"><span id="stPwBar"></span></div><p class="st-muted" id="stPwHint">No minimum length. Longer passwords are stronger.</p>
+              <label for="stNewPw2">Repeat new password</label><input class="filter-input" id="stNewPw2" type="password" maxlength="1024" required autocomplete="new-password">
               <button class="term-btn" type="submit">Change password…</button></form></article>
           <article class="st-card"><h3>This session</h3><p id="stSessionInfo" class="st-muted">Checking…</p></article>
         </div>
