@@ -310,9 +310,7 @@
             const data=await load();
             let id=localStorage.getItem(selectedKey);
             if(!id){id=data.primary_id;localStorage.setItem(selectedKey,id);}
-            for(const server of data.servers){
-                const option=new Option(`${server.name} · ${server.local?'Local':'Global'}`,server.id);selector.add(option);
-            }
+            selector.replaceChildren(...data.servers.map(server=>new Option(`${server.name} · ${server.local?'Local':'Global'}`,server.id)));
             let selected=data.servers.find(s=>s.id===id);
             if(!selected){selector.add(new Option('Selected server unavailable',id));selected={id,local:0,connected:0};}
             selector.value=id;selector.title=selector.selectedOptions[0]?.textContent || '';selector.disabled=false;window.atsTarget=Object.freeze(selected);
@@ -324,7 +322,11 @@
             const section=sessionStorage.getItem('ats.settingsSection');
             if(tab==='settings'&&section)document.querySelector(`[data-settings="${CSS.escape(section)}"]`)?.click();
             return selected;
-        }catch(error){setStatus('Unavailable', 'offline');show(error.message,true);throw error;}
+        }catch(error){
+            selector.replaceChildren(new Option('Servers unavailable', ''));
+            selector.disabled=true;selector.title='Servers unavailable';
+            setStatus('Unavailable', 'offline');show(error.message,true);throw error;
+        }
     })();
     // Avoid an unhandled rejection while every target request remains fail-closed.
     window.atsServerReady.catch(()=>{});

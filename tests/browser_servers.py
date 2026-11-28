@@ -49,6 +49,11 @@ try:
         assert response.ok,response.text()
         page.goto(origin)
         page.wait_for_selector('#activeServer:not([disabled])')
+        # Startup must show the real target and only real server entries.
+        assert page.locator('#activeServer option').count()==2
+        assert page.locator('#activeServer option:checked').inner_text().endswith(' · Local')
+        assert page.locator('#activeServer').input_value()==page.evaluate('window.atsTarget.id')
+        assert 'Loading servers' not in page.locator('#activeServer').inner_text()
         # No fixture credentials may appear in any web storage.
         assert fixture.node['secret'] not in page.evaluate('JSON.stringify({...localStorage,...sessionStorage})')
         for width,height in [(360,800),(390,844),(768,1024),(1440,1000),(1920,1080)]:
