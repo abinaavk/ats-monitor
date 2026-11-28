@@ -11,6 +11,10 @@
     if (bar && window.ResizeObserver) new ResizeObserver(() => document.documentElement.style.setProperty('--srv-bar-h', Math.ceil(bar.getBoundingClientRect().height) + 'px')).observe(bar);
     const selector = document.getElementById('activeServer');
     const status = document.getElementById('activeServerStatus');
+    const setStatus = (text, state = 'pending') => {
+        status.textContent = text;
+        status.dataset.state = state;
+    };
     const message = document.getElementById('serversMessage');
     const hostRoutes = path => ['/api/overview','/api/logs','/api/database','/api/stats','/api/audit'].includes(path) || path.startsWith('/api/manage/') || path.startsWith('/api/docker/');
     const show = (text, bad=false) => { message.textContent=text; message.classList.toggle('error',bad); };
@@ -293,6 +297,7 @@
             selector.replaceChildren(...data.servers.map(server=>new Option(`${server.name} · ${server.local?'Local':'Global'}`,server.id)));
             if(!data.servers.some(server=>server.id===id))selector.add(new Option('Selected server unavailable',id));
             selector.value=id;
+            selector.title=selector.selectedOptions[0]?.textContent || '';
         }
         return data;
     }
@@ -310,16 +315,16 @@
             }
             let selected=data.servers.find(s=>s.id===id);
             if(!selected){selector.add(new Option('Selected server unavailable',id));selected={id,local:0,connected:0};}
-            selector.value=id;selector.disabled=false;window.atsTarget=Object.freeze(selected);
-            status.textContent=selected.connected?'Checking':'Disconnected';
-            json(`/api/servers/${id}/health`).then(result=>{status.textContent=result.management_ready===false?'API online · Adapter missing':'Online';}).catch(()=>{status.textContent='Offline';});
+            selector.value=id;selector.title=selector.selectedOptions[0]?.textContent || '';selector.disabled=false;window.atsTarget=Object.freeze(selected);
+            setStatus(selected.connected?'Checking':'Disconnected', selected.connected?'pending':'attention');
+            json(`/api/servers/${id}/health`).then(result=>{setStatus(result.management_ready===false?'API online · Adapter missing':'Online', result.management_ready===false?'attention':'online');}).catch(()=>{setStatus('Offline', 'offline');});
             // Preserve navigation across target changes, never service panels or job dialogs.
             const tab=sessionStorage.getItem('ats.activeTab');
             if(tab)document.querySelector(`.nav-link[data-tab="${CSS.escape(tab)}"]`)?.click();
             const section=sessionStorage.getItem('ats.settingsSection');
             if(tab==='settings'&&section)document.querySelector(`[data-settings="${CSS.escape(section)}"]`)?.click();
             return selected;
-        }catch(error){status.textContent='Unavailable';show(error.message,true);throw error;}
+        }catch(error){setStatus('Unavailable', 'offline');show(error.message,true);throw error;}
     })();
     // Avoid an unhandled rejection while every target request remains fail-closed.
     window.atsServerReady.catch(()=>{});
@@ -339,8 +344,8 @@
         try {response=await originalFetch(request,{headers,signal:combined.signal});}
         finally {request.signal.removeEventListener('abort',abort);controller.signal.removeEventListener('abort',abort);}
         if(switching)throw new DOMException('Server changed','AbortError');
-        if(response.status===503)status.textContent='Offline';
-        else if(response.ok)status.textContent='Online';
+        if(response.status===503)setStatus('Offline', 'offline');
+        else if(response.ok)setStatus('Online', 'online');
         return response;
     };
     selector.addEventListener('change',()=>{
