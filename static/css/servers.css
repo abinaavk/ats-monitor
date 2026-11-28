@@ -1,7 +1,57 @@
-.server-control{display:flex;align-items:center;gap:10px;padding:8px clamp(12px,3vw,40px);border-bottom:1px solid var(--line);background:var(--surface);flex-wrap:wrap;font-size:12px}
-.server-control label{font-weight:600}.server-control select{max-width:min(60vw,360px);min-height:36px;background:var(--bg);color:var(--text-1);border:1px solid var(--line);border-radius:5px;padding:6px}
-#activeServerStatus{margin-left:auto}#pairServer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:720px}#pairServer label{display:flex;flex-direction:column;gap:6px;min-width:0}#pairServer input{width:100%;box-sizing:border-box;min-height:44px;padding:10px;color:var(--text-1);background:var(--bg);border:1px solid var(--line);border-radius:5px}#serversMessage{min-height:1.5em;overflow-wrap:anywhere}#serverList{margin-top:20px}#serverList button{margin:4px 8px 4px 0}.error{color:var(--bad)}
-@media(max-width:600px){#pairServer{grid-template-columns:1fr}.server-control{gap:6px}.server-control select{flex:1;min-width:0}#activeServerStatus{font-size:11px}}
+/* The native select keeps keyboard and mobile platform behavior. */
+.server-control {
+    display:flex; align-items:center; flex-wrap:wrap; gap:12px 20px;
+    padding:12px var(--pad); border-bottom:1px solid var(--line);
+    background:var(--surface);
+}
+.server-picker { position:relative; flex:0 1 340px; min-width:0; max-width:100%; }
+.server-picker label {
+    position:absolute; top:8px; left:52px; z-index:1; pointer-events:none;
+    color:var(--text-2); font-size:10px; font-weight:600; line-height:14px;
+    letter-spacing:.08em; text-transform:uppercase;
+}
+.server-picker select {
+    display:block; appearance:none; width:100%; min-width:0; min-height:60px;
+    padding:24px 38px 10px 52px; border:1px solid var(--line-2); border-radius:10px;
+    background:var(--bg); color:var(--text-1); font:600 14px/24px var(--sans);
+    text-overflow:ellipsis; cursor:pointer;
+}
+.server-picker select:hover:not(:disabled) { border-color:var(--accent); background:var(--surface-2); }
+.server-picker select:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.server-picker select:disabled { cursor:wait; color:var(--text-2); }
+.server-picker option { background:var(--surface); color:var(--text-1); }
+.server-picker-icon {
+    position:absolute; left:14px; top:20px; width:22px; height:22px;
+    color:var(--accent); pointer-events:none;
+}
+.server-picker-chevron {
+    position:absolute; right:14px; top:23px; width:16px; height:16px;
+    color:var(--text-2); pointer-events:none;
+}
+#activeServerStatus {
+    display:inline-flex; align-items:center; gap:7px; max-width:100%; margin-left:auto;
+    padding:5px 10px; border:1px solid var(--line); border-radius:999px;
+    color:var(--text-2); background:var(--bg); font-size:12px; line-height:18px;
+    overflow-wrap:anywhere;
+}
+#activeServerStatus::before { content:''; width:6px; height:6px; flex:none; border-radius:50%; background:currentColor; }
+#activeServerStatus[data-state=online] { color:var(--ok); background:var(--ok-soft); border-color:transparent; }
+#activeServerStatus[data-state=attention] { color:var(--warn); background:var(--warn-soft); border-color:transparent; }
+#activeServerStatus[data-state=offline] { color:var(--bad); background:var(--bad-soft); border-color:transparent; }
+@media(max-width:600px) {
+    .server-control { gap:10px; }
+    .server-picker { flex-basis:100%; }
+    .server-picker select { font-size:16px; }
+    #activeServerStatus { margin-left:0; }
+}
+@media(forced-colors:active) {
+    .server-picker select { appearance:auto; }
+    .server-picker-chevron { display:none; }
+    #activeServerStatus { border-color:CanvasText; }
+}
+
+#pairServer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:720px}#pairServer label{display:flex;flex-direction:column;gap:6px;min-width:0}#pairServer input{width:100%;box-sizing:border-box;min-height:44px;padding:10px;color:var(--text-1);background:var(--bg);border:1px solid var(--line);border-radius:5px}#serversMessage{min-height:1.5em;overflow-wrap:anywhere}#serverList{margin-top:20px}#serverList button{margin:4px 8px 4px 0}.error{color:var(--bad)}
+@media(max-width:600px){#pairServer{grid-template-columns:1fr}}
 
 @media(min-width:901px){.server-control{margin-left:var(--side-w);position:sticky;top:0;z-index:20}}
 
